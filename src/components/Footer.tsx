@@ -75,7 +75,7 @@ export function Footer({ onNavigate }: FooterProps) {
           <div>
             <h4 className="font-bold text-gold-400 mb-4">الفئات</h4>
             <ul className="space-y-3">
-              {['رياض الأطفال', 'الصف الثالث', 'المرحلة الابتدائية', 'المرحلة المتوسطة', 'بطاقات ثنائية اللغة'].map((cat, i) => (
+              {['الطور التحضيري', 'الطور الابتدائي', 'الطور المتوسط', 'فلاش كاردز إنجليزية', 'فلاش كاردز فرنسية'].map((cat, i) => (
                 <li key={i}>
                   <button
                     onClick={() => onNavigate?.('products')}

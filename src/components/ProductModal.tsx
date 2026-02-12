@@ -17,7 +17,6 @@ export function ProductModal({ product, onClose, onBuyNow }: ProductModalProps) 
   const languageLabel = {
     english: 'إنجليزي',
     french: 'فرنسي',
-    both: 'ثنائي اللغة (إنجليزي + فرنسي)'
   };
 
   const handleAdd = () => {

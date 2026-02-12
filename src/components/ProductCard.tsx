@@ -16,7 +16,6 @@ export function ProductCard({ product, onViewDetails, onBuyNow, index = 0 }: Pro
   const languageLabel = {
     english: { text: 'إنجليزي', color: 'bg-blue-100 text-blue-700' },
     french: { text: 'فرنسي', color: 'bg-purple-100 text-purple-700' },
-    both: { text: 'ثنائي اللغة', color: 'bg-amber-100 text-amber-700' }
   };
 
   const gradeLabel: Record<string, { text: string; color: string }> = {

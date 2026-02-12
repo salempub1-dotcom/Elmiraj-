@@ -266,7 +266,6 @@ function AppContent() {
                   { id: null, label: 'كل اللغات' },
                   { id: 'english', label: '🇬🇧 إنجليزي' },
                   { id: 'french', label: '🇫🇷 فرنسي' },
-                  { id: 'both', label: '🌍 ثنائي' },
                 ].map(lang => (
                   <button
                     key={lang.id || 'all'}

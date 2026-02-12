@@ -9,7 +9,7 @@ export interface Product {
   category: string;
   grade: 'preparatory' | 'elementary' | 'middle';
   year?: number; // السنة داخل الطور
-  language: 'english' | 'french' | 'both';
+  language: 'english' | 'french';
   cardCount: number;
   benefits: string[];
   inStock: boolean;

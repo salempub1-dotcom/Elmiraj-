@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Ensure React is imported
+import React from 'react'; // Keep React import
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Categories from './components/Categories';
@@ -8,45 +8,27 @@ import Footer from './components/Footer';
 import AdminDashboard from './components/admin/AdminDashboard';
 import './App.css';
 
-// A simple component to render the main website layout
-const MainSite = () => (
-  <div className="App">
-    <Navbar />
-    <Hero />
-    <Categories />
-    <FeaturedProducts />
-    <Contact />
-    <Footer />
-  </div>
-);
+// Check the URL hash directly. This code runs before React even renders.
+const isAdminRoute = window.location.hash === '#admin';
 
+// The main App component
 function App() {
-  const [isAdminView, setIsAdminView] = useState(false);
+  // If the URL hash is '#admin', render ONLY the AdminDashboard.
+  if (isAdminRoute) {
+    return <AdminDashboard />;
+  }
 
-  useEffect(() => {
-    const checkHash = () => {
-      // Check if the hash is exactly '#admin'
-      if (window.location.hash === '#admin') {
-        setIsAdminView(true);
-      } else {
-        setIsAdminView(false);
-      }
-    };
-
-    // Check the hash on initial load
-    checkHash();
-
-    // Add event listener for hash changes
-    window.addEventListener('hashchange', checkHash, false);
-
-    // Cleanup listener on component unmount
-    return () => {
-      window.removeEventListener('hashchange', checkHash, false);
-    };
-  }, []); // Empty dependency array ensures this runs only once on mount
-
-  // Conditionally render the Admin Dashboard or the Main Site
-  return isAdminView ? <AdminDashboard /> : <MainSite />;
+  // Otherwise, render the main website.
+  return (
+    <div className="App">
+      <Navbar />
+      <Hero />
+      <Categories />
+      <FeaturedProducts />
+      <Contact />
+      <Footer />
+    </div>
+  );
 }
 
 export default App;

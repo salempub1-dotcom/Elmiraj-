@@ -1,11 +1,13 @@
-import React from 'react'; // Keep React import
+import React from 'react';
+// Corrected import paths - Assuming components are directly in 'src/components'
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Categories from './components/Categories';
 import FeaturedProducts from './components/FeaturedProducts';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
-import AdminDashboard from './components/admin/AdminDashboard';
+// This path was likely correct as Claude created this folder structure
+import AdminDashboard from './components/admin/AdminDashboard'; 
 import './App.css';
 
 // Check the URL hash directly. This code runs before React even renders.

@@ -57,8 +57,22 @@ export function Hero({ onNavigate }: HeroProps) {
                 }}
                 className="flex items-center gap-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white font-bold px-8 py-4 rounded-2xl border border-white/20 transition-all duration-300 hover:-translate-y-0.5"
               >
-                <span>حسب المرحلة الدراسية</span>
+                <span>حسب الطور الدراسي</span>
               </button>
+            </div>
+
+            {/* 3 Phases Tags */}
+            <div className="flex flex-wrap gap-3 pt-2">
+              {[
+                { icon: '🌱', label: 'التحضيري', color: 'bg-emerald-500/20 border-emerald-400/30 text-emerald-200' },
+                { icon: '📘', label: 'الابتدائي', color: 'bg-blue-500/20 border-blue-400/30 text-blue-200' },
+                { icon: '🎓', label: 'المتوسط', color: 'bg-purple-500/20 border-purple-400/30 text-purple-200' },
+              ].map((phase, i) => (
+                <span key={i} className={`inline-flex items-center gap-2 ${phase.color} border backdrop-blur-sm rounded-full px-4 py-2 text-sm font-medium`}>
+                  <span>{phase.icon}</span>
+                  {phase.label}
+                </span>
+              ))}
             </div>
 
             {/* Stats */}

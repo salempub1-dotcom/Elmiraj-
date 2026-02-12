@@ -7,7 +7,8 @@ export interface Product {
   originalPrice?: number;
   image: string;
   category: string;
-  grade: string;
+  grade: 'preparatory' | 'elementary' | 'middle';
+  year?: number; // السنة داخل الطور
   language: 'english' | 'french' | 'both';
   cardCount: number;
   benefits: string[];
@@ -20,5 +21,20 @@ export interface CartItem {
   quantity: number;
 }
 
-export type Grade = 'kindergarten' | 'grade3' | 'elementary' | 'middle';
-export type View = 'home' | 'products' | 'product-detail' | 'checkout';
+export interface GradeYear {
+  year: number;
+  label: string;
+}
+
+export interface GradeInfo {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  bgGradient: string;
+  description: string;
+  years: GradeYear[];
+}
+
+export type Grade = 'preparatory' | 'elementary' | 'middle';
+export type View = 'home' | 'products' | 'product-detail' | 'checkout' | 'tracking';

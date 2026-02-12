@@ -1,4 +1,4 @@
-import { X, ShoppingCart, Star, Check, Minus, Plus } from 'lucide-react';
+import { X, ShoppingCart, Star, Check, Minus, Plus, Zap } from 'lucide-react';
 import { Product } from '../types';
 import { useCart } from '../context/CartContext';
 import { useState } from 'react';
@@ -6,9 +6,10 @@ import { useState } from 'react';
 interface ProductModalProps {
   product: Product;
   onClose: () => void;
+  onBuyNow?: (product: Product, quantity: number) => void;
 }
 
-export function ProductModal({ product, onClose }: ProductModalProps) {
+export function ProductModal({ product, onClose, onBuyNow }: ProductModalProps) {
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -25,6 +26,11 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
     }
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleBuyNow = () => {
+    onBuyNow?.(product, quantity);
+    onClose();
   };
 
   const discount = product.originalPrice
@@ -113,8 +119,9 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
               </div>
             </div>
 
-            {/* Quantity & Add to Cart */}
-            <div className="flex items-center gap-4 pt-4">
+            {/* Quantity */}
+            <div className="flex items-center gap-3 pt-2">
+              <span className="text-sm font-semibold text-gray-700">الكمية:</span>
               <div className="flex items-center border-2 border-royal-200 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
@@ -130,9 +137,19 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                   <Plus className="w-4 h-4 text-royal-600" />
                 </button>
               </div>
+              {quantity > 1 && (
+                <span className="text-sm text-gray-400">
+                  الإجمالي: <span className="font-bold text-royal-700">{product.price * quantity} د.ج</span>
+                </span>
+              )}
+            </div>
+
+            {/* Two Action Buttons */}
+            <div className="flex flex-col gap-3 pt-2">
+              {/* Add to Cart */}
               <button
                 onClick={handleAdd}
-                className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 ${
                   added
                     ? 'bg-green-500 text-white'
                     : 'bg-gradient-to-l from-royal-700 to-royal-600 hover:from-royal-600 hover:to-royal-500 text-white shadow-lg shadow-royal-200 hover:shadow-royal-300'
@@ -149,6 +166,15 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                     <span>أضف إلى السلة</span>
                   </>
                 )}
+              </button>
+
+              {/* Buy Now */}
+              <button
+                onClick={handleBuyNow}
+                className="flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 bg-gradient-to-l from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 text-royal-900 shadow-lg shadow-gold-200 hover:shadow-gold-300 hover:scale-[1.01]"
+              >
+                <Zap className="w-5 h-5" />
+                <span>اشتري الآن • {product.price * quantity} د.ج</span>
               </button>
             </div>
 

@@ -39,6 +39,7 @@ body {
   text-align: right;
 }
 
+/* ===== Base Animations ===== */
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }
@@ -85,6 +86,89 @@ body {
 .delay-300 { animation-delay: 0.3s; }
 .delay-400 { animation-delay: 0.4s; }
 
+/* ===== Cart Flash Animations ===== */
+
+/* Shake animation for cart icon */
+@keyframes cartShake {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(-12deg); }
+  20% { transform: rotate(12deg); }
+  30% { transform: rotate(-12deg); }
+  40% { transform: rotate(12deg); }
+  50% { transform: rotate(-8deg); }
+  60% { transform: rotate(8deg); }
+  70% { transform: rotate(-4deg); }
+  80% { transform: rotate(4deg); }
+  90% { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.cart-shake {
+  animation: cartShake 0.8s ease-in-out;
+}
+
+/* Pulse rings expanding outward */
+@keyframes cartPulseRing {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.cart-pulse-ring {
+  border: 2px solid #e6b800;
+  border-radius: 0.75rem;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cart-pulse-ring.ring-1 {
+  animation: cartPulseRing 1s ease-out forwards;
+  animation-delay: 0s;
+  border-color: #0f6d38;
+}
+
+.cart-pulse-ring.ring-2 {
+  animation: cartPulseRing 1s ease-out forwards;
+  animation-delay: 0.2s;
+  border-color: #e6b800;
+}
+
+.cart-pulse-ring.ring-3 {
+  animation: cartPulseRing 1s ease-out forwards;
+  animation-delay: 0.4s;
+  border-color: #0f6d38;
+}
+
+/* Badge bounce */
+@keyframes badgeBounce {
+  0%, 100% { transform: scale(1.25); }
+  25% { transform: scale(1.6); }
+  50% { transform: scale(1.1); }
+  75% { transform: scale(1.4); }
+}
+
+.cart-badge-bounce {
+  animation: badgeBounce 0.8s ease-in-out;
+}
+
+/* Glow effect */
+@keyframes cartGlow {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.cart-glow {
+  animation: cartGlow 1s ease-in-out forwards;
+}
+
+/* ===== Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 8px;
 }

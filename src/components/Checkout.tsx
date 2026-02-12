@@ -6,7 +6,7 @@ import {
 import { useCart } from '../context/CartContext';
 import {
   fetchWilayas, fetchCommunes, fetchFees, fetchDesks,
-  getDeliveryFee, getEstimatedDays, createOrder, validateOrder,
+  getDeliveryFee, getEstimatedDays, createOrder,
   getWilayaName, isStopDeskAvailable,
   type NoestWilaya, type NoestCommune, type NoestDesk, type ApiDesk
 } from '../services/noest';
@@ -171,9 +171,8 @@ export function Checkout({ onBack }: CheckoutProps) {
       });
 
       if (result.success && result.tracking) {
-        // Validate the order immediately
-        await validateOrder(result.tracking);
-
+        // لا نقوم بالتأكيد التلقائي - الطلب يبقى كمسودة
+        // حتى يتم تأكيده يدوياً من تطبيق Noest
         setOrderTracking(result.tracking);
         setOrderRef(result.reference || reference);
         setOrderPlaced(true);
@@ -211,10 +210,10 @@ export function Checkout({ onBack }: CheckoutProps) {
             </div>
           </div>
 
-          <h2 className="text-3xl font-black text-royal-900">تم تأكيد طلبك بنجاح! 🎉</h2>
+          <h2 className="text-3xl font-black text-royal-900">تم استلام طلبك بنجاح! 🎉</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
-            شكراً لتسوقك من <span className="font-bold text-royal-700">المعراج</span>.
-            سيتم التواصل معك قريباً لتأكيد التوصيل.
+            شكراً لتسوقك من <span className="font-bold text-royal-700">المعراج</span>.<br />
+            طلبك قيد المراجعة وسيتم تأكيده وشحنه في أقرب وقت.
           </p>
 
           {orderError && (
@@ -250,7 +249,7 @@ export function Checkout({ onBack }: CheckoutProps) {
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 font-medium">
-            💡 ستتلقى رسالة SMS تحتوي على رقم التتبع لمتابعة طلبك عبر Noest
+            💡 سيتم مراجعة طلبك وتأكيده، ثم ستتلقى رسالة SMS برقم التتبع لمتابعة طلبك عبر Noest
           </div>
 
           <button
@@ -675,12 +674,12 @@ export function Checkout({ onBack }: CheckoutProps) {
                   {submitting ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      جاري إرسال الطلب إلى Noest...
+                      جاري إرسال الطلب...
                     </>
                   ) : (
                     <>
                       <ShieldCheck className="w-5 h-5" />
-                      تأكيد الطلب • {total} د.ج
+                      إرسال الطلب • {total} د.ج
                     </>
                   )}
                 </button>

@@ -1,14 +1,16 @@
-import { ShoppingCart, Eye, Star } from 'lucide-react';
+import { ShoppingCart, Eye, Star, Zap } from 'lucide-react';
 import { Product } from '../types';
 import { useCart } from '../context/CartContext';
+import { grades } from '../data/products';
 
 interface ProductCardProps {
   product: Product;
   onViewDetails: (product: Product) => void;
+  onBuyNow?: (product: Product) => void;
   index?: number;
 }
 
-export function ProductCard({ product, onViewDetails, index = 0 }: ProductCardProps) {
+export function ProductCard({ product, onViewDetails, onBuyNow, index = 0 }: ProductCardProps) {
   const { addToCart } = useCart();
 
   const languageLabel = {
@@ -16,6 +18,15 @@ export function ProductCard({ product, onViewDetails, index = 0 }: ProductCardPr
     french: { text: 'فرنسي', color: 'bg-purple-100 text-purple-700' },
     both: { text: 'ثنائي اللغة', color: 'bg-amber-100 text-amber-700' }
   };
+
+  const gradeLabel: Record<string, { text: string; color: string }> = {
+    preparatory: { text: 'التحضيري', color: 'bg-emerald-50 text-emerald-700' },
+    elementary: { text: 'الابتدائي', color: 'bg-blue-50 text-blue-700' },
+    middle: { text: 'المتوسط', color: 'bg-purple-50 text-purple-700' },
+  };
+
+  const gradeInfo = gradeLabel[product.grade] || { text: '', color: '' };
+  const yearInfo = product.year ? grades.find(g => g.id === product.grade)?.years.find(y => y.year === product.year) : null;
 
   const lang = languageLabel[product.language];
   const discount = product.originalPrice
@@ -42,14 +53,14 @@ export function ProductCard({ product, onViewDetails, index = 0 }: ProductCardPr
       )}
 
       {/* Image Area */}
-      <div className="relative h-52 bg-gradient-to-br from-royal-50 via-white to-gold-50 flex items-center justify-center overflow-hidden">
+      <div className="relative h-52 bg-gradient-to-br from-royal-50 via-white to-gold-50 flex items-center justify-center overflow-hidden cursor-pointer" onClick={() => onViewDetails(product)}>
         <div className="text-7xl transform group-hover:scale-125 transition-transform duration-700 ease-out">
           {product.image}
         </div>
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-royal-900/0 group-hover:bg-royal-900/5 transition-all duration-300" />
         
-        {/* Quick actions */}
+        {/* Quick view button */}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
           <button
             onClick={(e) => { e.stopPropagation(); onViewDetails(product); }}
@@ -58,13 +69,6 @@ export function ProductCard({ product, onViewDetails, index = 0 }: ProductCardPr
           >
             <Eye className="w-4 h-4" />
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-            className="bg-royal-600 hover:bg-royal-700 text-white p-2.5 rounded-xl shadow-lg transition-all hover:scale-110"
-            title="إضافة للسلة"
-          >
-            <ShoppingCart className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
@@ -72,6 +76,9 @@ export function ProductCard({ product, onViewDetails, index = 0 }: ProductCardPr
       <div className="p-5">
         {/* Tags */}
         <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${gradeInfo.color}`}>
+            {gradeInfo.text}{yearInfo ? ` • ${yearInfo.label}` : ''}
+          </span>
           <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${lang.color}`}>
             {lang.text}
           </span>
@@ -86,7 +93,7 @@ export function ProductCard({ product, onViewDetails, index = 0 }: ProductCardPr
         </h3>
 
         {/* Description */}
-        <p className="text-xs text-gray-500 mb-4 leading-relaxed line-clamp-2">
+        <p className="text-xs text-gray-500 mb-3 leading-relaxed line-clamp-2">
           {product.description}
         </p>
 
@@ -98,20 +105,34 @@ export function ProductCard({ product, onViewDetails, index = 0 }: ProductCardPr
           <span className="text-xs text-gray-400 mr-1">(4.9)</span>
         </div>
 
-        {/* Price & CTA */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-royal-700">{product.price}</span>
-            <span className="text-sm text-royal-600">د.ج</span>
-            {product.originalPrice && (
-              <span className="text-sm text-gray-400 line-through">{product.originalPrice}</span>
-            )}
-          </div>
+        {/* Price */}
+        <div className="flex items-baseline gap-2 mb-4">
+          <span className="text-2xl font-black text-royal-700">{product.price}</span>
+          <span className="text-sm text-royal-600">د.ج</span>
+          {product.originalPrice && (
+            <span className="text-sm text-gray-400 line-through">{product.originalPrice}</span>
+          )}
+        </div>
+
+        {/* Two Action Buttons - Stacked on mobile, side by side on desktop */}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {/* Add to Cart Button */}
           <button
             onClick={() => addToCart(product)}
-            className="bg-royal-600 hover:bg-royal-700 text-white p-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg hover:shadow-royal-200"
+            className="flex-1 flex items-center justify-center gap-2 bg-royal-600 hover:bg-royal-700 text-white py-3.5 sm:py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] shadow-md hover:shadow-lg hover:shadow-royal-200 text-base sm:text-sm font-bold"
           >
-            <ShoppingCart className="w-4 h-4" />
+            <ShoppingCart className="w-5 h-5 sm:w-4 sm:h-4" />
+            <span>أضف للسلة</span>
+          </button>
+
+          {/* Buy Now Button */}
+          <button
+            onClick={() => onBuyNow?.(product)}
+            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-l from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 text-royal-900 py-3.5 sm:py-3 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] shadow-md hover:shadow-lg hover:shadow-gold-200 text-base sm:text-sm font-bold"
+            title="شراء مباشر"
+          >
+            <Zap className="w-5 h-5 sm:w-4 sm:h-4" />
+            <span>اشتري الآن</span>
           </button>
         </div>
       </div>

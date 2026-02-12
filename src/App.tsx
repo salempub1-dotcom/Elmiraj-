@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
-import { CartProvider } from './context/CartContext';
+import { useState, useMemo, useCallback } from 'react';
+import { CartProvider, useCart } from './context/CartContext';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
-import { Categories } from './components/Categories';
+import Categories from './components/Categories';
 import { FeaturedProducts } from './components/FeaturedProducts';
 import { ProductCard } from './components/ProductCard';
 import { ProductModal } from './components/ProductModal';
@@ -19,44 +19,89 @@ import { Filter, X, ArrowRight } from 'lucide-react';
 function AppContent() {
   const [currentView, setCurrentView] = useState('home');
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const { addToCart, clearCart } = useCart();
 
-  const navigate = (view: string, grade?: string) => {
+  const navigate = (view: string, grade?: string, year?: number) => {
     setCurrentView(view);
     if (grade) {
       setSelectedGrade(grade);
+      setSelectedYear(year ?? null);
     } else if (view === 'products') {
       setSelectedGrade(null);
+      setSelectedYear(null);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Buy Now: clear cart, add the product, go to checkout
+  const handleBuyNow = useCallback((product: Product, quantity: number = 1) => {
+    clearCart();
+    for (let i = 0; i < quantity; i++) {
+      addToCart(product);
+    }
+    setSelectedProduct(null);
+    setCurrentView('checkout');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [addToCart, clearCart]);
+
+  // Buy Now from card (quantity = 1)
+  const handleBuyNowFromCard = useCallback((product: Product) => {
+    handleBuyNow(product, 1);
+  }, [handleBuyNow]);
+
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       if (selectedGrade && p.grade !== selectedGrade) return false;
+      if (selectedYear && p.year !== selectedYear) return false;
       if (selectedLanguage && p.language !== selectedLanguage) return false;
       return true;
     });
-  }, [selectedGrade, selectedLanguage]);
+  }, [selectedGrade, selectedYear, selectedLanguage]);
 
   const currentGrade = grades.find(g => g.id === selectedGrade);
+  const currentYear = currentGrade?.years.find(y => y.year === selectedYear);
+
+  const availableYears = useMemo(() => {
+    if (!currentGrade) return [];
+    return currentGrade.years;
+  }, [currentGrade]);
+
+  const getYearLabel = () => {
+    if (!currentGrade) return 'جميع المنتجات';
+    if (currentYear) {
+      return `${currentGrade.name} — ${currentYear.label}`;
+    }
+    return `جميع وسائل ${currentGrade.name}`;
+  };
+
+  const getGradeIcon = () => {
+    if (!currentGrade) return '📦';
+    return currentGrade.icon;
+  };
 
   return (
     <div className="min-h-screen bg-white">
       <Header onNavigate={navigate} currentView={currentView} />
       <CartSidebar onCheckout={() => navigate('checkout')} />
       {selectedProduct && (
-        <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+        <ProductModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onBuyNow={handleBuyNow}
+        />
       )}
 
       {currentView === 'home' && (
         <>
           <Hero onNavigate={navigate} />
-          <Categories onSelectGrade={(grade) => navigate('products', grade)} />
+          <Categories onSelectGrade={(grade: string, year?: number) => navigate('products', grade, year)} />
           <FeaturedProducts
             onViewDetails={setSelectedProduct}
             onViewAll={() => navigate('products')}
+            onBuyNow={handleBuyNowFromCard}
           />
           <Benefits />
           
@@ -107,28 +152,43 @@ function AppContent() {
         <section className="py-10">
           <div className="max-w-7xl mx-auto px-4">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+            <div className="flex items-center gap-2 text-sm text-gray-500 mb-6 flex-wrap">
               <button onClick={() => navigate('home')} className="hover:text-royal-600 transition-colors">الرئيسية</button>
-              <span>/</span>
-              <span className="text-royal-700 font-medium">
-                {currentGrade ? currentGrade.name : 'جميع المنتجات'}
-              </span>
+              {currentGrade && (
+                <>
+                  <span>/</span>
+                  <button
+                    onClick={() => { setSelectedYear(null); }}
+                    className={`hover:text-royal-600 transition-colors ${!currentYear ? 'text-royal-700 font-medium' : ''}`}
+                  >
+                    {currentGrade.name}
+                  </button>
+                </>
+              )}
+              {currentYear && (
+                <>
+                  <span>/</span>
+                  <span className="text-royal-700 font-medium">{currentYear.label}</span>
+                </>
+              )}
+              {!currentGrade && (
+                <>
+                  <span>/</span>
+                  <span className="text-royal-700 font-medium">جميع المنتجات</span>
+                </>
+              )}
             </div>
 
             {/* Page Header */}
             <div className="mb-8">
               <h1 className="text-3xl md:text-4xl font-black text-royal-900 mb-2">
-                {currentGrade ? (
-                  <span className="flex items-center gap-3">
-                    <span className="text-4xl">{currentGrade.icon}</span>
-                    {currentGrade.name}
-                  </span>
-                ) : (
-                  'جميع المنتجات'
-                )}
+                <span className="flex items-center gap-3">
+                  <span className="text-4xl">{getGradeIcon()}</span>
+                  {getYearLabel()}
+                </span>
               </h1>
               {currentGrade && (
-                <p className="text-gray-500">{currentGrade.description} • {currentGrade.ageRange}</p>
+                <p className="text-gray-500">{currentGrade.description}</p>
               )}
             </div>
 
@@ -142,7 +202,7 @@ function AppContent() {
               {/* Grade Filter */}
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setSelectedGrade(null)}
+                  onClick={() => { setSelectedGrade(null); setSelectedYear(null); }}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     !selectedGrade
                       ? 'bg-royal-600 text-white shadow-md'
@@ -154,7 +214,7 @@ function AppContent() {
                 {grades.map(grade => (
                   <button
                     key={grade.id}
-                    onClick={() => setSelectedGrade(selectedGrade === grade.id ? null : grade.id)}
+                    onClick={() => { setSelectedGrade(selectedGrade === grade.id ? null : grade.id); setSelectedYear(null); }}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                       selectedGrade === grade.id
                         ? 'bg-royal-600 text-white shadow-md'
@@ -165,6 +225,38 @@ function AppContent() {
                   </button>
                 ))}
               </div>
+
+              {/* Year Filter */}
+              {currentGrade && availableYears.length > 1 && (
+                <>
+                  <div className="w-px h-6 bg-gray-200 hidden sm:block" />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedYear(null)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        !selectedYear
+                          ? 'bg-royal-500 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-600 hover:bg-royal-50 hover:text-royal-600'
+                      }`}
+                    >
+                      كل السنوات
+                    </button>
+                    {availableYears.map(yr => (
+                      <button
+                        key={yr.year}
+                        onClick={() => setSelectedYear(selectedYear === yr.year ? null : yr.year)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                          selectedYear === yr.year
+                            ? 'bg-royal-500 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-600 hover:bg-royal-50 hover:text-royal-600'
+                        }`}
+                      >
+                        {yr.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <div className="w-px h-6 bg-gray-200 hidden sm:block" />
 
@@ -190,10 +282,10 @@ function AppContent() {
                 ))}
               </div>
 
-              {/* Active Filters */}
-              {(selectedGrade || selectedLanguage) && (
+              {/* Clear Filters */}
+              {(selectedGrade || selectedLanguage || selectedYear) && (
                 <button
-                  onClick={() => { setSelectedGrade(null); setSelectedLanguage(null); }}
+                  onClick={() => { setSelectedGrade(null); setSelectedYear(null); setSelectedLanguage(null); }}
                   className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
                 >
                   <X className="w-3 h-3" />
@@ -215,6 +307,7 @@ function AppContent() {
                     key={product.id}
                     product={product}
                     onViewDetails={setSelectedProduct}
+                    onBuyNow={handleBuyNowFromCard}
                     index={i}
                   />
                 ))}
@@ -225,7 +318,7 @@ function AppContent() {
                 <h3 className="text-xl font-bold text-gray-400">لا توجد منتجات مطابقة</h3>
                 <p className="text-sm text-gray-400">جرب تغيير معايير البحث</p>
                 <button
-                  onClick={() => { setSelectedGrade(null); setSelectedLanguage(null); }}
+                  onClick={() => { setSelectedGrade(null); setSelectedYear(null); setSelectedLanguage(null); }}
                   className="text-royal-600 font-medium hover:underline text-sm"
                 >
                   عرض جميع المنتجات

@@ -6,9 +6,10 @@ import { ArrowLeft } from 'lucide-react';
 interface FeaturedProductsProps {
   onViewDetails: (product: Product) => void;
   onViewAll: () => void;
+  onBuyNow?: (product: Product) => void;
 }
 
-export function FeaturedProducts({ onViewDetails, onViewAll }: FeaturedProductsProps) {
+export function FeaturedProducts({ onViewDetails, onViewAll, onBuyNow }: FeaturedProductsProps) {
   const featured = products.filter(p => p.badge).slice(0, 4);
 
   return (
@@ -34,7 +35,7 @@ export function FeaturedProducts({ onViewDetails, onViewAll }: FeaturedProductsP
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {featured.map((product, i) => (
-            <ProductCard key={product.id} product={product} onViewDetails={onViewDetails} index={i} />
+            <ProductCard key={product.id} product={product} onViewDetails={onViewDetails} onBuyNow={onBuyNow} index={i} />
           ))}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Menu, X, Search, Package } from 'lucide-react';
 import { Logo } from './Logo';
 import { useCart } from '../context/CartContext';
@@ -12,13 +12,25 @@ export function Header({ onNavigate, currentView }: HeaderProps) {
   const { totalItems, setIsCartOpen } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [cartFlash, setCartFlash] = useState(false);
+  const prevItemsRef = useRef(totalItems);
+
+  // Detect when items are added to cart
+  useEffect(() => {
+    if (totalItems > prevItemsRef.current) {
+      setCartFlash(true);
+      const timer = setTimeout(() => setCartFlash(false), 1200);
+      return () => clearTimeout(timer);
+    }
+    prevItemsRef.current = totalItems;
+  }, [totalItems]);
 
   const navItems = [
     { label: 'الرئيسية', view: 'home' },
     { label: 'المنتجات', view: 'products' },
-    { label: 'رياض الأطفال', view: 'products', grade: 'kindergarten' },
-    { label: 'الابتدائية', view: 'products', grade: 'elementary' },
-    { label: 'المتوسطة', view: 'products', grade: 'middle' },
+    { label: 'التحضيري', view: 'products', grade: 'preparatory' },
+    { label: 'الابتدائي', view: 'products', grade: 'elementary' },
+    { label: 'المتوسط', view: 'products', grade: 'middle' },
     { label: '📦 تتبع الطلب', view: 'tracking' },
   ];
 
@@ -81,15 +93,43 @@ export function Header({ onNavigate, currentView }: HeaderProps) {
               <Search className="w-5 h-5" />
             </button>
 
+            {/* Cart Button with Flash Effect */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2.5 rounded-xl text-gray-500 hover:bg-royal-50 hover:text-royal-600 transition-all"
+              className={`relative p-2.5 rounded-xl transition-all duration-300 ${
+                cartFlash
+                  ? 'bg-gold-100 text-royal-700 cart-shake'
+                  : 'text-gray-500 hover:bg-royal-50 hover:text-royal-600'
+              }`}
             >
-              <ShoppingCart className="w-5 h-5" />
+              {/* Pulse Rings */}
+              {cartFlash && (
+                <>
+                  <span className="absolute inset-0 rounded-xl cart-pulse-ring ring-1" />
+                  <span className="absolute inset-0 rounded-xl cart-pulse-ring ring-2" />
+                  <span className="absolute inset-0 rounded-xl cart-pulse-ring ring-3" />
+                </>
+              )}
+
+              {/* Cart Icon */}
+              <ShoppingCart className={`w-6 h-6 relative z-10 transition-transform duration-300 ${
+                cartFlash ? 'scale-125 text-royal-700' : ''
+              }`} />
+
+              {/* Badge */}
               {totalItems > 0 && (
-                <span className="absolute -top-1 -left-1 bg-gold-500 text-royal-900 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-scale-in">
+                <span className={`absolute -top-2 -left-2 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center z-20 transition-all duration-300 ${
+                  cartFlash
+                    ? 'bg-gold-400 text-royal-900 scale-125 cart-badge-bounce shadow-lg shadow-gold-400/50'
+                    : 'bg-royal-600 text-white'
+                }`}>
                   {totalItems}
                 </span>
+              )}
+
+              {/* Flash Glow */}
+              {cartFlash && (
+                <span className="absolute inset-0 rounded-xl bg-gold-300/30 cart-glow z-0" />
               )}
             </button>
 

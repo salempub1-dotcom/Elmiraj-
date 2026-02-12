@@ -224,7 +224,6 @@ const WILAYAS_FALLBACK: NoestWilaya[] = [
 ];
 
 // ===================== EXACT PRICING FROM NOEST =====================
-// stopDesk = 0 means stop desk NOT available for this wilaya
 const DEFAULT_FEES: Record<number, NoestFees> = {
   // Zone 1 — العاصمة
   16: { homeDelivery: 500, stopDesk: 300 },
@@ -270,18 +269,18 @@ const DEFAULT_FEES: Record<number, NoestFees> = {
   3: { homeDelivery: 1000, stopDesk: 600 },
   7: { homeDelivery: 1000, stopDesk: 600 },
   17: { homeDelivery: 1000, stopDesk: 600 },
-  51: { homeDelivery: 1000, stopDesk: 0 },  // — لا يوجد مكتب
+  51: { homeDelivery: 1000, stopDesk: 1000 },
   // Zone 7
   30: { homeDelivery: 1100, stopDesk: 700 },
   39: { homeDelivery: 1100, stopDesk: 700 },
   47: { homeDelivery: 1100, stopDesk: 700 },
   55: { homeDelivery: 1100, stopDesk: 700 },
-  57: { homeDelivery: 1100, stopDesk: 0 },  // — لا يوجد مكتب
+  57: { homeDelivery: 1100, stopDesk: 1100 },
   // Zone 8
   8: { homeDelivery: 1200, stopDesk: 800 },
   32: { homeDelivery: 1200, stopDesk: 800 },
   45: { homeDelivery: 1200, stopDesk: 800 },
-  52: { homeDelivery: 1200, stopDesk: 0 },  // — لا يوجد مكتب
+  52: { homeDelivery: 1200, stopDesk: 1200 },
   58: { homeDelivery: 1200, stopDesk: 800 },
   // Zone 9 — الجنوب البعيد
   1: { homeDelivery: 1500, stopDesk: 1000 },
@@ -290,10 +289,10 @@ const DEFAULT_FEES: Record<number, NoestFees> = {
   53: { homeDelivery: 1800, stopDesk: 1200 },
   33: { homeDelivery: 1900, stopDesk: 1500 },
   11: { homeDelivery: 2000, stopDesk: 1500 },
-  50: { homeDelivery: 2200, stopDesk: 0 },  // جانت — لا يوجد مكتب
+  50: { homeDelivery: 2200, stopDesk: 2200 },
   // ولايات بدون أسعار محددة
-  54: { homeDelivery: 2000, stopDesk: 0 },  // عين قزام
-  56: { homeDelivery: 2000, stopDesk: 0 },  // برج باجي مختار
+  54: { homeDelivery: 2000, stopDesk: 2000 },
+  56: { homeDelivery: 2000, stopDesk: 2000 },
 };
 
 // ======================== CACHE ========================
@@ -389,6 +388,7 @@ export async function fetchFees(): Promise<void> {
 
 /**
  * Check if stop desk (bureau) delivery is available for a wilaya
+ * All wilayas now support stop desk delivery
  */
 export function isStopDeskAvailable(wilayaId: number): boolean {
   // Try API fees first
@@ -399,12 +399,12 @@ export function isStopDeskAvailable(wilayaId: number): boolean {
       return fee > 0;
     }
   }
-  // Fallback to defaults
+  // Fallback to defaults — all wilayas have stop desk
   const fallback = DEFAULT_FEES[wilayaId];
   if (fallback) {
     return fallback.stopDesk > 0;
   }
-  return false;
+  return true;
 }
 
 /**

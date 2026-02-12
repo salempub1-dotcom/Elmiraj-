@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@theme {
+  --color-royal-50: #f0faf4;
+  --color-royal-100: #d4f0de;
+  --color-royal-200: #a8e1bd;
+  --color-royal-300: #6fcb94;
+  --color-royal-400: #3aae6c;
+  --color-royal-500: #1a8a4a;
+  --color-royal-600: #0f6d38;
+  --color-royal-700: #0a5a2e;
+  --color-royal-800: #064823;
+  --color-royal-900: #03361a;
+  --color-royal-950: #012410;
+  --color-gold-50: #fffdf0;
+  --color-gold-100: #fff8d4;
+  --color-gold-200: #ffedaa;
+  --color-gold-300: #ffdf77;
+  --color-gold-400: #ffd044;
+  --color-gold-500: #e6b800;
+  --color-gold-600: #cc9f00;
+  --color-gold-700: #a68200;
+  --color-gold-800: #806400;
+  --color-gold-900: #5c4800;
+  --font-family-tajawal: 'Tajawal', sans-serif;
+  --font-family-amiri: 'Amiri', serif;
+}
+
+* {
+  font-family: 'Tajawal', sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  direction: rtl;
+  text-align: right;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(50px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s ease-out forwards;
+}
+
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0f6d38;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0a5a2e;
+}

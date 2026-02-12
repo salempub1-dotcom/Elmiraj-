@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Ensure React is imported
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Categories from './components/Categories';
@@ -8,48 +8,45 @@ import Footer from './components/Footer';
 import AdminDashboard from './components/admin/AdminDashboard';
 import './App.css';
 
+// A simple component to render the main website layout
+const MainSite = () => (
+  <div className="App">
+    <Navbar />
+    <Hero />
+    <Categories />
+    <FeaturedProducts />
+    <Contact />
+    <Footer />
+  </div>
+);
+
 function App() {
-  const [currentView, setCurrentView] = useState('home');
+  const [isAdminView, setIsAdminView] = useState(false);
 
   useEffect(() => {
-    // Function to check the URL hash and update the view
-    const handleHashChange = () => {
+    const checkHash = () => {
+      // Check if the hash is exactly '#admin'
       if (window.location.hash === '#admin') {
-        setCurrentView('admin');
+        setIsAdminView(true);
       } else {
-        setCurrentView('home');
+        setIsAdminView(false);
       }
     };
 
-    // Check the hash when the component first loads
-    handleHashChange();
+    // Check the hash on initial load
+    checkHash();
 
-    // Listen for changes in the hash (e.g., user clicks a link)
-    window.addEventListener('hashchange', handleHashChange);
+    // Add event listener for hash changes
+    window.addEventListener('hashchange', checkHash, false);
 
-    // Cleanup the event listener when the component unmounts
+    // Cleanup listener on component unmount
     return () => {
-      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('hashchange', checkHash, false);
     };
-  }, []); // The empty array means this effect runs only once on mount
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-  // Conditional rendering based on the current view
-  if (currentView === 'admin') {
-    // If the view is 'admin', show only the Admin Dashboard
-    return <AdminDashboard />;
-  }
-
-  // Otherwise, show the main website
-  return (
-    <div className="App">
-      <Navbar />
-      <Hero />
-      <Categories />
-      <FeaturedProducts />
-      <Contact />
-      <Footer />
-    </div>
-  );
+  // Conditionally render the Admin Dashboard or the Main Site
+  return isAdminView ? <AdminDashboard /> : <MainSite />;
 }
 
 export default App;

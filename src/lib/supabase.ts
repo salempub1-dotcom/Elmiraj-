@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 // نفترض أن القيم موجودة في متغيرات البيئة (Vercel)

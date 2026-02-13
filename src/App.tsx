@@ -12,7 +12,7 @@ import { Testimonials } from './components/Testimonials';
 import { Footer } from './components/Footer';
 import { Checkout } from './components/Checkout';
 import { OrderTracking } from './components/OrderTracking';
-import { AdminDashboard } from './components/admin/AdminDashboard';
+import AdminDashboard from './components/admin/AdminDashboard';
 import { Product } from './types';
 import { products as localProducts, grades } from './data/products';
 import { supabase } from './lib/supabase';

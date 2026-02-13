@@ -1,10 +1,12 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// نفترض أن القيم موجودة في متغيرات البيئة (Vercel)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-export const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+// إنشاء عميل Supabase مباشرة
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const isSupabaseConfigured = !!supabase;
+// اعتبر أن Supabase مُعَدّ دائمًا (لأننا وضعنا المتغيرات في Vercel)
+export const isSupabaseConfigured = true;

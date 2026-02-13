@@ -1,510 +1,668 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-const GRADES = [
-  { value: 'preparatory', label: 'التحضيري' },
-  { value: 'primary', label: 'الابتدائي' },
-  { value: 'middle', label: 'المتوسط' },
-];
-const LANGUAGES = [
-  { value: 'english', label: 'إنجليزية' },
-  { value: 'french', label: 'فرنسية' },
-];
-const BADGES = [
-  { value: '', label: 'بدون' },
-  { value: 'جديد', label: 'جديد' },
-  { value: 'الأكثر مبيعاً', label: 'الأكثر مبيعاً' },
-  { value: 'خصم', label: 'خصم' },
-];
-const ALLOWED_FIELDS = [
-  'name', 'description_short', 'description_long',
-  'price', 'original_price', 'image_url',
-  'category', 'language', 'grade', 'year',
-  'card_count', 'age_range', 'badge', 'is_active'
-];
-interface Product {
-  id: string;
-  name: string;
-  description_short: string;
-  description_long: string;
-  price: number;
-  original_price: number | null;
-  image_url: string;
-  category: string;
-  language: string;
-  grade: string;
-  year: number | null;
-  card_count: number;
-  age_range: string;
-  badge: string;
-  is_active: boolean;
-}
-const emptyProduct = {
-  name: '',
-  description_short: '',
-  description_long: '',
-  price: 0,
-  original_price: null as number | null,
-  image_url: '',
-  category: 'preparatory',
-  language: 'english',
-  grade: 'preparatory',
-  year: null as number | null,
-  card_count: 30,
-  age_range: '',
-  badge: '',
-  is_active: true,
-};
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { Product } from '../../types';
+
 export default function AdminDashboard() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [session, setSession] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyProduct);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
+  const [filterLang, setFilterLang] = useState<'all' | 'english' | 'french'>('all');
+  const [message, setMessage] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState<Partial<Product>>({
+    name: '',
+    description_short: '',
+    description_long: '',
+    price: 0,
+    original_price: undefined,
+    image_url: '',
+    category: 'preparatory',
+    language: 'english',
+    grade: 'preparatory',
+    year: undefined,
+    card_count: 30,
+    age_range: '',
+    badge: '',
+    is_active: true
+  });
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  // Check session
   useEffect(() => {
-    checkAuth();
-  }, []);
-  async function checkAuth() {
-    if (!supabase) return;
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-      setIsLoggedIn(true);
-      loadProducts();
-    }
-  }
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    if (!supabase) {
-      setLoginError('Supabase غير متصل');
+    console.log('🔍 AdminDashboard mounted');
+    console.log('🔍 isSupabaseConfigured:', isSupabaseConfigured);
+    
+    if (!isSupabaseConfigured) {
+      console.log('❌ Supabase NOT configured');
+      setLoading(false);
       return;
     }
-    setLoginLoading(true);
-    setLoginError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setLoginError('بريد إلكتروني أو كلمة مرور خاطئة');
-    } else {
-      setIsLoggedIn(true);
-      loadProducts();
-    }
-    setLoginLoading(false);
-  }
-  async function handleLogout() {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    setIsLoggedIn(false);
-  }
-  async function loadProducts() {
-    if (!supabase) return;
+
+    supabase?.auth.getSession().then(({ data: { session } }) => {
+      console.log('🔍 Session:', session ? 'Found' : 'Not found');
+      setSession(session);
+      if (session) fetchProducts();
+      else setLoading(false);
+    });
+
+    supabase?.auth.onAuthStateChange((_event, session) => {
+      console.log('🔍 Auth state changed:', _event);
+      setSession(session);
+      if (session) fetchProducts();
+    });
+  }, []);
+
+  const fetchProducts = async () => {
+    console.log('📥 Fetching products...');
     setLoading(true);
+    
+    if (!isSupabaseConfigured || !supabase) {
+      console.log('❌ Cannot fetch: Supabase not configured');
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('products')
       .select('*')
       .order('created_at', { ascending: false });
-    if (!error && data) setProducts(data);
+
+    console.log('📥 Fetch result:', { data: data?.length, error });
+
+    if (error) {
+      console.error('❌ Fetch error:', error);
+      setMessage('خطأ في جلب المنتجات: ' + error.message);
+    } else {
+      console.log('✅ Products loaded:', data?.length);
+      setProducts(data || []);
+    }
     setLoading(false);
-  }
-  function showMsg(text: string, type: string) {
-    setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
-  }
-  function openAdd() {
-    setForm(emptyProduct);
-    setEditingId(null);
-    setImageFile(null);
-    setImagePreview('');
-    setShowForm(true);
-  }
-  function openEdit(p: Product) {
-    setForm({
-      name: p.name || '',
-      description_short: p.description_short || '',
-      description_long: p.description_long || '',
-      price: p.price || 0,
-      original_price: p.original_price,
-      image_url: p.image_url || '',
-      category: p.category || 'preparatory',
-      language: p.language || 'english',
-      grade: p.grade || 'preparatory',
-      year: p.year,
-      card_count: p.card_count || 30,
-      age_range: p.age_range || '',
-      badge: p.badge || '',
-      is_active: p.is_active !== false,
-    });
-    setEditingId(p.id);
-    setImageFile(null);
-    setImagePreview(p.image_url || '');
-    setShowForm(true);
-  }
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  }
-  async function uploadImage(file: File): Promise<string> {
-    if (!supabase) throw new Error('Supabase غير متصل');
-    const ext = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-    const { error } = await supabase.storage
-      .from('product-images')
-      .upload(fileName, file);
-    if (error) throw error;
-    const { data } = supabase.storage
-      .from('product-images')
-      .getPublicUrl(fileName);
-    return data.publicUrl;
-  }
-  function cleanData(data: any) {
-    const clean: any = {};
-    for (const key of ALLOWED_FIELDS) {
-      if (data[key] !== undefined) {
-        clean[key] = data[key];
-      }
-    }
-    return clean;
-  }
-  async function handleSave(e: React.FormEvent) {
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase) return;
-    if (!form.name || !form.price) {
-      showMsg('الاسم والسعر مطلوبان', 'error');
+    console.log('🔐 Attempting login...');
+    setLoginError('');
+    
+    if (!supabase) {
+      setLoginError('Supabase not configured');
       return;
     }
-    setSaving(true);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    console.log('🔐 Login result:', { success: !!data.session, error });
+
+    if (error) {
+      setLoginError('البريد أو كلمة المرور غير صحيحة');
+    } else {
+      setSession(data.session);
+    }
+  };
+
+  const handleLogout = async () => {
+    console.log('🚪 Logging out...');
+    await supabase?.auth.signOut();
+    setSession(null);
+    setProducts([]);
+  };
+
+  const handleImageUpload = async (file: File): Promise<string | null> => {
+    console.log('📤 Uploading image:', file.name);
+    setUploadingImage(true);
+    
+    if (!supabase) {
+      console.log('❌ Cannot upload: Supabase not configured');
+      setUploadingImage(false);
+      return null;
+    }
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, file);
+
+    console.log('📤 Upload result:', { data, error });
+
+    if (error) {
+      console.error('❌ Upload error:', error);
+      setMessage('خطأ في رفع الصورة: ' + error.message);
+      setUploadingImage(false);
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(fileName);
+
+    console.log('✅ Image URL:', publicUrl);
+    setUploadingImage(false);
+    return publicUrl;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('💾 Submitting product...');
+    console.log('💾 Form data:', formData);
+    
+    if (!supabase) {
+      setMessage('Supabase not configured');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
+
     try {
-      let imageUrl = form.image_url;
+      let imageUrl = formData.image_url || '';
+
       if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
+        console.log('💾 New image to upload');
+        const uploadedUrl = await handleImageUpload(imageFile);
+        if (uploadedUrl) imageUrl = uploadedUrl;
+        else {
+          setLoading(false);
+          return;
+        }
       }
-      const productData = cleanData({
-        name: form.name,
-        description_short: form.description_short,
-        description_long: form.description_long,
-        price: Number(form.price),
-        original_price: form.original_price ? Number(form.original_price) : null,
-        image_url: imageUrl,
-        category: form.category,
-        language: form.language,
-        grade: form.grade,
-        year: form.year ? Number(form.year) : null,
-        card_count: Number(form.card_count) || 30,
-        age_range: form.age_range,
-        badge: form.badge,
-        is_active: form.is_active,
+
+      // Clean data - remove undefined values
+      const cleanData: any = {};
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          cleanData[key] = value;
+        }
       });
-      console.log('Saving product data:', productData);
-      let error;
-      if (editingId) {
-        const result = await supabase.from('products').update(productData).eq('id', editingId);
-        error = result.error;
+      cleanData.image_url = imageUrl;
+
+      console.log('📤 Sending to Supabase:', cleanData);
+
+      let result;
+      if (editingProduct) {
+        console.log('📤 Updating product:', editingProduct.id);
+        result = await supabase
+          .from('products')
+          .update(cleanData)
+          .eq('id', editingProduct.id);
       } else {
-        const result = await supabase.from('products').insert([productData]);
-        error = result.error;
+        console.log('📤 Inserting new product');
+        result = await supabase
+          .from('products')
+          .insert([cleanData]);
       }
-      if (error) {
-        console.error('Supabase error:', error);
-        showMsg('فشل الحفظ: ' + error.message, 'error');
+
+      console.log('📤 Supabase result:', result);
+
+      if (result.error) {
+        console.error('❌ Supabase error:', result.error);
+        setMessage('خطأ: ' + result.error.message);
       } else {
-        showMsg(editingId ? 'تم تعديل المنتج بنجاح' : 'تم إضافة المنتج بنجاح', 'success');
+        console.log('✅ Saved successfully');
+        setMessage(editingProduct ? 'تم التحديث!' : 'تمت الإضافة!');
+        resetForm();
+        fetchProducts();
         setShowForm(false);
-        loadProducts();
       }
     } catch (err: any) {
-      console.error('Save error:', err);
-      showMsg('خطأ: ' + err.message, 'error');
+      console.error('❌ Exception:', err);
+      setMessage('خطأ غير متوقع: ' + err.message);
     }
-    setSaving(false);
-  }
-  async function handleDelete() {
-    if (!supabase || !deleteId) return;
-    const { error } = await supabase.from('products').delete().eq('id', deleteId);
+    
+    setLoading(false);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description_short: '',
+      description_long: '',
+      price: 0,
+      original_price: undefined,
+      image_url: '',
+      category: 'preparatory',
+      language: 'english',
+      grade: 'preparatory',
+      year: undefined,
+      card_count: 30,
+      age_range: '',
+      badge: '',
+      is_active: true
+    });
+    setImageFile(null);
+    setEditingProduct(null);
+  };
+
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setFormData(product);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('هل أنت متأكد من الحذف؟')) return;
+    
+    console.log('🗑️ Deleting product:', id);
+    setLoading(true);
+
+    const { error } = await supabase!.from('products').delete().eq('id', id);
+    
+    console.log('🗑️ Delete result:', { error });
+
     if (error) {
-      showMsg('فشل الحذف: ' + error.message, 'error');
+      setMessage('خطأ في الحذف: ' + error.message);
     } else {
-      showMsg('تم حذف المنتج', 'success');
-      loadProducts();
+      setMessage('تم الحذف!');
+      fetchProducts();
     }
-    setDeleteId(null);
-  }
-  const filtered = products.filter(p =>
-    p.name?.toLowerCase().includes(search.toLowerCase())
-  );
-  // LOGIN SCREEN
-  if (!isLoggedIn) {
+    
+    setLoading(false);
+  };
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchesLang = filterLang === 'all' || p.language === filterLang;
+    return matchesSearch && matchesLang;
+  });
+
+  // Login screen
+  if (!session) {
     return (
-      <div dir="rtl" style={{ minHeight: '100vh', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Tajawal, sans-serif' }}>
-        <div style={{ background: 'white', borderRadius: '16px', padding: '40px', maxWidth: '400px', width: '90%', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <div style={{ width: '60px', height: '60px', background: '#003429', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px', fontSize: '24px' }}>🔐</div>
-            <h2 style={{ color: '#003429', fontSize: '24px', margin: 0 }}>لوحة تحكم المعراج</h2>
-            <p style={{ color: '#666', fontSize: '14px', marginTop: '5px' }}>تسجيل دخول المدير</p>
+      <div className="min-h-screen bg-gradient-to-br from-[#003429] to-[#001a14] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-[#003429] rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-[#003429]">لوحة تحكم المعراج</h1>
+            <p className="text-gray-500">تسجيل دخول المسؤول</p>
           </div>
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontSize: '14px' }}>البريد الإلكتروني</label>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
               <input
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429] focus:border-transparent"
                 required
-                style={{ width: '100%', padding: '12px', border: '2px solid #e0e0e0', borderRadius: '8px', fontSize: '16px', boxSizing: 'border-box' }}
-                placeholder="admin@example.com"
               />
             </div>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontSize: '14px' }}>كلمة المرور</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
               <input
                 type="password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429] focus:border-transparent"
                 required
-                style={{ width: '100%', padding: '12px', border: '2px solid #e0e0e0', borderRadius: '8px', fontSize: '16px', boxSizing: 'border-box' }}
-                placeholder="••••••••"
               />
             </div>
             {loginError && (
-              <div style={{ background: '#fee2e2', color: '#dc2626', padding: '10px', borderRadius: '8px', marginBottom: '15px', fontSize: '14px', textAlign: 'center' }}>
-                {loginError}
-              </div>
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{loginError}</div>
             )}
             <button
               type="submit"
-              disabled={loginLoading}
-              style={{ width: '100%', padding: '14px', background: '#003429', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer', opacity: loginLoading ? 0.7 : 1 }}
+              className="w-full bg-[#003429] text-white py-3 rounded-lg font-medium hover:bg-[#004d3d] transition-colors"
             >
-              {loginLoading ? 'جاري الدخول...' : 'تسجيل الدخول'}
+              دخول
             </button>
           </form>
         </div>
       </div>
     );
   }
-  // MAIN DASHBOARD
+
+  // Main dashboard
   return (
-    <div dir="rtl" style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Tajawal, sans-serif' }}>
+    <div className="min-h-screen bg-gray-50" dir="rtl">
       {/* Header */}
-      <div style={{ background: '#003429', color: 'white', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px' }}>📦</span>
-          <h1 style={{ fontSize: '18px', margin: 0 }}>لوحة تحكم المعراج</h1>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => { window.location.hash = ''; window.location.reload(); }} style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
-            🏠 المتجر
-          </button>
-          <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
+      <header className="bg-[#003429] text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">لوحة تحكم المتجر</h1>
+            <p className="text-sm text-[#c4a35a]">{session.user?.email}</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"
+          >
             خروج
           </button>
         </div>
-      </div>
-      {/* Message */}
-      {message.text && (
-        <div style={{ padding: '12px 20px', background: message.type === 'success' ? '#dcfce7' : '#fee2e2', color: message.type === 'success' ? '#16a34a' : '#dc2626', textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>
-          {message.text}
-        </div>
-      )}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#003429' }}>{products.length}</div>
-            <div style={{ color: '#666', fontSize: '14px' }}>إجمالي المنتجات</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-xl shadow-sm">
+            <div className="text-3xl font-bold text-[#003429]">{products.length}</div>
+            <div className="text-sm text-gray-500">إجمالي المنتجات</div>
           </div>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#2563eb' }}>{products.filter(p => p.language === 'english').length}</div>
-            <div style={{ color: '#666', fontSize: '14px' }}>🇬🇧 إنجليزية</div>
-          </div>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#dc2626' }}>{products.filter(p => p.language === 'french').length}</div>
-            <div style={{ color: '#666', fontSize: '14px' }}>🇫🇷 فرنسية</div>
-          </div>
-        </div>
-        {/* Toolbar */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <button onClick={openAdd} style={{ padding: '12px 24px', background: '#003429', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            ➕ إضافة منتج جديد
-          </button>
-          <input
-            type="text"
-            placeholder="🔍 بحث..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: '200px', padding: '12px', border: '2px solid #e0e0e0', borderRadius: '8px', fontSize: '14px' }}
-          />
-        </div>
-        {/* Loading */}
-        {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>جاري التحميل...</div>}
-        {/* Products Grid */}
-        {!loading && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' }}>
-            {filtered.map(p => (
-              <div key={p.id} style={{ background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '180px', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '180px', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px' }}>📦</div>
-                )}
-                <div style={{ padding: '15px' }}>
-                  <h3 style={{ margin: '0 0 5px', fontSize: '16px', color: '#003429' }}>{p.name}</h3>
-                  <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#666' }}>{p.description_short}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#003429' }}>{p.price} د.ج</span>
-                    <span style={{ fontSize: '12px', padding: '2px 8px', background: p.language === 'english' ? '#dbeafe' : '#fce7f3', color: p.language === 'english' ? '#2563eb' : '#db2777', borderRadius: '4px' }}>
-                      {p.language === 'english' ? '🇬🇧 EN' : '🇫🇷 FR'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => openEdit(p)} style={{ flex: 1, padding: '8px', background: '#f0fdf4', color: '#003429', border: '1px solid #003429', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
-                      ✏️ تعديل
-                    </button>
-                    <button onClick={() => setDeleteId(p.id)} style={{ flex: 1, padding: '8px', background: '#fef2f2', color: '#dc2626', border: '1px solid #dc2626', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
-                      🗑️ حذف
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {!loading && filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>
-            <div style={{ fontSize: '48px', marginBottom: '10px' }}>📦</div>
-            <p>لا توجد منتجات بعد. اضغط "إضافة منتج جديد" للبدء.</p>
-          </div>
-        )}
-      </div>
-      {/* ADD/EDIT FORM MODAL */}
-      {showForm && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '600px', width: '100%', maxHeight: '90vh', overflow: 'auto', padding: '30px' }} dir="rtl">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0, color: '#003429', fontSize: '20px' }}>
-                {editingId ? '✏️ تعديل المنتج' : '➕ إضافة منتج جديد'}
-              </h2>
-              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999' }}>✕</button>
+          <div className="bg-white p-4 rounded-xl shadow-sm">
+            <div className="text-3xl font-bold text-blue-600">
+              {products.filter(p => p.language === 'english').length}
             </div>
-            <form onSubmit={handleSave}>
-              {/* Name */}
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>اسم المنتج *</label>
-                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-              </div>
-              {/* Short desc */}
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>وصف مختصر</label>
-                <input value={form.description_short} onChange={e => setForm({ ...form, description_short: e.target.value })} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-              </div>
-              {/* Long desc */}
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>وصف تفصيلي</label>
-                <textarea value={form.description_long} onChange={e => setForm({ ...form, description_long: e.target.value })} rows={3} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', resize: 'vertical' }} />
-              </div>
-              {/* Price row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>السعر (د.ج) *</label>
-                  <input type="number" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} required style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+            <div className="text-sm text-gray-500">إنجليزية</div>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow-sm">
+            <div className="text-3xl font-bold text-purple-600">
+              {products.filter(p => p.language === 'french').length}
+            </div>
+            <div className="text-sm text-gray-500">فرنسية</div>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow-sm">
+            <div className="text-3xl font-bold text-green-600">
+              {products.filter(p => p.is_active).length}
+            </div>
+            <div className="text-sm text-gray-500">نشطة</div>
+          </div>
+        </div>
+
+        {/* Message */}
+        {message && (
+          <div className={`mb-4 p-4 rounded-lg ${message.includes('خطأ') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+            {message}
+          </div>
+        )}
+
+        {/* Toolbar */}
+        <div className="bg-white p-4 rounded-xl shadow-sm mb-6">
+          <div className="flex flex-wrap gap-4 items-center justify-between">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-[#003429] text-white px-4 py-2 rounded-lg hover:bg-[#004d3d] transition-colors flex items-center gap-2"
+              >
+                <span>+</span> منتج جديد
+              </button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <input
+                type="text"
+                placeholder="بحث..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429] focus:border-transparent"
+              />
+              <select
+                value={filterLang}
+                onChange={(e) => setFilterLang(e.target.value as any)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+              >
+                <option value="all">كل اللغات</option>
+                <option value="english">إنجليزية</option>
+                <option value="french">فرنسية</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Products Table */}
+        {loading ? (
+          <div className="text-center py-12">جاري التحميل...</div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">لا توجد منتجات</div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-right">الصورة</th>
+                  <th className="px-4 py-3 text-right">الاسم</th>
+                  <th className="px-4 py-3 text-right">السعر</th>
+                  <th className="px-4 py-3 text-right">اللغة</th>
+                  <th className="px-4 py-3 text-right">الحالة</th>
+                  <th className="px-4 py-3 text-right">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map((product) => (
+                  <tr key={product.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="w-16 h-16 object-cover rounded-lg" />
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400">لا صورة</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{product.name}</div>
+                      <div className="text-sm text-gray-500">{product.category}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-[#003429]">{product.price} د.ج</div>
+                      {product.original_price && (
+                        <div className="text-sm text-gray-400 line-through">{product.original_price} د.ج</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-sm ${product.language === 'english' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                        {product.language === 'english' ? 'إنجليزية' : 'فرنسية'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-sm ${product.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {product.is_active ? 'نشط' : 'معطل'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          تعديل
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          حذف
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </main>
+
+      {/* Product Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-bold text-[#003429]">
+                {editingProduct ? 'تعديل منتج' : 'منتج جديد'}
+              </h2>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">اسم المنتج *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">وصف مختصر</label>
+                  <input
+                    type="text"
+                    value={formData.description_short}
+                    onChange={(e) => setFormData({...formData, description_short: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">وصف تفصيلي</label>
+                  <textarea
+                    value={formData.description_long}
+                    onChange={(e) => setFormData({...formData, description_long: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429] h-24"
+                  />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>السعر قبل الخصم</label>
-                  <input type="number" value={form.original_price || ''} onChange={e => setForm({ ...form, original_price: e.target.value ? Number(e.target.value) : null })} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">السعر *</label>
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                    required
+                  />
                 </div>
-              </div>
-              {/* Grade & Language */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>الطور</label>
-                  <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value, category: e.target.value })} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}>
-                    {GRADES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">السعر قبل الخصم</label>
+                  <input
+                    type="number"
+                    value={formData.original_price || ''}
+                    onChange={(e) => setFormData({...formData, original_price: e.target.value ? Number(e.target.value) : undefined})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الطور *</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                  >
+                    <option value="preparatory">التحضيري</option>
+                    <option value="primary">الابتدائي</option>
+                    <option value="middle">المتوسط</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>اللغة</label>
-                  <select value={form.language} onChange={e => setForm({ ...form, language: e.target.value })} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}>
-                    {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">اللغة *</label>
+                  <select
+                    value={formData.language}
+                    onChange={(e) => setFormData({...formData, language: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                  >
+                    <option value="english">إنجليزية</option>
+                    <option value="french">فرنسية</option>
                   </select>
                 </div>
-              </div>
-              {/* Year & Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>السنة</label>
-                  <input type="number" value={form.year || ''} onChange={e => setForm({ ...form, year: e.target.value ? Number(e.target.value) : null })} placeholder="مثال: 3" style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>عدد البطاقات</label>
-                  <input type="number" value={form.card_count} onChange={e => setForm({ ...form, card_count: Number(e.target.value) })} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                </div>
-              </div>
-              {/* Age & Badge */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>الفئة العمرية</label>
-                  <input value={form.age_range} onChange={e => setForm({ ...form, age_range: e.target.value })} placeholder="مثال: 5-6 سنوات" style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>الشارة</label>
-                  <select value={form.badge} onChange={e => setForm({ ...form, badge: e.target.value })} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}>
-                    {BADGES.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">السنة</label>
+                  <select
+                    value={formData.year || ''}
+                    onChange={(e) => setFormData({...formData, year: e.target.value ? Number(e.target.value) : undefined})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                  >
+                    <option value="">بدون</option>
+                    <option value="1">السنة 1</option>
+                    <option value="2">السنة 2</option>
+                    <option value="3">السنة 3</option>
+                    <option value="4">السنة 4</option>
+                    <option value="5">السنة 5</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">عدد البطاقات</label>
+                  <input
+                    type="number"
+                    value={formData.card_count}
+                    onChange={(e) => setFormData({...formData, card_count: Number(e.target.value)})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الفئة العمرية</label>
+                  <input
+                    type="text"
+                    value={formData.age_range || ''}
+                    onChange={(e) => setFormData({...formData, age_range: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]}"
+                    placeholder="مثال: 4-6 سنوات"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الشارة</label>
+                  <select
+                    value={formData.badge || ''}
+                    onChange={(e) => setFormData({...formData, badge: e.target.value || undefined})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003429]"
+                  >
+                    <option value="">بدون</option>
+                    <option value="new">جديد</option>
+                    <option value="bestseller">الأكثر مبيعاً</option>
+                    <option value="sale">تخفيض</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">صورة المنتج</label>
+                  <div className="flex gap-4 items-start">
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                      {uploadingImage && <p className="text-sm text-blue-600 mt-1">جاري رفع الصورة...</p>}
+                    </div>
+                    {(imageFile || formData.image_url) && (
+                      <div className="w-24 h-24">
+                        <img
+                          src={imageFile ? URL.createObjectURL(imageFile) : formData.image_url}
+                          alt="معاينة"
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                    className="w-5 h-5 text-[#003429] rounded"
+                  />
+                  <label className="text-sm font-medium text-gray-700">منتج نشط</label>
+                </div>
               </div>
-              {/* Image */}
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#333' }}>صورة المنتج</label>
-                <input type="file" accept="image/*" onChange={handleImageChange} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                {imagePreview && (
-                  <img src={imagePreview} alt="معاينة" style={{ marginTop: '10px', maxHeight: '150px', borderRadius: '8px', objectFit: 'cover' }} />
-                )}
-              </div>
-              {/* Active */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} />
-                  <span style={{ fontSize: '14px' }}>منتج نشط (مرئي في المتجر)</span>
-                </label>
-              </div>
-              {/* Buttons */}
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button type="submit" disabled={saving} style={{ flex: 1, padding: '14px', background: '#003429', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-                  {saving ? 'جاري الحفظ...' : editingId ? '💾 حفظ التعديلات' : '➕ إضافة المنتج'}
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  type="submit"
+                  disabled={loading || uploadingImage}
+                  className="bg-[#003429] text-white px-6 py-2 rounded-lg hover:bg-[#004d3d] disabled:opacity-50"
+                >
+                  {loading ? 'جاري الحفظ...' : (editingProduct ? 'تحديث' : 'إضافة')}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)} style={{ padding: '14px 24px', background: '#f3f4f6', color: '#333', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowForm(false); resetForm(); }}
+                  className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300"
+                >
                   إلغاء
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-      {/* DELETE CONFIRM */}
-      {deleteId && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '30px', maxWidth: '400px', width: '90%', textAlign: 'center' }} dir="rtl">
-            <div style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
-            <h3 style={{ margin: '0 0 10px', color: '#333' }}>تأكيد الحذف</h3>
-            <p style={{ color: '#666', marginBottom: '20px' }}>هل أنت متأكد من حذف هذا المنتج؟ لا يمكن التراجع.</p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={handleDelete} style={{ flex: 1, padding: '12px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                نعم، احذف
-              </button>
-              <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#333', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                إلغاء
-              </button>
-            </div>
           </div>
         </div>
       )}

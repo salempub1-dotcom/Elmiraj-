@@ -45,6 +45,7 @@ export interface NoestOrderPayload {
   produit: string;
   type_id: number;
   stop_desk: number;
+  station_code?: string; // مطلوب إذا stop_desk = 1
   note?: string;
 }
 
@@ -72,26 +73,37 @@ export interface NoestTrackingInfo {
 }
 
 export interface NoestWilaya {
-  id: number;
-  name: string;
-  name_ar?: string;
+  code: number;          // رقم الولاية (1..58) كما يرجع من NOEST
+  nom: string;           // الاسم بالفرنسية
+  nom_ar?: string;       // (إن وُجد)
+  is_active?: number | boolean;
 }
 
 export interface NoestCommune {
-  id: number;
-  name: string;
-  wilaya_id: number;
+  nom: string;           // اسم البلدية بالفرنسية كما يرجع من NOEST
+  wilaya_id: number;     // رقم الولاية
+  code_postal?: string | number;
+  is_active?: number | boolean;
 }
 
+// desks endpoint يرجع Object (key => desk) غالباً
 export interface NoestDesk {
-  id: number;
+  key?: string;          // مثال: "01A"
+  code: string;          // مثال: "1A" أو "16G" (هذا هو station_code)
   name: string;
-  address: string;
-  phone?: string;
-  wilaya_id: number;
+  address?: string;
+  map?: string;
+  phones?: Record<string, string>;
+  email?: string;
 }
 
-export interface NoestFees {
+// helpers
+export function getWilayaCodeFromDeskCode(code: string): number | null {
+  const m = String(code || '').match(/^0*(\d{1,2})/);
+  return m ? Number(m[1]) : null;
+}
+
+export interface NoestFees { {
   home: number;
   desk: number;
   wilaya_id: number;
@@ -165,6 +177,7 @@ export function validateOrderPayload(
   if (!payload.adresse?.trim()) errors.push('العنوان مطلوب');
   if (!payload.wilaya_id) errors.push('الولاية مطلوبة');
   if (!payload.commune?.trim()) errors.push('البلدية مطلوبة');
+  if (payload.stop_desk === 1 && !payload.station_code?.trim()) errors.push('مكتب الاستلام (station_code) مطلوب عند اختيار التوصيل إلى المكتب');
   if (!payload.montant || payload.montant <= 0) errors.push('المبلغ يجب أن يكون أكبر من 0');
   if (!payload.produit?.trim()) errors.push('اسم المنتج مطلوب');
 
@@ -312,7 +325,28 @@ export async function getCommunes(
  * Get all NOEST desks
  */
 export async function getDesks(): Promise<NoestApiResult<NoestDesk[]>> {
-  return noestFetch<NoestDesk[]>('/api/public/desks', { method: 'GET' });
+  const res = await noestFetch<unknown>('/api/public/desks', { method: 'GET' });
+  if (!res.ok) return res as NoestApiResult<NoestDesk[]>;
+  const raw = res.data as unknown;
+
+  // API sometimes returns an object: { "01A": {code,name,...}, ... }
+  if (Array.isArray(raw)) {
+    return { ok: true, data: raw as NoestDesk[] };
+  }
+  if (raw && typeof raw === 'object') {
+    const data = Object.entries(raw as Record<string, any>).map(([key, v]) => ({
+      key,
+      code: String(v?.code ?? key),
+      name: String(v?.name ?? ''),
+      address: v?.address ? String(v.address) : undefined,
+      map: v?.map ? String(v.map) : undefined,
+      phones: v?.phones ?? undefined,
+      email: v?.email ? String(v.email) : undefined,
+    })) as NoestDesk[];
+    return { ok: true, data };
+  }
+
+  return { ok: true, data: [] };
 }
 
 /**

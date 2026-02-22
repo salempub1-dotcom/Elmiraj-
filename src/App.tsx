@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { createOrder, WILAYA_ID_MAP, getDesksByWilayaCode } from './services/noestApi';
+import { createOrder, getWilayas, getCommunes, getDesks, getWilayaCodeFromDeskCode, type NoestWilaya, type NoestCommune, type NoestDesk } from './services/noestApi';
 
 // ============================================================
 // TYPES
@@ -214,7 +214,12 @@ function StoreApp({
   const [copiedTracking, setCopiedTracking] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [customerWilaya, setCustomerWilaya] = useState('');
+  const [customerWilayaId, setCustomerWilayaId] = useState<number | ''>('');
+  const [customerWilayaLabel, setCustomerWilayaLabel] = useState('');
+  const [noestWilayas, setNoestWilayas] = useState<NoestWilaya[]>([]);
+  const [noestCommunes, setNoestCommunes] = useState<NoestCommune[]>([]);
+  const [noestDesks, setNoestDesks] = useState<NoestDesk[]>([]);
+  const [loadingNoest, setLoadingNoest] = useState(false);
   const [customerAddress, setCustomerAddress] = useState('');
   const [deliveryType, setDeliveryType] = useState<'home' | 'office'>('home');
   const [selectedOffice, setSelectedOffice] = useState('');
@@ -240,12 +245,66 @@ function StoreApp({
     setToast({ message, type });
   }, []);
 
-  const selectedWilayaObj = wilayaShipping.find(w => w.name === customerWilaya);
+  // ─── Load NOEST reference lists (wilayas/desks/communes) ─────────────────
+  useEffect(() => {
+    if (!checkoutOpen) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoadingNoest(true);
+
+        // 1) Wilayas
+        if (noestWilayas.length === 0) {
+          const w = await getWilayas();
+          if (!cancelled && w.ok && Array.isArray(w.data)) {
+            setNoestWilayas(w.data as NoestWilaya[]);
+          }
+        }
+
+        // 2) Desks (stop desk stations)
+        if (noestDesks.length === 0) {
+          const d = await getDesks();
+          if (!cancelled && d.ok && Array.isArray(d.data)) {
+            setNoestDesks(d.data as NoestDesk[]);
+          }
+        }
+      } finally {
+        if (!cancelled) setLoadingNoest(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [checkoutOpen, noestWilayas.length, noestDesks.length]);
+
+  useEffect(() => {
+    if (!checkoutOpen) return;
+    if (!customerWilayaId) { setNoestCommunes([]); setCommune(''); return; }
+
+    let cancelled = false;
+    (async () => {
+      setLoadingNoest(true);
+      try {
+        const c = await getCommunes(Number(customerWilayaId));
+        if (!cancelled && c.ok && Array.isArray(c.data)) {
+          setNoestCommunes(c.data as NoestCommune[]);
+        } else if (!cancelled) {
+          setNoestCommunes([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingNoest(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [checkoutOpen, customerWilayaId]);
+
+  const selectedWilayaObj = customerWilayaId ? wilayaShipping.find(w => w.code === customerWilayaId) : undefined;
   const shippingCost = selectedWilayaObj ? (deliveryType === 'home' ? selectedWilayaObj.home : selectedWilayaObj.office) : 0;
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const orderTotal = cartTotal + shippingCost;
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const desks = selectedWilayaObj ? getDesksByWilayaCode(selectedWilayaObj.code) : [];
+  const desks = customerWilayaId ? noestDesks.filter(d => getWilayaCodeFromDeskCode(d.code) === customerWilayaId) : [];
 
   const filteredProducts = products.filter(p => {
     const matchCat = selectedCategory === 'الكل' || p.category === selectedCategory;
@@ -271,24 +330,24 @@ function StoreApp({
   const updateQuantity = (id: number, qty: number) => { if (qty < 1) { removeFromCart(id); return; } setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i)); };
 
   const handlePlaceOrder = async () => {
-    if (!customerName || !customerPhone || !customerWilaya || !customerAddress || !commune) { showToast('يرجى ملء جميع الحقول المطلوبة', 'error'); return; }
+    if (!customerName || !customerPhone || !customerWilayaId || !customerAddress || !commune) { showToast('يرجى ملء جميع الحقول المطلوبة', 'error'); return; }
     if (customerPhone.length !== 10) { showToast('رقم الهاتف يجب أن يكون 10 أرقام', 'error'); return; }
     if (deliveryType === 'office' && !selectedOffice) { showToast('يرجى اختيار مكتب الاستلام', 'error'); return; }
 
     setPlacingOrder(true);
-    const wilayaObj = wilayaShipping.find(w => w.name === customerWilaya);
-    const wilayaId = wilayaObj ? WILAYA_ID_MAP[wilayaObj.name] || wilayaObj.code : 16;
+    const wilayaId = Number(customerWilayaId) || 16;
+    const wilayaObj = wilayaShipping.find(w => w.code === wilayaId);
     const deskCode = selectedOffice ? selectedOffice.split(' — ')[0] : undefined;
     const trackingNum = generateTracking(wilayaId, deskCode);
     const productStr = cart.map(i => `${i.name} x${i.quantity}`).join(', ');
 
     let noestId: string | undefined;
     try {
-      const result = await createOrder({ client: customerName, phone: customerPhone, adresse: customerAddress, wilaya_id: wilayaId, commune, montant: orderTotal, produit: productStr, type_id: 1, stop_desk: deliveryType === 'office' ? 1 : 0 });
+      const result = await createOrder({ client: customerName, phone: customerPhone, adresse: customerAddress, wilaya_id: wilayaId, commune, montant: orderTotal, produit: productStr, type_id: 1, stop_desk: deliveryType === 'office' ? 1 : 0, station_code: deliveryType === 'office' ? deskCode : undefined });
       if (result.ok && result.data) { const d = result.data as unknown as { id?: string; tracking?: string }; noestId = d.id || d.tracking || undefined; showToast('✅ تم إرسال الطلب إلى شركة التوصيل!', 'success'); }
     } catch (err) { console.warn('NOEST API error:', err); }
 
-    const newOrder: Order = { id: `ORD-${Date.now()}`, tracking: noestId || trackingNum, customer: customerName, phone: customerPhone, wilaya: customerWilaya, address: customerAddress, items: [...cart], total: orderTotal, shipping: shippingCost, deliveryType, selectedOffice: selectedOffice || undefined, status: 'pending', date: new Date().toLocaleDateString('ar-DZ'), noestId };
+    const newOrder: Order = { id: `ORD-${Date.now()}`, tracking: noestId || trackingNum, customer: customerName, phone: customerPhone, wilaya: customerWilayaLabel || String(customerWilayaId), address: customerAddress, items: [...cart], total: orderTotal, shipping: shippingCost, deliveryType, selectedOffice: selectedOffice || undefined, status: 'pending', date: new Date().toLocaleDateString('ar-DZ'), noestId };
     setOrders(prev => [newOrder, ...prev]);
     setCurrentOrder(newOrder);
     setOrderPlaced(true);
@@ -298,7 +357,7 @@ function StoreApp({
     fbTrack('Purchase', { value: orderTotal, currency: 'DZD', num_items: cartCount });
   };
 
-  const resetCheckout = () => { setCheckoutOpen(false); setOrderPlaced(false); setCurrentOrder(null); setCustomerName(''); setCustomerPhone(''); setCustomerWilaya(''); setCustomerAddress(''); setCommune(''); setDeliveryType('home'); setSelectedOffice(''); };
+  const resetCheckout = () => { setCheckoutOpen(false); setOrderPlaced(false); setCurrentOrder(null); setCustomerName(''); setCustomerPhone(''); setCustomerWilayaId(''); setCustomerWilayaLabel(''); setCustomerAddress(''); setCommune(''); setDeliveryType('home'); setSelectedOffice(''); setNoestCommunes([]); };
   const copyTracking = (tracking: string) => { navigator.clipboard.writeText(tracking).then(() => { setCopiedTracking(true); setTimeout(() => setCopiedTracking(false), 2000); showToast('تم نسخ رقم التتبع'); }); };
 
   return (
@@ -514,11 +573,11 @@ function StoreApp({
                 <div className="p-6 space-y-4">
                   <div><label className="block text-sm font-bold text-gray-700 mb-1">الاسم الكامل *</label><input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none" placeholder="أدخل اسمك الكامل" /></div>
                   <div><label className="block text-sm font-bold text-gray-700 mb-1">رقم الهاتف * (10 أرقام)</label><input type="tel" value={customerPhone} onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v.length <= 10) setCustomerPhone(v); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none" placeholder="05XXXXXXXX" /><p className={`text-xs mt-1 ${customerPhone.length === 10 ? 'text-green-500 font-bold' : 'text-gray-400'}`}>{customerPhone.length}/10</p></div>
-                  <div><label className="block text-sm font-bold text-gray-700 mb-1">الولاية *</label><select value={customerWilaya} onChange={e => { setCustomerWilaya(e.target.value); setSelectedOffice(''); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none"><option value="">اختر الولاية</option>{wilayaShipping.sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={w.name}>{w.code} - {w.name}</option>))}</select></div>
-                  <div><label className="block text-sm font-bold text-gray-700 mb-1">البلدية *</label><input type="text" value={commune} onChange={e => setCommune(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none" placeholder="أدخل البلدية" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">الولاية *</label><select value={customerWilayaId === '' ? '' : String(customerWilayaId)} onChange={e => { const v = e.target.value; if (!v) { setCustomerWilayaId(''); setCustomerWilayaLabel(''); setNoestCommunes([]); setCommune(''); setSelectedOffice(''); return; } const id = Number(v); setCustomerWilayaId(id); const w = noestWilayas.find(x => x.code === id); setCustomerWilayaLabel(w ? `${w.code} - ${w.nom}` : String(id)); setSelectedOffice(''); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none"><option value="">اختر الولاية</option>{noestWilayas.length > 0 ? noestWilayas.slice().sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={String(w.code)}>{w.code} - {w.nom}</option>)) : wilayaShipping.slice().sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={String(w.code)}>{w.code} - {w.name}</option>))}</select></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">البلدية *</label><select value={commune} onChange={e => setCommune(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none" disabled={!customerWilayaId || loadingNoest}><option value="">{!customerWilayaId ? 'اختر الولاية أولاً' : loadingNoest ? 'جاري تحميل البلديات...' : 'اختر البلدية'}</option>{noestCommunes.map((c, idx) => (<option key={`${c.wilaya_id}-${idx}`} value={c.nom}>{c.nom}</option>))}</select></div>
                   <div><label className="block text-sm font-bold text-gray-700 mb-1">العنوان التفصيلي *</label><textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none" rows={2} placeholder="أدخل عنوانك التفصيلي" /></div>
                   <div><label className="block text-sm font-bold text-gray-700 mb-2">نوع التوصيل *</label><div className="grid grid-cols-2 gap-3">{[{ value: 'home', icon: '🏠', label: 'إلى المنزل' }, { value: 'office', icon: '🏢', label: 'إلى المكتب' }].map(opt => (<button key={opt.value} onClick={() => { setDeliveryType(opt.value as 'home' | 'office'); setSelectedOffice(''); }} className={`p-3 rounded-xl border-2 font-bold text-sm transition-all ${deliveryType === opt.value ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:border-emerald-300'}`}>{opt.icon} {opt.label}</button>))}</div></div>
-                  {deliveryType === 'office' && customerWilaya && (<div><label className="block text-sm font-bold text-gray-700 mb-2">🏢 اختر مكتب الاستلام *</label>{desks.length > 0 ? (<div className="max-h-48 overflow-y-auto space-y-2 border-2 border-gray-200 rounded-xl p-3">{desks.map(desk => (<button key={desk.code} onClick={() => setSelectedOffice(`${desk.code} — ${desk.name}`)} className={`w-full flex items-center gap-3 p-3 rounded-xl text-right transition-all border-2 ${selectedOffice === `${desk.code} — ${desk.name}` ? 'border-emerald-500 bg-emerald-50' : 'border-gray-100 hover:border-emerald-300'}`}><span className="bg-emerald-700 text-white text-xs px-2 py-1 rounded-lg font-mono font-bold">{desk.code}</span><span className="font-bold text-gray-800 text-sm">{desk.name}</span>{selectedOffice === `${desk.code} — ${desk.name}` && <span className="text-emerald-500 mr-auto font-bold">✓</span>}</button>))}</div>) : (<div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 text-amber-700 text-sm font-bold text-center">⚠️ سيتم التواصل معك لتحديد نقطة الاستلام</div>)}</div>)}
+                  {deliveryType === 'office' && customerWilayaId && (<div><label className="block text-sm font-bold text-gray-700 mb-2">🏢 اختر مكتب الاستلام *</label>{desks.length > 0 ? (<div className="max-h-48 overflow-y-auto space-y-2 border-2 border-gray-200 rounded-xl p-3">{desks.map(desk => (<button key={desk.code} onClick={() => setSelectedOffice(`${desk.code} — ${desk.name}`)} className={`w-full flex items-center gap-3 p-3 rounded-xl text-right transition-all border-2 ${selectedOffice === `${desk.code} — ${desk.name}` ? 'border-emerald-500 bg-emerald-50' : 'border-gray-100 hover:border-emerald-300'}`}><span className="bg-emerald-700 text-white text-xs px-2 py-1 rounded-lg font-mono font-bold">{desk.code}</span><span className="font-bold text-gray-800 text-sm">{desk.name}</span>{selectedOffice === `${desk.code} — ${desk.name}` && <span className="text-emerald-500 mr-auto font-bold">✓</span>}</button>))}</div>) : (<div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 text-amber-700 text-sm font-bold text-center">⚠️ سيتم التواصل معك لتحديد نقطة الاستلام</div>)}</div>)}
                   <div className="bg-gray-50 rounded-xl p-4 space-y-2">
                     <h4 className="font-bold text-gray-700 mb-3">ملخص الطلب</h4>
                     {cart.map(item => (<div key={item.id} className="flex justify-between text-sm"><span>{item.name} × {item.quantity}</span><span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span></div>))}

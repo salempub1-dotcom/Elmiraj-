@@ -92,15 +92,14 @@ export interface NoestCommune {
 
 // desks endpoint يرجع Object (key => desk) غالباً
 export interface NoestDesk {
-  key?: string;          // مثال: "01A"
-  code: string;          // مثال: "1A" أو "16G" (هذا هو station_code)
+  key: string;        // مثال: "01A"
+  code: string;       // مثال: "1A" أو "01A" حسب API
   name: string;
-  address?: string;
+  address: string;
   map?: string;
   phones?: Record<string, string>;
   email?: string;
 }
-
 // helpers
 export function getWilayaCodeFromDeskCode(code: string): number | null {
   const m = String(code || '').match(/^0*(\d{1,2})/);
@@ -329,28 +328,21 @@ export async function getCommunes(
  * Get all NOEST desks
  */
 export async function getDesks(): Promise<NoestApiResult<NoestDesk[]>> {
-  const res = await noestFetch<unknown>('/api/public/desks', { method: 'GET' });
-  if (!res.ok) return res as NoestApiResult<NoestDesk[]>;
-  const raw = res.data as unknown;
+  const res = await noestFetch<Record<string, any>>('/api/public/desks');
+  if (!res.ok) return { ok: false, error: res.error };
 
-  // API sometimes returns an object: { "01A": {code,name,...}, ... }
-  if (Array.isArray(raw)) {
-    return { ok: true, data: raw as NoestDesk[] };
-  }
-  if (raw && typeof raw === 'object') {
-    const data = Object.entries(raw as Record<string, any>).map(([key, v]) => ({
-      key,
-      code: String(v?.code ?? key),
-      name: String(v?.name ?? ''),
-      address: v?.address ? String(v.address) : undefined,
-      map: v?.map ? String(v.map) : undefined,
-      phones: v?.phones ?? undefined,
-      email: v?.email ? String(v.email) : undefined,
-    })) as NoestDesk[];
-    return { ok: true, data };
-  }
+  const raw = res.data || {};
+  const desks: NoestDesk[] = Object.entries(raw).map(([key, v]) => ({
+    key,
+    code: v?.code ?? key,          // بعض الأحيان code="1A" و key="01A"
+    name: v?.name ?? '',
+    address: v?.address ?? '',
+    map: v?.map ?? '',
+    phones: v?.phones ?? {},
+    email: v?.email ?? '',
+  }));
 
-  return { ok: true, data: [] };
+  return { ok: true, data: desks };
 }
 
 /**
@@ -581,4 +573,5 @@ export const WILAYA_ID_MAP: Record<string, number> = {
   'تيميمون': 49, 'أولاد جلال': 51, 'بني عباس': 52,
   'عين صالح': 53, 'تقرت': 55, 'جانت': 56, 'المغير': 57, 'المنيعة': 58,
 };
+
 

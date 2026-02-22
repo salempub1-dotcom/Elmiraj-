@@ -106,7 +106,7 @@ export function getWilayaCodeFromDeskCode(code: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-export interface NoestFees { {
+export interface NoestFees { 
   home: number;
   desk: number;
   wilaya_id: number;
@@ -573,5 +573,6 @@ export const WILAYA_ID_MAP: Record<string, number> = {
   'تيميمون': 49, 'أولاد جلال': 51, 'بني عباس': 52,
   'عين صالح': 53, 'تقرت': 55, 'جانت': 56, 'المغير': 57, 'المنيعة': 58,
 };
+
 
 

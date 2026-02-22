@@ -588,16 +588,23 @@ function AdminApp({
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
   const pendingCount = orders.filter(o => o.status === 'pending').length;
 
- const handleLogout = () => {
+ const handleLogin = () => {
+  if (adminUsername === ADMIN_USER && adminPassword === ADMIN_PASS) {
+    setIsAdmin(true);
+    setAdminLoginError('');
+    try { localStorage.setItem('almiraj_admin', 'true'); } catch {}
+  } else {
+    setAdminLoginError('اسم المستخدم أو كلمة المرور غير صحيحة');
+  }
+};
+
+const handleLogout = () => {
   setIsAdmin(false);
   try { localStorage.removeItem('almiraj_admin'); } catch {}
   setAdminUsername('');
   setAdminPassword('');
   onBackToStore();
 };
-
-  const handleLogout = () => { setIsAdmin(false); setAdminUsername(''); setAdminPassword(''); onBackToStore(); };
-
   const openAddProduct = () => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', category: 'تحضيري', stock: '', benefits: '', badge: '' }); setProductImages([]); setShowProductForm(true); };
   const openEditProduct = (p: Product) => { setEditingProduct(p); setProductForm({ name: p.name, description: p.description, price: p.price.toString(), category: p.category, stock: p.stock.toString(), benefits: p.benefits.join('\n'), badge: p.badge || '' }); setProductImages(p.images); setShowProductForm(true); };
 

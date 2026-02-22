@@ -130,8 +130,8 @@ const initialProducts: Product[] = [
   { id: 13, name: 'بطاقات قواعد الفرنسية المتقدمة', category: 'متوسط', description: 'مرجع شامل يساعد الأستاذ في تدريس قواعد اللغة الفرنسية المتقدمة بطريقة منهجية', price: 2000, stock: 12, sales: 40, images: ['https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400'], benefits: ['تغطية شاملة لقواعد الفرنسية', 'تدريبات تطبيقية متنوعة', 'مرجع سريع للأستاذ والتلميذ'], badge: 'جديد' },
 ];
 
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'admin123';
+const ADMIN_USER = import.meta.env.VITE_ADMIN_USER || 'admin';
+const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS || 'admin123';
 
 // ============================================================
 // UTILITIES
@@ -588,10 +588,13 @@ function AdminApp({
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
   const pendingCount = orders.filter(o => o.status === 'pending').length;
 
-  const handleLogin = () => {
-    if (adminUsername === ADMIN_USER && adminPassword === ADMIN_PASS) { setIsAdmin(true); setAdminLoginError(''); }
-    else { setAdminLoginError('اسم المستخدم أو كلمة المرور غير صحيحة'); }
-  };
+ const handleLogout = () => {
+  setIsAdmin(false);
+  try { localStorage.removeItem('almiraj_admin'); } catch {}
+  setAdminUsername('');
+  setAdminPassword('');
+  onBackToStore();
+};
 
   const handleLogout = () => { setIsAdmin(false); setAdminUsername(''); setAdminPassword(''); onBackToStore(); };
 

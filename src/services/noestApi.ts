@@ -27,7 +27,11 @@ function buildUrl(endpoint: string): string {
   // نستخدم Vercel Serverless Function كـ proxy
   return `/api/noest?endpoint=${encodeURIComponent(endpoint)}`;
 }
-
+export function getWilayaCodeFromDeskCode(code: string): number | null {
+  // يقبل "01A" أو "1A" أو "16B" ... ويرجع 1 أو 16 ...
+  const m = String(code || '').match(/^0*(\d{1,2})/);
+  return m ? Number(m[1]) : null;
+}
 const NOEST_API_TOKEN = '7Y5o9xsGS9s5o85SEdPdqCUF0aebwWXaiYz';
 const NOEST_USER_GUID = 'BX4O76YM';
 const TIMEOUT_MS = 30000;
@@ -577,3 +581,4 @@ export const WILAYA_ID_MAP: Record<string, number> = {
   'تيميمون': 49, 'أولاد جلال': 51, 'بني عباس': 52,
   'عين صالح': 53, 'تقرت': 55, 'جانت': 56, 'المغير': 57, 'المنيعة': 58,
 };
+

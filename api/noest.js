@@ -100,6 +100,10 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
+  // ✅ Direct diagnose (must not crash)
+if (req.body?.action === 'diagnose') {
+  return res.status(200).json({ ok: true, message: "DIAGNOSE_V2_OK", base: process.env.NOEST_API_BASE || "https://app.noest-dz.com" });
+}
 // ✅ Ensure body is parsed (sometimes req.body is undefined)
 let body = req.body;
 if (!body || typeof body !== 'object') {

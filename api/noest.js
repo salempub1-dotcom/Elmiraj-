@@ -142,13 +142,16 @@ if (!body || typeof body !== 'object') {
   const BASE = (process.env.NOEST_API_BASE || 'https://app.noest-dz.com').replace(/\/+$/, '');
 
   try {
-    // ✅ Safe body parsing (avoids FUNCTION_INVOCATION_FAILED)
+ // ✅ Safe body (never destructure req.body)
 let body = req.body;
 
 if (typeof body === 'string') {
   try { body = JSON.parse(body); } catch { body = {}; }
 }
 if (!body || typeof body !== 'object') body = {};
+
+const action = body.action;
+const params = body;
 
 const action = body.action;
 const params = { ...body };
@@ -160,11 +163,11 @@ console.log(`[${id}] action=${action}`);
     // ═══════════════════════════════════════════════════════════
     // DIAGNOSE — Test which endpoints work
     // ═══════════════════════════════════════════════════════════
-    if (action === 'diagnose') {
+    if (action === 'create_order') {
   return res.status(200).json({
     ok: true,
-    message: "diagnose reached ✅",
-    base: BASE,
+    message: 'CREATE_ORDER_REACHED_V2',
+    received: params,
   });
 }
 

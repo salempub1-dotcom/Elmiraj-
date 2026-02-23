@@ -139,59 +139,30 @@ if (!body || typeof body !== 'object') {
   const BASE = (process.env.NOEST_API_BASE || 'https://app.noest-dz.com').replace(/\/+$/, '');
 
   try {
-    const { action, ...params } = body || {};
+    // ✅ Safe body parsing (avoids FUNCTION_INVOCATION_FAILED)
+let body = req.body;
+
+if (typeof body === 'string') {
+  try { body = JSON.parse(body); } catch { body = {}; }
+}
+if (!body || typeof body !== 'object') body = {};
+
+const action = body.action;
+const params = { ...body };
+delete params.action;
+
+console.log(`[${id}] action=${action}`);
     console.log(`[${id}] action=${action} base=${BASE} token=${hint(API_TOKEN)}`);
 
     // ═══════════════════════════════════════════════════════════
     // DIAGNOSE — Test which endpoints work
     // ═══════════════════════════════════════════════════════════
     if (action === 'diagnose') {
-  const base = BASE; // BASE = https://app.noest-dz.com
-  const url = `${base}/api/public/create/order`;
-
-  // minimal payload to test endpoint (will likely return 422 - وهذا طبيعي)
-  const testPayload = {
-    api_token: API_TOKEN,
-    user_guid: USER_GUID,
-    test: true,
-  };
-
-  try {
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(testPayload),
-    });
-
-    const text = await r.text();
-    let json = null;
-    try { json = JSON.parse(text); } catch {}
-
-    return res.status(200).json({
-      ok: true,
-      data: {
-        base,
-        url_tested: url,
-        status: r.status,
-        statusText: r.statusText,
-        is_json: !!json,
-        snippet: text.substring(0, 400),
-      },
-    });
-  } catch (e) {
-    const msg =
-      e instanceof Error ? e.message :
-      typeof e === 'string' ? e :
-      JSON.stringify(e);
-
-    return res.status(200).json({
-      ok: false,
-      error: 'diagnose failed',
-      debug: msg.substring(0, 400),
-      base,
-      url_tested: url,
-    });
-  }
+  return res.status(200).json({
+    ok: true,
+    message: "diagnose reached ✅",
+    base: BASE,
+  });
 }
 
     // ═══════════════════════════════════════════════════════════

@@ -67,15 +67,17 @@ export default async function handler(req, res) {
         body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID, test: true }),
       });
       const text = await r.text();
-      return res.status(200).json({
-        ok: true,
-        data: {
-          url_tested: CREATE_URL,
-          status: r.status,
-          statusText: r.statusText,
-          snippet: text.substring(0, 600),
-        },
-      });
+      let data = null;
+try {
+  data = JSON.parse(text);
+} catch {}
+
+return res.status(200).json({
+  ok: r.ok && data?.success === true,
+  status: r.status,
+  tracking: data?.tracking || null,
+  data,
+});
     } catch (e) {
       const msg = e instanceof Error ? (e.stack || e.message) : safeJson(e);
       return res.status(200).json({ ok: false, error: 'diagnose_failed', debug: msg.substring(0, 800) });

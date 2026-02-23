@@ -145,7 +145,7 @@ export default async function handler(req, res) {
           try {
             const r = await fetch(`${base}${ep}`, {
               headers,
-              signal: AbortSignal.timeout(10000),
+             
             });
             const t = await r.text();
             let isJson = false;
@@ -168,7 +168,7 @@ export default async function handler(req, res) {
               method: 'POST',
               headers,
               body: JSON.stringify({ test: true }),
-              signal: AbortSignal.timeout(10000),
+             
             });
             results.tests[base][`POST ${ep}`] = {
               status: r.status,
@@ -248,7 +248,7 @@ export default async function handler(req, res) {
             method: 'POST',
             headers,
             body: JSON.stringify(payload),
-            signal: AbortSignal.timeout(30000),
+            
           });
         } catch (netErr) {
           console.error(`[${id}] ❌ Network error on ${url}: ${netErr.message}`);
@@ -391,7 +391,7 @@ export default async function handler(req, res) {
     // ═══════════════════════════════════════════════════════════
     if (action === 'get_wilayas') {
       try {
-        const r = await fetch(`${BASE}/wilayas`, { headers, signal: AbortSignal.timeout(10000) });
+        const r = await fetch(`${BASE}/wilayas`, { headers, });
         if (r.ok) {
           const d = await r.json();
           return res.status(200).json({ ok: true, data: d.data || d });

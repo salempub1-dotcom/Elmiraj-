@@ -188,7 +188,7 @@ console.log(`[${id}] action=${action}`);
       }
 
       // Build NOEST payload with correct field names
-     const payload = {
+  const payload = {
   api_token: API_TOKEN,
   user_guid: USER_GUID,
 
@@ -197,16 +197,22 @@ console.log(`[${id}] action=${action}`);
   telephone_2: '',
   adresse: String(params.adresse || '').trim(),
   wilaya_id: Number(params.wilaya_id),
-  commune: String(params.commune || '').trim(),
+  commune: String(params.commune || '').trim(), // لازم FR
   montant: Number(params.montant),
   produit: String(params.produit || '').trim(),
   note: String(params.note || '').trim(),
   stop_desk: Number(params.stop_desk) || 0,
+
+  // (اختياري) بعض حسابات NOEST تحتاج type_id
+  type_id: Number(params.type_id) || 0,
 };
 
       // Add stop desk centre_id if applicable
-      if (payload.stop_desk === 1 && params.station_code) {
-  payload.station_code = String(params.station_code).trim();
+ if (payload.stop_desk === 1 && !payload.station_code) {
+  return res.status(422).json({
+    ok: false,
+    error: 'station_code مطلوب عند اختيار التوصيل إلى المكتب',
+  });
 }
 
       // Add user_guid if set

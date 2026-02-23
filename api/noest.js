@@ -146,67 +146,53 @@ if (!body || typeof body !== 'object') {
     // DIAGNOSE — Test which endpoints work
     // ═══════════════════════════════════════════════════════════
     if (action === 'diagnose') {
-      const bases = [
-        BASE,
-        'https://app.noest-dz.com/api',
-        'https://app.noest-dz.com/api/v1',
-      ];
-      // Deduplicate
-      const uniqueBases = [...new Set(bases)];
+  const base = BASE; // BASE = https://app.noest-dz.com
+  const url = `${base}/api/public/create/order`;
 
-      const results = {
-        timestamp: new Date().toISOString(),
-        token_hint: hint(API_TOKEN),
-        guid_hint: hint(USER_GUID || ''),
-        tests: {},
-      };
+  // minimal payload to test endpoint (will likely return 422 - وهذا طبيعي)
+  const testPayload = {
+    api_token: API_TOKEN,
+    user_guid: USER_GUID,
+    test: true,
+  };
 
-      for (const base of uniqueBases) {
-        results.tests[base] = {};
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(testPayload),
+    });
 
-        // Test GET endpoints
-        for (const ep of ['/wilayas', '/communes/16', '/centres', '/tarifs']) {
-          try {
-            const r = await fetch(`${base}${ep}`, {
-              headers,
-             
-            });
-            const t = await r.text();
-            let isJson = false;
-            try { JSON.parse(t); isJson = true; } catch {}
-            results.tests[base][`GET ${ep}`] = {
-              status: r.status,
-              ok: r.ok,
-              is_json: isJson,
-              snippet: t.substring(0, 150),
-            };
-          } catch (e) {
-            results.tests[base][`GET ${ep}`] = { error: e.message };
-          }
-        }
+    const text = await r.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch {}
 
-        // Test POST endpoints
-       for (const ep of ['/api/public/create/order']) {
-          try {
-            const r = await fetch(`${base}${ep}`, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({ test: true }),
-             
-            });
-            results.tests[base][`POST ${ep}`] = {
-              status: r.status,
-              statusText: r.statusText,
-            };
-          } catch (e) {
-            results.tests[base][`POST ${ep}`] = { error: e.message };
-          }
-        }
-      }
+    return res.status(200).json({
+      ok: true,
+      data: {
+        base,
+        url_tested: url,
+        status: r.status,
+        statusText: r.statusText,
+        is_json: !!json,
+        snippet: text.substring(0, 400),
+      },
+    });
+  } catch (e) {
+    const msg =
+      e instanceof Error ? e.message :
+      typeof e === 'string' ? e :
+      JSON.stringify(e);
 
-      console.log(`[${id}] DIAGNOSE complete`);
-      return res.status(200).json({ ok: true, data: results });
-    }
+    return res.status(200).json({
+      ok: false,
+      error: 'diagnose failed',
+      debug: msg.substring(0, 400),
+      base,
+      url_tested: url,
+    });
+  }
+}
 
     // ═══════════════════════════════════════════════════════════
     // CREATE ORDER — POST /store

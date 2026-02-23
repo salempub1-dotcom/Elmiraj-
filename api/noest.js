@@ -97,12 +97,13 @@ export default async function handler(req, res) {
     });
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
-  }
-  // ✅ Direct diagnose (must not crash)
-if (req.body?.action === 'diagnose') {
-  return res.status(200).json({ ok: true, message: "DIAGNOSE_V2_OK", base: process.env.NOEST_API_BASE || "https://app.noest-dz.com" });
+// ✅ Direct create_order test (no fetch)
+if (req.method === 'POST' && req.body?.action === 'create_order') {
+  return res.status(200).json({
+    ok: true,
+    message: "CREATE_ORDER_REACHED_V1",
+    received: req.body,
+  });
 }
 // ✅ Ensure body is parsed (sometimes req.body is undefined)
 let body = req.body;

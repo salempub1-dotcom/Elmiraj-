@@ -85,29 +85,28 @@ export default async function handler(req, res) {
   // Create order
   if (action === 'create_order') {
     const payload = {
-      api_token: API_TOKEN,
-      user_guid: USER_GUID,
-      nom: String(body.client || '').trim(),
-      telephone: String(body.phone || '').trim(),
-      telephone_2: '',
-      adresse: String(body.adresse || '').trim(),
-      wilaya_id: Number(body.wilaya_id),
-      commune: String(body.commune || '').trim(), // FR
-      montant: Number(body.montant),
-      produit: String(body.produit || '').trim(),
-      note: String(body.note || '').trim(),
-      stop_desk: Number(body.stop_desk) || 0,
-      type_id: Number(body.type_id) || 0,
-    };
+  api_token: API_TOKEN,
+  user_guid: USER_GUID,
 
+  // ✅ REQUIRED field names per NOEST validation
+  client: String(body.client || '').trim(),
+  phone: String(body.phone || '').trim(),
+  adresse: String(body.adresse || '').trim(),
+  wilaya_id: Number(body.wilaya_id),
+  commune: String(body.commune || '').trim(),
+  montant: Number(body.montant),
+  produit: String(body.produit || '').trim(),
+  type_id: Number(body.type_id),
+  stop_desk: Number(body.stop_desk),
+};
     // station_code required when stop_desk=1
     if (payload.stop_desk === 1) {
-      const station_code = String(body.station_code || '').trim();
-      if (!station_code) {
-        return res.status(422).json({ ok: false, error: 'station_code required when stop_desk=1' });
-      }
-      payload.station_code = station_code;
-    }
+  const station_code = String(body.station_code || '').trim();
+  if (!station_code) {
+    return res.status(422).json({ ok: false, error: 'station_code required when stop_desk=1' });
+  }
+  payload.station_code = station_code;
+}
 
     try {
       const r = await fetch(CREATE_URL, {

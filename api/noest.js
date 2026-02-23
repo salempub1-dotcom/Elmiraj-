@@ -106,12 +106,10 @@ export default async function handler(req, res) {
     });
   }
 
-  const id = rid();
   const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Authorization': `Bearer ${API_TOKEN}`,
-  };
+  'Content-Type': 'application/json',
+  'Accept': 'application/json',
+};
 
   // Base URL — prioritize env override, then default
   const BASE = (process.env.NOEST_API_BASE || 'https://app.noest-dz.com').replace(/\/+$/, '');
@@ -164,7 +162,7 @@ export default async function handler(req, res) {
         }
 
         // Test POST endpoints
-        for (const ep of ['/store', '/colis', '/order/create', '/orders']) {
+       for (const ep of ['/api/public/create/order']) {
           try {
             const r = await fetch(`${base}${ep}`, {
               method: 'POST',
@@ -207,24 +205,26 @@ export default async function handler(req, res) {
       }
 
       // Build NOEST payload with correct field names
-      const payload = {
-        // NOEST uses "nom" for client name and "telephone" for phone
-        nom: String(params.client || '').trim(),
-        telephone: String(params.phone || '').trim(),
-        telephone_2: '',
-        adresse: String(params.adresse || '').trim(),
-        wilaya_id: Number(params.wilaya_id),
-        commune: String(params.commune || '').trim(),
-        montant: Number(params.montant),
-        produit: String(params.produit || '').trim(),
-        note: String(params.note || '').trim(),
-        stop_desk: Number(params.stop_desk) || 0,
-      };
+     const payload = {
+  api_token: API_TOKEN,
+  user_guid: USER_GUID,
+
+  nom: String(params.client || '').trim(),
+  telephone: String(params.phone || '').trim(),
+  telephone_2: '',
+  adresse: String(params.adresse || '').trim(),
+  wilaya_id: Number(params.wilaya_id),
+  commune: String(params.commune || '').trim(),
+  montant: Number(params.montant),
+  produit: String(params.produit || '').trim(),
+  note: String(params.note || '').trim(),
+  stop_desk: Number(params.stop_desk) || 0,
+};
 
       // Add stop desk centre_id if applicable
       if (payload.stop_desk === 1 && params.station_code) {
-        payload.centre_id = String(params.station_code).trim();
-      }
+  payload.station_code = String(params.station_code).trim();
+}
 
       // Add user_guid if set
       if (USER_GUID) {
@@ -234,7 +234,7 @@ export default async function handler(req, res) {
       console.log(`[${id}] CREATE ORDER payload:`, JSON.stringify(payload));
 
       // Try endpoints in order of likelihood
-      const endpoints = ['/store', '/colis', '/order/create', '/orders'];
+      const endpoints = ['/api/public/create/order'];
       let lastError = null;
       let lastStatus = null;
 
@@ -378,7 +378,7 @@ export default async function handler(req, res) {
         error: 'فشل الاتصال بـ NOEST — جميع المحاولات فشلت',
         debug: JSON.stringify({
           base_url: BASE,
-          endpoints_tried: ['/store', '/colis', '/order/create', '/orders'],
+          endpoints_tried: ['/api/public/create/order'],
           last_error: lastError,
           last_status: lastStatus,
           fix: 'شغّل diagnose أو تحقق من NOEST_API_BASE',

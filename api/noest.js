@@ -74,10 +74,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-// ✅ Quick POST test (to ensure POST doesn't crash)
-if (req.method === 'POST' && req.body?.action === 'ping') {
-  return res.status(200).json({ ok: true, pong: true, body: req.body });
+  if (req.method === 'POST' && req.body?.action === 'ping') {
+  return res.status(200).json({ ok: true, pong: true, version: "PING_V2" });
 }
   const API_TOKEN = process.env.NOEST_API_TOKEN;
   const USER_GUID = process.env.NOEST_USER_GUID;

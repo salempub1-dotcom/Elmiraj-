@@ -239,12 +239,20 @@ console.log(`[${id}] action=${action}`);
             body: JSON.stringify(payload),
             
           });
-        } catch (netErr) {
-          console.error(`[${id}] ❌ Network error on ${url}: ${netErr.message}`);
-          lastError = `Network: ${netErr.message}`;
-          continue;
-        }
+     } catch (netErr) {
+  const msg =
+    netErr instanceof Error ? netErr.message :
+    typeof netErr === 'string' ? netErr :
+    JSON.stringify(netErr);
 
+  console.error(`[${id}] ❌ Network error on ${url}: ${msg}`);
+  lastError = `Network: ${msg}`;
+  continue;
+}
+if (!response) {
+  lastError = 'No response object returned from fetch';
+  continue;
+}
         const text = await response.text();
         lastStatus = response.status;
         console.log(`[${id}] ← ${response.status} from ${url}: ${text.substring(0, 300)}`);
@@ -453,10 +461,16 @@ console.log(`[${id}] action=${action}`);
     });
 
   } catch (err) {
-    console.error(`[${id}] UNHANDLED:`, err);
-    return res.status(500).json({
-      ok: false,
-      error: `خطأ داخلي: ${err.message}`,
-    });
-  }
+  const msg =
+    err instanceof Error ? err.stack || err.message :
+    typeof err === 'string' ? err :
+    JSON.stringify(err);
+
+  console.error(`[${id}] UNHANDLED:`, msg);
+
+  return res.status(500).json({
+    ok: false,
+    error: 'خطأ داخلي في proxy NOEST',
+    debug: msg.substring(0, 800),
+  });
 }

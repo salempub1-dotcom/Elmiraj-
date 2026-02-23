@@ -64,14 +64,21 @@ function detectError(d) {
   }
   return null;
 }
-
+export const config = {
+  api: {
+    bodyParser: true,
+  },
+};
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-
+// ✅ Quick POST test (to ensure POST doesn't crash)
+if (req.method === 'POST' && req.body?.action === 'ping') {
+  return res.status(200).json({ ok: true, pong: true, body: req.body });
+}
   const API_TOKEN = process.env.NOEST_API_TOKEN;
   const USER_GUID = process.env.NOEST_USER_GUID;
 
@@ -95,7 +102,24 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
-
+// ✅ Ensure body is parsed (sometimes req.body is undefined)
+let body = req.body;
+if (!body || typeof body !== 'object') {
+  try {
+    let raw = '';
+    await new Promise((resolve) => {
+      req.on('data', (chunk) => (raw += chunk));
+      req.on('end', resolve);
+    });
+    body = raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Invalid JSON body',
+      debug: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
   // ── Validate env vars ──
   if (!API_TOKEN) {
     console.error('[NOEST] ❌ NOEST_API_TOKEN not set');
@@ -115,7 +139,7 @@ export default async function handler(req, res) {
   const BASE = (process.env.NOEST_API_BASE || 'https://app.noest-dz.com').replace(/\/+$/, '');
 
   try {
-    const { action, ...params } = req.body || {};
+    const { action, ...params } = body || {};
     console.log(`[${id}] action=${action} base=${BASE} token=${hint(API_TOKEN)}`);
 
     // ═══════════════════════════════════════════════════════════

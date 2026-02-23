@@ -114,7 +114,7 @@ export default async function handler(req, res) {
   };
 
   // Base URL — prioritize env override, then default
-  const BASE = (process.env.NOEST_API_BASE || 'https://app.noest-dz.com/api').replace(/\/+$/, '');
+  const BASE = (process.env.NOEST_API_BASE || 'https://app.noest-dz.com').replace(/\/+$/, '');
 
   try {
     const { action, ...params } = req.body || {};

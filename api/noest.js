@@ -66,12 +66,6 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID, test: true }),
       });
-const text = await r.text();
-
-return res.status(200).json({
-  ok: true,
-  raw: text.substring(0, 1500),
-});
 
   // Create order
   if (action === 'create_order') {
@@ -111,13 +105,13 @@ const text = await r.text();
 let data = null;
 try { data = JSON.parse(text); } catch {}
 
-if (r.ok && data && data.success === true) {
+if (r.ok && data?.success === true) {
   return res.status(200).json({
     ok: true,
     data: {
-      id: String(data.reference || ''),
-      tracking: String(data.tracking || ''),
-      endpoint_used: url, // ✅ لأن url غالباً موجود فوق في نفس الـ try
+      id: String(data?.reference || ''),
+      tracking: String(data?.tracking || ''),
+      endpoint_used: CREATE_URL,
     },
   });
 }

@@ -131,13 +131,13 @@ const text = await r.text();
 let data = null;
 try { data = JSON.parse(text); } catch {}
 
-if (r.ok && data?.success === true) {
+if (r.ok && data && data.success === true) {
   return res.status(200).json({
     ok: true,
     data: {
-      id: String(data?.reference || ''),
-      tracking: String(data?.tracking || ''),
-      endpoint_used: CREATE_URL,
+      id: String(data.reference || ''),
+      tracking: String(data.tracking || ''),
+      endpoint_used: url, // ✅ لأن url غالباً موجود فوق في نفس الـ try
     },
   });
 }

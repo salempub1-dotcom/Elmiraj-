@@ -1,10 +1,15 @@
 // pages/api/noest.js
-export const config = {
-  api: { bodyParser: true },
-};
+export const config = { api: { bodyParser: true } };
 
 function safeJson(v) {
   try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+function toObj(maybeJson) {
+  if (!maybeJson) return null;
+  if (typeof maybeJson === 'object') return maybeJson;
+  if (typeof maybeJson !== 'string') return null;
+  try { return JSON.parse(maybeJson); } catch { return null; }
 }
 
 export default async function handler(req, res) {
@@ -43,11 +48,13 @@ export default async function handler(req, res) {
 
   // Quick ping
   if (action === 'ping') {
-    return res.status(200).json({ ok: true, pong: true, version: 'CLEAN_V1' });
+    return res.status(200).json({ ok: true, pong: true, version: 'CLEAN_V2' });
   }
 
   const API_TOKEN = process.env.NOEST_API_TOKEN;
   const USER_GUID = process.env.NOEST_USER_GUID;
+
+  // IMPORTANT: BASE لازم يكون دومين فقط (بدون /api)
   const BASE = (process.env.NOEST_API_BASE || 'https://app.noest-dz.com').replace(/\/+$/, '');
   const CREATE_URL = `${BASE}/api/public/create/order`;
 
@@ -58,7 +65,9 @@ export default async function handler(req, res) {
     });
   }
 
-  // Diagnose (one request, returns status + snippet)
+  // ═════════════════════════════════════════════
+  // DIAGNOSE
+  // ═════════════════════════════════════════════
   if (action === 'diagnose') {
     try {
       const r = await fetch(CREATE_URL, {
@@ -70,17 +79,22 @@ export default async function handler(req, res) {
       const text = await r.text();
       return res.status(200).json({
         ok: true,
-        status: r.status,
-        url_tested: CREATE_URL,
-        snippet: text.substring(0, 1500),
+        data: {
+          url_tested: CREATE_URL,
+          status: r.status,
+          statusText: r.statusText,
+          snippet: text.substring(0, 1500),
+        },
       });
     } catch (e) {
       const msg = e instanceof Error ? (e.stack || e.message) : safeJson(e);
-      return res.status(200).json({ ok: false, error: 'diagnose_failed', debug: msg.substring(0, 1200) });
+      return res.status(200).json({ ok: false, error: 'diagnose_failed', debug: msg.substring(0, 1500) });
     }
   }
 
-  // Create order
+  // ═════════════════════════════════════════════
+  // CREATE ORDER
+  // ═════════════════════════════════════════════
   if (action === 'create_order') {
     const payload = {
       api_token: API_TOKEN,
@@ -98,13 +112,29 @@ export default async function handler(req, res) {
       stop_desk: Number(body.stop_desk),
     };
 
-    // station_code required when stop_desk=1
+    // stop desk يحتاج station_code
     if (payload.stop_desk === 1) {
       const station_code = String(body.station_code || '').trim();
       if (!station_code) {
         return res.status(422).json({ ok: false, error: 'station_code required when stop_desk=1' });
       }
       payload.station_code = station_code;
+    }
+
+    // validation سريع (باش ما نبعثوش فاضي)
+    const missing = [];
+    if (!payload.client) missing.push('client');
+    if (!payload.phone) missing.push('phone');
+    if (!payload.adresse) missing.push('adresse');
+    if (!payload.wilaya_id) missing.push('wilaya_id');
+    if (!payload.commune) missing.push('commune');
+    if (!Number.isFinite(payload.montant)) missing.push('montant');
+    if (!payload.produit) missing.push('produit');
+    if (!payload.type_id) missing.push('type_id');
+    if (![0, 1].includes(payload.stop_desk)) missing.push('stop_desk');
+
+    if (missing.length) {
+      return res.status(400).json({ ok: false, error: `Missing/invalid: ${missing.join(', ')}` });
     }
 
     try {
@@ -115,38 +145,39 @@ export default async function handler(req, res) {
       });
 
       const text = await r.text();
-      let data = null;
-      try { data = JSON.parse(text); } catch {}
+      const data = toObj(text);
 
-      // ✅ Success (NOEST returns { success:true, tracking:"..." })
+      // ✅ SUCCESS: NOEST يرجّع success:true + tracking
       if (r.ok && data?.success === true) {
         return res.status(200).json({
           ok: true,
           data: {
-            id: String(data?.reference || ''),
-            tracking: String(data?.tracking || ''),
+            tracking: String(data.tracking || ''),
+            reference: data.reference ?? null,
+            regional_hub_name: data.regional_hub_name ?? null,
+            wilaya_rank: data.wilaya_rank ?? null,
             endpoint_used: CREATE_URL,
           },
         });
       }
 
-      // ❌ Not success
+      // ❌ Validation errors (422) ولا أي رد آخر
       return res.status(200).json({
         ok: false,
+        error: data?.message || 'NOEST رفض الطلب أو رجع استجابة غير متوقعة',
+        errors: data?.errors || null,
         status: r.status,
-        url: CREATE_URL,
-        raw: text.substring(0, 1500),
       });
     } catch (e) {
       const msg = e instanceof Error ? (e.stack || e.message) : safeJson(e);
-      return res.status(200).json({ ok: false, error: 'fetch_failed', debug: msg.substring(0, 1200) });
+      return res.status(200).json({ ok: false, error: 'fetch_failed', debug: msg.substring(0, 1500) });
     }
   }
 
   // Unknown action
   return res.status(400).json({
     ok: false,
-    error: `Unknown action: ${String(action)}`,
+    error: `Unknown action: ${action}`,
     available: ['ping', 'diagnose', 'create_order'],
   });
 }

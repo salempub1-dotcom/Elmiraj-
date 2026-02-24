@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
-  // ✅ Safe body (never destructure req.body)
+  // ✅ Safe body
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = {}; }
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     });
   }
 
-  // Diagnose (does one request and returns raw snippet)
+  // Diagnose (one request, returns status + snippet)
   if (action === 'diagnose') {
     try {
       const r = await fetch(CREATE_URL, {
@@ -67,31 +67,45 @@ export default async function handler(req, res) {
         body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID, test: true }),
       });
 
+      const text = await r.text();
+      return res.status(200).json({
+        ok: true,
+        status: r.status,
+        url_tested: CREATE_URL,
+        snippet: text.substring(0, 1500),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? (e.stack || e.message) : safeJson(e);
+      return res.status(200).json({ ok: false, error: 'diagnose_failed', debug: msg.substring(0, 1200) });
+    }
+  }
+
   // Create order
   if (action === 'create_order') {
     const payload = {
-  api_token: API_TOKEN,
-  user_guid: USER_GUID,
+      api_token: API_TOKEN,
+      user_guid: USER_GUID,
 
-  // ✅ REQUIRED field names per NOEST validation
-  client: String(body.client || '').trim(),
-  phone: String(body.phone || '').trim(),
-  adresse: String(body.adresse || '').trim(),
-  wilaya_id: Number(body.wilaya_id),
-  commune: String(body.commune || '').trim(),
-  montant: Number(body.montant),
-  produit: String(body.produit || '').trim(),
-  type_id: Number(body.type_id),
-  stop_desk: Number(body.stop_desk),
-};
+      // ✅ REQUIRED field names per NOEST validation
+      client: String(body.client || '').trim(),
+      phone: String(body.phone || '').trim(),
+      adresse: String(body.adresse || '').trim(),
+      wilaya_id: Number(body.wilaya_id),
+      commune: String(body.commune || '').trim(),
+      montant: Number(body.montant),
+      produit: String(body.produit || '').trim(),
+      type_id: Number(body.type_id),
+      stop_desk: Number(body.stop_desk),
+    };
+
     // station_code required when stop_desk=1
     if (payload.stop_desk === 1) {
-  const station_code = String(body.station_code || '').trim();
-  if (!station_code) {
-    return res.status(422).json({ ok: false, error: 'station_code required when stop_desk=1' });
-  }
-  payload.station_code = station_code;
-}
+      const station_code = String(body.station_code || '').trim();
+      if (!station_code) {
+        return res.status(422).json({ ok: false, error: 'station_code required when stop_desk=1' });
+      }
+      payload.station_code = station_code;
+    }
 
     try {
       const r = await fetch(CREATE_URL, {
@@ -100,24 +114,39 @@ export default async function handler(req, res) {
         body: JSON.stringify(payload),
       });
 
-const text = await r.text();
+      const text = await r.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
 
-let data = null;
-try { data = JSON.parse(text); } catch {}
+      // ✅ Success (NOEST returns { success:true, tracking:"..." })
+      if (r.ok && data?.success === true) {
+        return res.status(200).json({
+          ok: true,
+          data: {
+            id: String(data?.reference || ''),
+            tracking: String(data?.tracking || ''),
+            endpoint_used: CREATE_URL,
+          },
+        });
+      }
 
-if (r.ok && data?.success === true) {
-  return res.status(200).json({
-    ok: true,
-    data: {
-      id: String(data?.reference || ''),
-      tracking: String(data?.tracking || ''),
-      endpoint_used: CREATE_URL,
-    },
+      // ❌ Not success
+      return res.status(200).json({
+        ok: false,
+        status: r.status,
+        url: CREATE_URL,
+        raw: text.substring(0, 1500),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? (e.stack || e.message) : safeJson(e);
+      return res.status(200).json({ ok: false, error: 'fetch_failed', debug: msg.substring(0, 1200) });
+    }
+  }
+
+  // Unknown action
+  return res.status(400).json({
+    ok: false,
+    error: `Unknown action: ${String(action)}`,
+    available: ['ping', 'diagnose', 'create_order'],
   });
 }
-
-return res.status(200).json({
-  ok: false,
-  error: 'NOEST رفض الطلب أو رجع استجابة غير متوقعة',
-  debug: text.substring(0, 1500),
-});

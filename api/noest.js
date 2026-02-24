@@ -66,32 +66,12 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID, test: true }),
       });
-      const text = await r.text();
-
-let data = null;
-try { data = JSON.parse(text); } catch {}
-
-if (r.ok && data?.success === true) {
-  return res.status(200).json({
-    ok: true,
-    data: {
-      id: String(data?.reference || ''),
-      tracking: String(data?.tracking || ''),
-      endpoint_used: 'create_order'
-    },
-  });
-}
+const text = await r.text();
 
 return res.status(200).json({
-  ok: false,
-  error: 'NOEST رفض الطلب أو رجع استجابة غير متوقعة',
-  debug: text.substring(0, 1500),
+  ok: true,
+  raw: text.substring(0, 1500),
 });
-    } catch (e) {
-      const msg = e instanceof Error ? (e.stack || e.message) : safeJson(e);
-      return res.status(200).json({ ok: false, error: 'diagnose_failed', debug: msg.substring(0, 800) });
-    }
-  }
 
   // Create order
   if (action === 'create_order') {

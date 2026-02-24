@@ -77,7 +77,7 @@ if (r.ok && data?.success === true) {
     data: {
       id: String(data?.reference || ''),
       tracking: String(data?.tracking || ''),
-      endpoint_used: CREATE_URL,
+      endpoint_used: 'create_order'
     },
   });
 }

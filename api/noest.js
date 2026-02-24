@@ -126,24 +126,24 @@ return res.status(200).json({
         body: JSON.stringify(payload),
       });
 
-      const text = await r.text();
+const text = await r.text();
 
-      // return raw so we can see EXACT NOEST response
-      return res.status(200).json({
-        ok: r.ok,
-        status: r.status,
-        url: CREATE_URL,
-        raw: text.substring(0, 1500),
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? (e.stack || e.message) : safeJson(e);
-      return res.status(200).json({ ok: false, error: 'fetch_failed', debug: msg.substring(0, 1200) });
-    }
-  }
+let data = null;
+try { data = JSON.parse(text); } catch {}
 
-  return res.status(400).json({
-    ok: false,
-    error: `Unknown action: ${action}`,
-    available: ['ping', 'diagnose', 'create_order'],
+if (r.ok && data?.success === true) {
+  return res.status(200).json({
+    ok: true,
+    data: {
+      id: String(data?.reference || ''),
+      tracking: String(data?.tracking || ''),
+      endpoint_used: CREATE_URL,
+    },
   });
 }
+
+return res.status(200).json({
+  ok: false,
+  error: 'NOEST رفض الطلب أو رجع استجابة غير متوقعة',
+  debug: text.substring(0, 1500),
+});

@@ -758,7 +758,14 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
   // ── Step 6: Server said ok:true → verify data ──
   if (result.ok === true && result.data) {
     const orderId = result.data.id || '';
-    const tracking = result.data.tracking || '';
+    let tracking = result.data?.tracking || '';
+
+if (!tracking && (result as any).raw) {
+  try {
+    const parsed = JSON.parse((result as any).raw);
+    tracking = parsed.tracking || '';
+  } catch {}
+}
 
     if (!orderId && !tracking) {
       console.error('[NOEST] ❌ ok:true but empty tracking/id:', JSON.stringify(result.data));

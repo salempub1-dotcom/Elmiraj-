@@ -1,0 +1,28 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/noest", "destination": "/api/noest" },
+    { "source": "/api/auth", "destination": "/api/auth" },
+    { "source": "/api/upload-image", "destination": "/api/upload-image" },
+    { "source": "/api/delete-image", "destination": "/api/delete-image" },
+    { "source": "/api/products", "destination": "/api/products" },
+    { "source": "/api/orders", "destination": "/api/orders" },
+    { "source": "/api/health", "destination": "/api/health" },
+    { "source": "/api/admin/landing-pages/:id", "destination": "/api/admin/landing-pages/[id]" },
+    { "source": "/api/admin/landing-pages", "destination": "/api/admin/landing-pages" },
+    { "source": "/api/landing-page/:slug", "destination": "/api/landing-page/[slug]" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
+  ]
+}

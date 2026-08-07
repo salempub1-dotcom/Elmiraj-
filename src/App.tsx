@@ -269,7 +269,7 @@ const Logo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
 
 const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) => {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
-  const colors = { success: 'bg-#183C6B', error: 'bg-red-500', info: 'bg-#183C6B' };
+  const colors = { success: 'bg-[#183C6B]', error: 'bg-red-500', info: 'bg-[#183C6B]' };
   return (
     <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] ${colors[type]} text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3`}>
       <span>{type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
@@ -281,10 +281,10 @@ const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 
 
 // Social links data
 const socialLinks = [
-  { href: 'https://www.facebook.com/profile.php?id=100068623115888', bg: 'bg-blue-50 hover:bg-blue-100 text-blue-700', footerBg: 'bg-#183C6B hover:bg-blue-700', label: 'فيسبوك', icon: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' },
+  { href: 'https://www.facebook.com/profile.php?id=100068623115888', bg: 'bg-blue-50 hover:bg-blue-100 text-blue-700', footerBg: 'bg-[#183C6B] hover:bg-blue-700', label: 'فيسبوك', icon: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' },
   { href: 'https://t.me/PrintinginAlgeria', bg: 'bg-sky-50 hover:bg-sky-100 text-sky-600', footerBg: 'bg-sky-500 hover:bg-sky-600', label: 'تيليغرام', icon: 'M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z' },
   { href: 'https://www.youtube.com/@SalemDZTube', bg: 'bg-red-50 hover:bg-red-100 text-red-600', footerBg: 'bg-red-600 hover:bg-red-700', label: 'يوتيوب', icon: 'M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z' },
-  { href: 'https://wa.me/213782272080', bg: 'bg-blue-50 hover:bg-blue-100 text-#183C6B', footerBg: 'bg-#183C6B hover:bg-#183C6B', label: 'واتساب', icon: 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z' },
+  { href: 'https://wa.me/213782272080', bg: 'bg-blue-50 hover:bg-blue-100 text-[#183C6B]', footerBg: 'bg-[#183C6B] hover:bg-[#183C6B]', label: 'واتساب', icon: 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z' },
 ];
 
 // ============================================================
@@ -612,15 +612,15 @@ function StoreApp({
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Announcement */}
-      <div className="bg-#0B1833text-white text-center py-2 text-sm font-medium">🎓 منصة المعراج التعليمية | 🚚 التوصيل متوفر لجميع ولايات الجزائر | 💵 الدفع عند الاستلام</div>
+      <div className="bg-[#0B1833] text-white text-center py-2 text-sm font-medium">🎓 منصة المعراج التعليمية | 🚚 التوصيل متوفر لجميع ولايات الجزائر | 💵 الدفع عند الاستلام</div>
 
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3"><Logo size="md" /><div><h1 className="text-xl font-bold text-blue-800">المعراج</h1><p className="text-xs text-#183C6B">متجر تعليمي للأساتذة</p></div></div>
+          <div className="flex items-center gap-3"><Logo size="md" /><div><h1 className="text-xl font-bold text-blue-800">المعراج</h1><p className="text-xs text-[#183C6B]">متجر تعليمي للأساتذة</p></div></div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-bold text-gray-600">
             {[{ id: 'home', label: '🏠 الرئيسية' }, { id: 'products', label: '📚 المنتجات' }, { id: 'track', label: '🔍 تتبع الطلب' }, { id: 'contact', label: '📞 اتصل بنا' }].map(s => (
-              <button key={s.id} onClick={() => setActiveSection(s.id)} className={`hover:text-#102A52transition-colors pb-1 ${activeSection === s.id ? 'text-#102A52border-b-2 border-blue-700' : ''}`}>{s.label}</button>
+              <button key={s.id} onClick={() => setActiveSection(s.id)} className={`hover:text-[#102A52] transition-colors pb-1 ${activeSection === s.id ? 'text-[#102A52] border-b-2 border-blue-700' : ''}`}>{s.label}</button>
             ))}
           </nav>
           <div className="flex items-center gap-3">
@@ -630,8 +630,8 @@ function StoreApp({
               if (e.target.value.length >= 3) {
                 fbTrack('Search', { search_string: e.target.value, content_category: selectedCategory });
               }
-            }} placeholder="ابحث..." className="border-2 border-gray-200 rounded-xl px-4 py-2 text-sm focus:border-#183C6B outline-none w-40" /></div>
-            <button onClick={() => setCartOpen(true)} className={`relative bg-#102A52hover:bg-#0B1833text-white p-3 rounded-xl transition-all ${cartAnimating ? 'animate-bounce' : ''}`}>
+            }} placeholder="ابحث..." className="border-2 border-gray-200 rounded-xl px-4 py-2 text-sm focus:border-[#183C6B] outline-none w-40" /></div>
+            <button onClick={() => setCartOpen(true)} className={`relative bg-[#102A52] hover:bg-[#0B1833] text-white p-3 rounded-xl transition-all ${cartAnimating ? 'animate-bounce' : ''}`}>
               🛒
               {cartCount > 0 && <span className={`absolute -top-2 -right-2 text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center transition-all ${cartAnimating ? 'bg-yellow-400 text-yellow-900 scale-125' : 'bg-red-500 text-white'}`}>{cartCount}</span>}
               {cartAnimating && <><span className="absolute inset-0 rounded-xl border-4 border-red-400 animate-ping" /><span className="absolute inset-0 rounded-xl border-4 border-yellow-400 animate-ping" style={{ animationDelay: '0.15s' }} /></>}
@@ -642,7 +642,7 @@ function StoreApp({
 
       {/* HERO */}
       {activeSection === 'home' && (
-        <section className="bg-gradient-to-br from-#071226 via-#0B1833to-#102A52text-white py-20 px-4">
+        <section className="bg-gradient-to-br from-[#071226] via-[#0B1833] to-[#183C6B] text-white py-20 px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="flex justify-center mb-6"><Logo size="lg" /></div>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">أدوات تعليمية مبتكرة لأساتذة المستقبل</h1>
@@ -663,10 +663,10 @@ function StoreApp({
       {activeSection === 'home' && (
         <section className="py-12 px-4 bg-white">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-#0B1833mb-8">منصة المعراج ليست مجرد منصة تعليمية، بل شريك نجاح حقيقي لكل أستاذ طموح</h2>
+            <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-8">منصة المعراج ليست مجرد منصة تعليمية، بل شريك نجاح حقيقي لكل أستاذ طموح</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[{ icon: '🎯', title: 'أدوات تفاعلية فعّالة', desc: 'تساعد الأستاذ في تنويع طرق التدريس وجذب انتباه التلاميذ طوال الحصة' }, { icon: '📋', title: 'تنويع طرق التدريس', desc: 'أدوات متنوعة تساعد الأستاذ على تقديم الدروس بأساليب مختلفة تناسب جميع التلاميذ' }, { icon: '🔬', title: 'مبنية على أسس تربوية', desc: 'كل منتج مصمم وفق أحدث الأساليب التربوية لضمان أقصى فائدة تعليمية' }].map((f, i) => (
-                <div key={i} className="bg-blue-50 rounded-2xl p-6 text-center hover:shadow-md transition-all"><span className="text-4xl block mb-3">{f.icon}</span><h3 className="text-lg font-bold text-#0B1833mb-2">{f.title}</h3><p className="text-gray-600 text-sm">{f.desc}</p></div>
+                <div key={i} className="bg-blue-50 rounded-2xl p-6 text-center hover:shadow-md transition-all"><span className="text-4xl block mb-3">{f.icon}</span><h3 className="text-lg font-bold text-[#0B1833] mb-2">{f.title}</h3><p className="text-gray-600 text-sm">{f.desc}</p></div>
               ))}
             </div>
           </div>
@@ -677,7 +677,7 @@ function StoreApp({
       {(activeSection === 'home' || activeSection === 'products') && (
         <section className="py-12 px-4 bg-gray-50">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-#0B1833mb-8">الأطوار التعليمية</h2>
+            <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-8">الأطوار التعليمية</h2>
             <div className="flex flex-wrap justify-center gap-3 mb-8">
               {['الكل', 'تحضيري', 'ابتدائي', 'متوسط'].map(cat => (<button key={cat} onClick={() => {
                 setSelectedCategory(cat);
@@ -685,14 +685,14 @@ function StoreApp({
                 if (cat !== 'الكل') {
                   fbTrackCustom('ViewCategory', { content_category: cat, content_name: `طور ${cat}` });
                 }
-              }} className={`px-5 py-2.5 rounded-xl font-bold transition-all ${selectedCategory === cat ? 'bg-#102A52text-white shadow-md' : 'bg-white text-gray-600 hover:bg-blue-50 border border-gray-200'}`}>{catEmoji(cat)} {cat}</button>))}
+              }} className={`px-5 py-2.5 rounded-xl font-bold transition-all ${selectedCategory === cat ? 'bg-[#102A52] text-white shadow-md' : 'bg-white text-gray-600 hover:bg-blue-50 border border-gray-200'}`}>{catEmoji(cat)} {cat}</button>))}
             </div>
             <div className="md:hidden mb-6"><input type="text" value={searchQuery} onChange={e => {
               setSearchQuery(e.target.value);
               if (e.target.value.length >= 3) {
                 fbTrack('Search', { search_string: e.target.value, content_category: selectedCategory });
               }
-            }} placeholder="ابحث عن منتج..." className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-#183C6B outline-none" /></div>
+            }} placeholder="ابحث عن منتج..." className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none" /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredProducts.map(product => (
                 <div key={product.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden group">
@@ -704,15 +704,15 @@ function StoreApp({
                   }}>
                     <img src={safeImage(product.images)} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     {product.badge && <span className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold">{product.badge}</span>}
-                    <span className="absolute top-2 left-2 bg-#102A52text-white text-xs px-2 py-1 rounded-full font-bold">{product.category}</span>
+                    <span className="absolute top-2 left-2 bg-[#102A52] text-white text-xs px-2 py-1 rounded-full font-bold">{product.category}</span>
                     {safeImages(product.images).length > 1 && <span className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">📸 {product.images.length}</span>}
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold text-gray-800 mb-1 text-sm leading-tight">{product.name}</h3>
                     <p className="text-gray-500 text-xs mb-3 line-clamp-2">{safeStr(product.description)}</p>
-                    <div className="flex items-center justify-between mb-3"><span className="text-#102A52font-bold text-lg">{product.price.toLocaleString()} دج</span><span className="text-gray-400 text-xs">المخزون: {product.stock}</span></div>
+                    <div className="flex items-center justify-between mb-3"><span className="text-[#102A52] font-bold text-lg">{product.price.toLocaleString()} دج</span><span className="text-gray-400 text-xs">المخزون: {product.stock}</span></div>
                     <div className="flex gap-2">
-                      <button onClick={() => addToCart(product)} className="flex-1 bg-#102A52hover:bg-#0B1833text-white py-2 rounded-lg font-bold text-xs transition-all">🛒 أضف للعربة</button>
+                      <button onClick={() => addToCart(product)} className="flex-1 bg-[#102A52] hover:bg-[#0B1833] text-white py-2 rounded-lg font-bold text-xs transition-all">🛒 أضف للعربة</button>
                       <button onClick={() => buyNow(product)} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg font-bold text-xs transition-all">⚡ اشتري الآن</button>
                     </div>
                   </div>
@@ -727,12 +727,12 @@ function StoreApp({
       {activeSection === 'track' && (
         <section className="py-16 px-4 min-h-[60vh]">
           <div className="max-w-xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-#0B1833mb-8">🔍 تتبع طلبك</h2>
+            <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-8">🔍 تتبع طلبك</h2>
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <label className="block text-sm font-bold text-gray-700 mb-3">أدخل رقم التتبع</label>
-              <input type="text" value={trackingInput} onChange={e => setTrackingInput(e.target.value)} placeholder="مثال: BX4-16G-14705085" className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-#183C6B outline-none mb-4 text-center font-mono font-bold text-lg" />
-              <button onClick={() => { if (!trackingInput.trim()) { showToast('يرجى إدخال رقم التتبع', 'error'); return; } const found = orders.find(o => o.tracking === trackingInput.trim()); if (found) { setTrackingResult(`الحالة: ${found.status === 'pending' ? '⏳ قيد الانتظار' : found.status === 'confirmed' ? '✅ مؤكد' : found.status === 'shipped' ? '🚚 في الطريق' : found.status === 'delivered' ? '📦 تم التوصيل' : '❌ ملغي'}`); } else { window.open(`https://app.noest-dz.com/tracking?code=${trackingInput.trim()}`, '_blank'); setTrackingResult('تم تحويلك لموقع NOEST لمتابعة الشحنة...'); } }} className="w-full bg-#102A52hover:bg-#0B1833text-white py-3 rounded-xl font-bold text-lg transition-all">🔍 تتبع الطلب</button>
-              {trackingResult && <div className="mt-4 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-#0B1833font-bold text-center">{trackingResult}</div>}
+              <input type="text" value={trackingInput} onChange={e => setTrackingInput(e.target.value)} placeholder="مثال: BX4-16G-14705085" className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none mb-4 text-center font-mono font-bold text-lg" />
+              <button onClick={() => { if (!trackingInput.trim()) { showToast('يرجى إدخال رقم التتبع', 'error'); return; } const found = orders.find(o => o.tracking === trackingInput.trim()); if (found) { setTrackingResult(`الحالة: ${found.status === 'pending' ? '⏳ قيد الانتظار' : found.status === 'confirmed' ? '✅ مؤكد' : found.status === 'shipped' ? '🚚 في الطريق' : found.status === 'delivered' ? '📦 تم التوصيل' : '❌ ملغي'}`); } else { window.open(`https://app.noest-dz.com/tracking?code=${trackingInput.trim()}`, '_blank'); setTrackingResult('تم تحويلك لموقع NOEST لمتابعة الشحنة...'); } }} className="w-full bg-[#102A52] hover:bg-[#0B1833] text-white py-3 rounded-xl font-bold text-lg transition-all">🔍 تتبع الطلب</button>
+              {trackingResult && <div className="mt-4 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-[#0B1833] font-bold text-center">{trackingResult}</div>}
             </div>
           </div>
         </section>
@@ -742,11 +742,11 @@ function StoreApp({
       {activeSection === 'contact' && (
         <section className="py-16 px-4 min-h-[60vh]">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-#0B1833mb-8">📞 اتصل بنا</h2>
+            <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-8">📞 اتصل بنا</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
-                <div><h3 className="text-lg font-bold text-gray-700 mb-1">📱 الهاتف</h3><a href="tel:0782272080" className="text-#102A52font-bold text-xl hover:underline">0782272080</a></div>
-                <div><h3 className="text-lg font-bold text-gray-700 mb-1">📧 البريد الإلكتروني</h3><a href="mailto:contact@almiraj.dz" className="text-#102A52hover:underline">contact@almiraj.dz</a></div>
+                <div><h3 className="text-lg font-bold text-gray-700 mb-1">📱 الهاتف</h3><a href="tel:0782272080" className="text-[#102A52] font-bold text-xl hover:underline">0782272080</a></div>
+                <div><h3 className="text-lg font-bold text-gray-700 mb-1">📧 البريد الإلكتروني</h3><a href="mailto:contact@almiraj.dz" className="text-[#102A52] hover:underline">contact@almiraj.dz</a></div>
                 <div><h3 className="text-lg font-bold text-gray-700 mb-1">📍 العنوان</h3><p className="text-gray-600">الجزائر العاصمة، الجزائر 🇩🇿</p></div>
               </div>
               <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -761,14 +761,14 @@ function StoreApp({
       )}
 
       {/* FOOTER */}
-      <footer className="bg-#071226 text-white py-10 px-4">
+      <footer className="bg-[#071226] text-white py-10 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div><div className="flex items-center gap-3 mb-3"><Logo size="sm" /><div><h3 className="font-bold text-lg cursor-default select-none" onClick={handleSecretClick}>المعراج</h3><p className="text-blue-300 text-xs">متجر تعليمي للأساتذة</p></div></div><p className="text-blue-300 text-sm">أدوات مساعدة لإعداد الدروس وتفعيل التلاميذ</p></div>
             <div><h4 className="font-bold mb-3 text-amber-400">تواصل معنا</h4><div className="space-y-2 text-blue-300 text-sm"><p>📞 <a href="tel:0782272080" className="hover:text-white">0782272080</a></p><p>📧 <a href="mailto:contact@almiraj.dz" className="hover:text-white">contact@almiraj.dz</a></p><p>📍 الجزائر العاصمة، الجزائر 🇩🇿</p></div></div>
             <div><h4 className="font-bold mb-3 text-amber-400">تابعنا</h4><div className="flex gap-3 flex-wrap">{socialLinks.map((s, i) => (<a key={i} href={s.href} target="_blank" rel="noopener noreferrer" className={`${s.footerBg} p-2.5 rounded-xl transition-all`}><svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d={s.icon} /></svg></a>))}</div></div>
           </div>
-          <div className="border-t border-#102A52pt-6 text-center"><p className="text-blue-400 text-sm">2024 المعراج - جميع الحقوق محفوظة 🇩🇿</p></div>
+          <div className="border-t border-[#102A52] pt-6 text-center"><p className="text-blue-400 text-sm">2024 المعراج - جميع الحقوق محفوظة 🇩🇿</p></div>
         </div>
       </footer>
 
@@ -781,12 +781,12 @@ function StoreApp({
               <button onClick={() => setSelectedProduct(null)} className="absolute top-3 left-3 bg-white/90 text-gray-800 w-9 h-9 rounded-full flex items-center justify-center font-bold hover:bg-white shadow-md">✕</button>
               {safeImages(selectedProduct.images).length > 1 && (<><button onClick={() => setCurrentImageIndex(i => (i - 1 + safeImages(selectedProduct.images).length) % safeImages(selectedProduct.images).length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 w-9 h-9 rounded-full flex items-center justify-center shadow-md font-bold">‹</button><button onClick={() => setCurrentImageIndex(i => (i + 1) % safeImages(selectedProduct.images).length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 w-9 h-9 rounded-full flex items-center justify-center shadow-md font-bold">›</button><span className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">{currentImageIndex + 1} / {safeImages(selectedProduct.images).length}</span></>)}
             </div>
-            {safeImages(selectedProduct.images).length > 1 && (<div className="flex gap-2 p-3 overflow-x-auto">{safeImages(selectedProduct.images).map((img, i) => (<img key={i} src={img} alt="" onClick={() => setCurrentImageIndex(i)} className={`h-16 w-16 object-cover rounded-lg cursor-pointer flex-shrink-0 transition-all ${currentImageIndex === i ? 'ring-2 ring-#183C6B scale-105' : 'opacity-60 hover:opacity-100'}`} />))}</div>)}
+            {safeImages(selectedProduct.images).length > 1 && (<div className="flex gap-2 p-3 overflow-x-auto">{safeImages(selectedProduct.images).map((img, i) => (<img key={i} src={img} alt="" onClick={() => setCurrentImageIndex(i)} className={`h-16 w-16 object-cover rounded-lg cursor-pointer flex-shrink-0 transition-all ${currentImageIndex === i ? 'ring-2 ring-[#183C6B] scale-105' : 'opacity-60 hover:opacity-100'}`} />))}</div>)}
             <div className="p-6">
-              <div className="flex items-start justify-between mb-3"><div><h2 className="text-xl font-bold text-gray-800">{selectedProduct.name}</h2><span className="bg-blue-100 text-#102A52text-xs px-2 py-1 rounded-full font-bold">{selectedProduct.category}</span></div><span className="text-2xl font-bold text-blue-700">{selectedProduct.price.toLocaleString()} دج</span></div>
+              <div className="flex items-start justify-between mb-3"><div><h2 className="text-xl font-bold text-gray-800">{selectedProduct.name}</h2><span className="bg-blue-100 text-[#102A52] text-xs px-2 py-1 rounded-full font-bold">{selectedProduct.category}</span></div><span className="text-2xl font-bold text-blue-700">{selectedProduct.price.toLocaleString()} دج</span></div>
               <p className="text-gray-600 mb-4 text-sm">{safeStr(selectedProduct.description)}</p>
-              {safeArr(selectedProduct.benefits).length > 0 && (<div className="bg-blue-50 rounded-xl p-4 mb-4"><h4 className="font-bold text-#0B1833mb-2">✅ الفوائد التعليمية:</h4><ul className="space-y-1">{safeArr(selectedProduct.benefits).map((b, i) => <li key={i} className="text-sm text-#102A52flex items-start gap-2"><span>•</span>{b}</li>)}</ul></div>)}
-              <div className="flex gap-3"><button onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }} className="flex-1 bg-#102A52hover:bg-#0B1833text-white py-3 rounded-xl font-bold transition-all">🛒 أضف للعربة</button><button onClick={() => { buyNow(selectedProduct); setSelectedProduct(null); }} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold transition-all">⚡ اشتري الآن</button></div>
+              {safeArr(selectedProduct.benefits).length > 0 && (<div className="bg-blue-50 rounded-xl p-4 mb-4"><h4 className="font-bold text-[#0B1833] mb-2">✅ الفوائد التعليمية:</h4><ul className="space-y-1">{safeArr(selectedProduct.benefits).map((b, i) => <li key={i} className="text-sm text-[#102A52] flex items-start gap-2"><span>•</span>{b}</li>)}</ul></div>)}
+              <div className="flex gap-3"><button onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }} className="flex-1 bg-[#102A52] hover:bg-[#0B1833] text-white py-3 rounded-xl font-bold transition-all">🛒 أضف للعربة</button><button onClick={() => { buyNow(selectedProduct); setSelectedProduct(null); }} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold transition-all">⚡ اشتري الآن</button></div>
             </div>
           </div>
         </div>
@@ -800,12 +800,12 @@ function StoreApp({
         <div className="fixed inset-0 z-[8000]">
           <div className="absolute inset-0 bg-black/50" onClick={() => setCartOpen(false)} />
           <div className="absolute left-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
-            <div className="bg-#102A52text-white px-6 py-4 flex justify-between items-center"><h2 className="font-bold text-xl">🛒 سلة التسوق ({cartCount})</h2><button onClick={() => setCartOpen(false)} className="text-white hover:text-gray-200 text-2xl font-bold">✕</button></div>
+            <div className="bg-[#102A52] text-white px-6 py-4 flex justify-between items-center"><h2 className="font-bold text-xl">🛒 سلة التسوق ({cartCount})</h2><button onClick={() => setCartOpen(false)} className="text-white hover:text-gray-200 text-2xl font-bold">✕</button></div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cart.length === 0 ? (<div className="text-center py-16"><p className="text-6xl mb-4">🛒</p><p className="text-gray-400 text-lg">السلة فارغة</p></div>) : cart.map(item => (
                 <div key={item.id} className="bg-gray-50 rounded-xl p-3 flex gap-3">
                   <img src={safeImage(item.images)} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
-                  <div className="flex-1"><h4 className="font-bold text-gray-800 text-sm">{item.name}</h4><p className="text-#102A52font-bold">{item.price.toLocaleString()} دج</p><div className="flex items-center gap-2 mt-1"><button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold flex items-center justify-center">-</button><span className="font-bold w-6 text-center">{item.quantity}</span><button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold flex items-center justify-center">+</button><button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600 text-sm mr-auto">🗑️</button></div></div>
+                  <div className="flex-1"><h4 className="font-bold text-gray-800 text-sm">{item.name}</h4><p className="text-[#102A52] font-bold">{item.price.toLocaleString()} دج</p><div className="flex items-center gap-2 mt-1"><button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold flex items-center justify-center">-</button><span className="font-bold w-6 text-center">{item.quantity}</span><button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold flex items-center justify-center">+</button><button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600 text-sm mr-auto">🗑️</button></div></div>
                 </div>
               ))}
             </div>
@@ -814,7 +814,7 @@ function StoreApp({
                   setCheckoutOpen(true);
                   // ✅ InitiateCheckout — بيانات كتالوج كاملة
                   fbTrack('InitiateCheckout', buildCartCatalogData(cart));
-                }} className="w-full bg-#102A52hover:bg-#0B1833text-white py-3 rounded-xl font-bold text-lg transition-all">✅ إتمام الطلب</button></div>)}
+                }} className="w-full bg-[#102A52] hover:bg-[#0B1833] text-white py-3 rounded-xl font-bold text-lg transition-all">✅ إتمام الطلب</button></div>)}
           </div>
         </div>
       )}
@@ -826,12 +826,12 @@ function StoreApp({
             {orderPlaced && currentOrder ? (
               <div className="p-8 text-center">
                 <div className="text-6xl mb-4">🎉</div>
-                <h2 className="text-2xl font-bold text-#102A52mb-2">تم تأكيد طلبك!</h2>
+                <h2 className="text-2xl font-bold text-[#102A52] mb-2">تم تأكيد طلبك!</h2>
                 <p className="text-gray-500 mb-6">شكراً {currentOrder.customer}، سيتم التواصل معك قريباً</p>
                 <div className="bg-blue-50 border-2 border-blue-300 rounded-2xl p-6 mb-6">
                   <p className="text-sm text-gray-500 mb-2">رقم تتبع طلبك</p>
-                  <p className="text-2xl font-mono font-bold text-#102A52mb-3">{currentOrder.tracking}</p>
-                  <button onClick={() => copyTracking(currentOrder.tracking)} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${copiedTracking ? 'bg-#183C6B text-white' : 'bg-blue-100 text-#102A52hover:bg-blue-200'}`}>{copiedTracking ? '✅ تم النسخ!' : '📋 نسخ رقم التتبع'}</button>
+                  <p className="text-2xl font-mono font-bold text-[#102A52] mb-3">{currentOrder.tracking}</p>
+                  <button onClick={() => copyTracking(currentOrder.tracking)} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${copiedTracking ? 'bg-[#183C6B] text-white' : 'bg-blue-100 text-[#102A52] hover:bg-blue-200'}`}>{copiedTracking ? '✅ تم النسخ!' : '📋 نسخ رقم التتبع'}</button>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 text-sm text-right space-y-2 mb-6">
                   <div className="flex justify-between"><span className="text-gray-500">الاسم:</span><span className="font-bold">{currentOrder.customer}</span></div>
@@ -841,24 +841,24 @@ function StoreApp({
                   {currentOrder.selectedOffice && <div className="flex justify-between"><span className="text-gray-500">المكتب:</span><span className="font-bold text-xs">{currentOrder.selectedOffice}</span></div>}
                   <div className="border-t pt-2 flex justify-between text-lg"><span className="font-bold">المجموع الكلي:</span><span className="font-bold text-blue-700">{currentOrder.total.toLocaleString()} دج</span></div>
                 </div>
-                <div className="flex gap-3"><button onClick={() => { setActiveSection('track'); setTrackingInput(currentOrder.tracking); resetCheckout(); }} className="flex-1 border-2 border-#183C6B text-#102A52py-3 rounded-xl font-bold hover:bg-blue-50 transition-all">🔍 تتبع الطلب</button><button onClick={resetCheckout} className="flex-1 bg-#102A52text-white py-3 rounded-xl font-bold hover:bg-#0B1833transition-all">🏠 العودة للمتجر</button></div>
+                <div className="flex gap-3"><button onClick={() => { setActiveSection('track'); setTrackingInput(currentOrder.tracking); resetCheckout(); }} className="flex-1 border-2 border-[#183C6B] text-[#102A52] py-3 rounded-xl font-bold hover:bg-blue-50 transition-all">🔍 تتبع الطلب</button><button onClick={resetCheckout} className="flex-1 bg-[#102A52] text-white py-3 rounded-xl font-bold hover:bg-[#0B1833] transition-all">🏠 العودة للمتجر</button></div>
               </div>
             ) : (
               <>
-                <div className="bg-#102A52text-white px-6 py-4 flex justify-between items-center"><h2 className="font-bold text-lg">📦 إتمام الطلب</h2><button onClick={resetCheckout} className="text-white hover:text-gray-200 text-xl font-bold">✕</button></div>
+                <div className="bg-[#102A52] text-white px-6 py-4 flex justify-between items-center"><h2 className="font-bold text-lg">📦 إتمام الطلب</h2><button onClick={resetCheckout} className="text-white hover:text-gray-200 text-xl font-bold">✕</button></div>
                 <div className="p-6 space-y-4">
-                  <div><label className="block text-sm font-bold text-gray-700 mb-1">الاسم الكامل *</label><input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" placeholder="أدخل اسمك الكامل" /></div>
-                  <div><label className="block text-sm font-bold text-gray-700 mb-1">رقم الهاتف * (10 أرقام)</label><input type="tel" value={customerPhone} onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v.length <= 10) setCustomerPhone(v); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" placeholder="05XXXXXXXX" /><p className={`text-xs mt-1 ${customerPhone.length === 10 ? 'text-#183C6B font-bold' : 'text-gray-400'}`}>{customerPhone.length}/10</p></div>
-                  <div><label className="block text-sm font-bold text-gray-700 mb-1">الولاية * <span className="text-xs text-gray-400 font-normal">(Wilaya)</span></label><select value={customerWilayaId === '' ? '' : String(customerWilayaId)} onChange={e => { const v = e.target.value; if (!v) { setCustomerWilayaId(''); setCustomerWilayaLabel(''); setNoestCommunes([]); setCommune(''); setSelectedOffice(''); return; } const id = Number(v); setCustomerWilayaId(id); const w = noestWilayas.find(x => x.code === id); setCustomerWilayaLabel(w ? `${w.code} - ${w.nom} (${w.nom_ar})` : String(id)); setSelectedOffice(''); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none"><option value="">اختر الولاية / Choisir la wilaya</option>{noestWilayas.length > 0 ? noestWilayas.slice().sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={String(w.code)}>{w.code} - {w.nom} ({w.nom_ar})</option>)) : wilayaShipping.slice().sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={String(w.code)}>{w.code} - {w.name}</option>))}</select></div>
-                  <div><label className="block text-sm font-bold text-gray-700 mb-1">البلدية * <span className="text-xs text-gray-400 font-normal">(Commune)</span></label><select value={commune} onChange={e => setCommune(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" disabled={!customerWilayaId || loadingNoest}><option value="">{!customerWilayaId ? 'اختر الولاية أولاً' : loadingNoest ? 'جاري تحميل البلديات...' : 'اختر البلدية / Choisir la commune'}</option>{noestCommunes.map((c, idx) => (<option key={`${c.wilaya_id}-${idx}`} value={c.nom}>{c.nom} ({c.nom_ar})</option>))}</select></div>
-                  <div><label className="block text-sm font-bold text-gray-700 mb-1">العنوان التفصيلي *</label><textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" rows={2} placeholder="أدخل عنوانك التفصيلي" /></div>
-                  <div><label className="block text-sm font-bold text-gray-700 mb-2">نوع التوصيل *</label><div className="grid grid-cols-2 gap-3">{[{ value: 'home', icon: '🏠', label: 'إلى المنزل' }, { value: 'office', icon: '🏢', label: 'إلى المكتب' }].map(opt => (<button key={opt.value} onClick={() => { setDeliveryType(opt.value as 'home' | 'office'); setSelectedOffice(''); }} className={`p-3 rounded-xl border-2 font-bold text-sm transition-all ${deliveryType === opt.value ? 'border-#183C6B bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}>{opt.icon} {opt.label}</button>))}</div></div>
-                  {deliveryType === 'office' && customerWilayaId && (<div><label className="block text-sm font-bold text-gray-700 mb-2">🏢 اختر مكتب الاستلام * <span className="text-xs text-gray-400 font-normal">(Stop Desk)</span></label>{desks.length > 0 ? (<div className="max-h-48 overflow-y-auto space-y-2 border-2 border-gray-200 rounded-xl p-3">{desks.map(desk => (<button key={desk.code} onClick={() => setSelectedOffice(`${desk.code} — ${desk.name}`)} className={`w-full flex items-center gap-3 p-3 rounded-xl text-right transition-all border-2 ${selectedOffice === `${desk.code} — ${desk.name}` ? 'border-#183C6B bg-blue-50' : 'border-gray-100 hover:border-blue-300'}`}><span className="bg-#102A52text-white text-xs px-2 py-1 rounded-lg font-mono font-bold">{desk.code}</span><div className="flex-1"><span className="font-bold text-gray-800 text-sm block">{desk.name_ar}</span><span className="text-gray-500 text-xs">{desk.name}</span></div>{selectedOffice === `${desk.code} — ${desk.name}` && <span className="text-#183C6B mr-auto font-bold">✓</span>}</button>))}</div>) : (<div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 text-amber-700 text-sm font-bold text-center">⚠️ سيتم التواصل معك لتحديد نقطة الاستلام</div>)}</div>)}
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">الاسم الكامل *</label><input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="أدخل اسمك الكامل" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">رقم الهاتف * (10 أرقام)</label><input type="tel" value={customerPhone} onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v.length <= 10) setCustomerPhone(v); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="05XXXXXXXX" /><p className={`text-xs mt-1 ${customerPhone.length === 10 ? 'text-[#183C6B] font-bold' : 'text-gray-400'}`}>{customerPhone.length}/10</p></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">الولاية * <span className="text-xs text-gray-400 font-normal">(Wilaya)</span></label><select value={customerWilayaId === '' ? '' : String(customerWilayaId)} onChange={e => { const v = e.target.value; if (!v) { setCustomerWilayaId(''); setCustomerWilayaLabel(''); setNoestCommunes([]); setCommune(''); setSelectedOffice(''); return; } const id = Number(v); setCustomerWilayaId(id); const w = noestWilayas.find(x => x.code === id); setCustomerWilayaLabel(w ? `${w.code} - ${w.nom} (${w.nom_ar})` : String(id)); setSelectedOffice(''); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="">اختر الولاية / Choisir la wilaya</option>{noestWilayas.length > 0 ? noestWilayas.slice().sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={String(w.code)}>{w.code} - {w.nom} ({w.nom_ar})</option>)) : wilayaShipping.slice().sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={String(w.code)}>{w.code} - {w.name}</option>))}</select></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">البلدية * <span className="text-xs text-gray-400 font-normal">(Commune)</span></label><select value={commune} onChange={e => setCommune(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" disabled={!customerWilayaId || loadingNoest}><option value="">{!customerWilayaId ? 'اختر الولاية أولاً' : loadingNoest ? 'جاري تحميل البلديات...' : 'اختر البلدية / Choisir la commune'}</option>{noestCommunes.map((c, idx) => (<option key={`${c.wilaya_id}-${idx}`} value={c.nom}>{c.nom} ({c.nom_ar})</option>))}</select></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">العنوان التفصيلي *</label><textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={2} placeholder="أدخل عنوانك التفصيلي" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-2">نوع التوصيل *</label><div className="grid grid-cols-2 gap-3">{[{ value: 'home', icon: '🏠', label: 'إلى المنزل' }, { value: 'office', icon: '🏢', label: 'إلى المكتب' }].map(opt => (<button key={opt.value} onClick={() => { setDeliveryType(opt.value as 'home' | 'office'); setSelectedOffice(''); }} className={`p-3 rounded-xl border-2 font-bold text-sm transition-all ${deliveryType === opt.value ? 'border-[#183C6B] bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}>{opt.icon} {opt.label}</button>))}</div></div>
+                  {deliveryType === 'office' && customerWilayaId && (<div><label className="block text-sm font-bold text-gray-700 mb-2">🏢 اختر مكتب الاستلام * <span className="text-xs text-gray-400 font-normal">(Stop Desk)</span></label>{desks.length > 0 ? (<div className="max-h-48 overflow-y-auto space-y-2 border-2 border-gray-200 rounded-xl p-3">{desks.map(desk => (<button key={desk.code} onClick={() => setSelectedOffice(`${desk.code} — ${desk.name}`)} className={`w-full flex items-center gap-3 p-3 rounded-xl text-right transition-all border-2 ${selectedOffice === `${desk.code} — ${desk.name}` ? 'border-[#183C6B] bg-blue-50' : 'border-gray-100 hover:border-blue-300'}`}><span className="bg-[#102A52] text-white text-xs px-2 py-1 rounded-lg font-mono font-bold">{desk.code}</span><div className="flex-1"><span className="font-bold text-gray-800 text-sm block">{desk.name_ar}</span><span className="text-gray-500 text-xs">{desk.name}</span></div>{selectedOffice === `${desk.code} — ${desk.name}` && <span className="text-[#183C6B] mr-auto font-bold">✓</span>}</button>))}</div>) : (<div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 text-amber-700 text-sm font-bold text-center">⚠️ سيتم التواصل معك لتحديد نقطة الاستلام</div>)}</div>)}
                   <div className="bg-gray-50 rounded-xl p-4 space-y-2">
                     <h4 className="font-bold text-gray-700 mb-3">ملخص الطلب</h4>
                     {cart.map(item => (<div key={item.id} className="flex justify-between text-sm"><span>{item.name} × {item.quantity}</span><span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span></div>))}
                     <div className="border-t pt-2 space-y-1"><div className="flex justify-between text-sm"><span>المجموع الفرعي:</span><span>{cartTotal.toLocaleString()} دج</span></div>{shippingCost > 0 && <div className="flex justify-between text-sm"><span>تكلفة الشحن:</span><span>{shippingCost.toLocaleString()} دج</span></div>}<div className="flex justify-between font-bold text-lg border-t pt-1"><span>المجموع الكلي:</span><span className="text-blue-700">{orderTotal.toLocaleString()} دج</span></div></div>
-                    <div className="flex items-center gap-2 bg-blue-50 rounded-xl p-3 mt-2"><span>💵</span><span className="text-#102A52font-bold text-sm">الدفع عند الاستلام</span></div>
+                    <div className="flex items-center gap-2 bg-blue-50 rounded-xl p-3 mt-2"><span>💵</span><span className="text-[#102A52] font-bold text-sm">الدفع عند الاستلام</span></div>
                   </div>
                   {orderError && (
                     <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 space-y-2">
@@ -872,7 +872,7 @@ function StoreApp({
                       <p className="text-red-500 text-xs">يرجى التحقق من البيانات والمحاولة مرة أخرى. إذا استمرت المشكلة تواصل معنا على 0782272080</p>
                     </div>
                   )}
-                  <button onClick={handlePlaceOrder} disabled={placingOrder} className={`w-full py-4 rounded-xl font-bold text-lg transition-all text-white ${placingOrder ? 'bg-gray-400 cursor-not-allowed' : 'bg-#102A52hover:bg-#0B1833shadow-lg'}`}>{placingOrder ? '⏳ جاري إرسال الطلب لشركة التوصيل...' : orderError ? '🔄 إعادة المحاولة' : '✅ تأكيد الطلب'}</button>
+                  <button onClick={handlePlaceOrder} disabled={placingOrder} className={`w-full py-4 rounded-xl font-bold text-lg transition-all text-white ${placingOrder ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#102A52] hover:bg-[#0B1833] shadow-lg'}`}>{placingOrder ? '⏳ جاري إرسال الطلب لشركة التوصيل...' : orderError ? '🔄 إعادة المحاولة' : '✅ تأكيد الطلب'}</button>
                 </div>
               </>
             )}
@@ -883,7 +883,7 @@ function StoreApp({
       {/* Mobile Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex md:hidden z-40">
         {[{ id: 'home', icon: '🏠', label: 'الرئيسية' }, { id: 'products', icon: '📚', label: 'المنتجات' }, { id: 'track', icon: '🔍', label: 'تتبع' }, { id: 'cart', icon: '🛒', label: `(${cartCount})` }, { id: 'contact', icon: '📞', label: 'تواصل' }].map(item => (
-          <button key={item.id} onClick={() => item.id === 'cart' ? setCartOpen(true) : setActiveSection(item.id)} className={`flex-1 flex flex-col items-center py-2 text-xs font-bold transition-colors ${activeSection === item.id ? 'text-blue-700' : 'text-gray-400 hover:text-#183C6B'}`}><span className="text-lg">{item.icon}</span><span>{item.label}</span></button>
+          <button key={item.id} onClick={() => item.id === 'cart' ? setCartOpen(true) : setActiveSection(item.id)} className={`flex-1 flex flex-col items-center py-2 text-xs font-bold transition-colors ${activeSection === item.id ? 'text-blue-700' : 'text-gray-400 hover:text-[#183C6B]'}`}><span className="text-lg">{item.icon}</span><span>{item.label}</span></button>
         ))}
       </nav>
       <div className="h-16 md:hidden" />
@@ -942,7 +942,7 @@ function NoestStatusCard({ showToast }: { showToast: (msg: string, type?: 'succe
           <p className="font-bold text-sm text-gray-800">🚚 حالة NOEST (شركة التوصيل)</p>
           <p className="text-xs text-gray-500 mt-0.5">{statusTexts[status]}</p>
         </div>
-        <button onClick={runDiagnose} className="bg-#183C6B hover:bg-#102A52text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap">🔍 فحص</button>
+        <button onClick={runDiagnose} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap">🔍 فحص</button>
       </div>
       {status === 'demo' && (
         <div className="mt-3 bg-white rounded-xl p-3 text-xs space-y-2">
@@ -959,7 +959,7 @@ function NoestStatusCard({ showToast }: { showToast: (msg: string, type?: 'succe
           <div className="mt-2 pt-2 border-t border-amber-200">
             <p className="font-bold text-amber-700">🔒 لمنع تكرار الطلبات (Upstash Redis — مجاني):</p>
             <ol className="list-decimal list-inside space-y-1 text-gray-600" dir="ltr">
-              <li>Create free account at <a href="https://upstash.com" target="_blank" rel="noopener noreferrer" className="text-#183C6B underline">upstash.com</a></li>
+              <li>Create free account at <a href="https://upstash.com" target="_blank" rel="noopener noreferrer" className="text-[#183C6B] underline">upstash.com</a></li>
               <li>Create a Redis database (free tier)</li>
               <li className="mr-4"><code className="bg-gray-100 px-1 rounded">UPSTASH_REDIS_REST_URL</code></li>
               <li className="mr-4"><code className="bg-gray-100 px-1 rounded">UPSTASH_REDIS_REST_TOKEN</code></li>
@@ -1025,7 +1025,7 @@ function SupabaseStatusCard({ showToast }: { showToast: (msg: string, type?: 'su
           <p className="text-xs text-gray-500 mt-0.5">{statusTexts[status]}</p>
           {details && <p className="text-xs text-gray-400 mt-0.5">{details}</p>}
         </div>
-        <button onClick={runTest} className="bg-#183C6B hover:bg-#102A52text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap">🔍 فحص</button>
+        <button onClick={runTest} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap">🔍 فحص</button>
       </div>
       {status === 'connected' && (
         <div className="mt-2 bg-blue-100 rounded-xl p-3 text-xs text-blue-700">
@@ -1037,7 +1037,7 @@ function SupabaseStatusCard({ showToast }: { showToast: (msg: string, type?: 'su
         <div className="mt-3 bg-white rounded-xl p-3 text-xs space-y-2">
           <p className="font-bold text-amber-700">📋 لتفعيل الرفع الآمن (Vercel + Supabase):</p>
           <ol className="list-decimal list-inside space-y-1 text-gray-600" dir="ltr">
-            <li>Create project at <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-#183C6B underline">supabase.com</a></li>
+            <li>Create project at <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-[#183C6B] underline">supabase.com</a></li>
             <li>Storage → Create bucket: <code className="bg-gray-100 px-1 rounded">product-images</code></li>
             <li>Make bucket <strong>PRIVATE</strong> (no anon INSERT)</li>
             <li>Add policy: <strong>SELECT</strong> for anon (public read)</li>
@@ -1545,18 +1545,18 @@ function AdminApp({
   // ---- LOGIN PAGE ----
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-#071226 via-#0B1833to-#102A52flex items-center justify-center p-4" dir="rtl">
+      <div className="min-h-screen bg-gradient-to-br from-[#071226] via-[#0B1833] to-[#183C6B] flex items-center justify-center p-4" dir="rtl">
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
           <div className="text-center mb-8"><div className="flex justify-center mb-4"><Logo size="lg" /></div><h1 className="text-2xl font-bold text-blue-800">لوحة تحكم المعراج</h1><p className="text-gray-400 text-sm mt-1">للمسؤولين فقط</p></div>
           <div className="space-y-5">
-            <div><label className="block text-sm font-bold text-gray-700 mb-2">👤 اسم المستخدم</label><input type="text" value={adminUsername} onChange={e => setAdminUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-#183C6B outline-none text-lg" placeholder="admin" /></div>
-            <div><label className="block text-sm font-bold text-gray-700 mb-2">🔒 كلمة المرور</label><input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-#183C6B outline-none text-lg" placeholder="••••••••" /></div>
+            <div><label className="block text-sm font-bold text-gray-700 mb-2">👤 اسم المستخدم</label><input type="text" value={adminUsername} onChange={e => setAdminUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none text-lg" placeholder="admin" /></div>
+            <div><label className="block text-sm font-bold text-gray-700 mb-2">🔒 كلمة المرور</label><input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none text-lg" placeholder="••••••••" /></div>
             {adminLoginError && <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-600 text-sm font-bold text-center">❌ {adminLoginError}</div>}
-            <button onClick={handleLogin} disabled={loginLoading} className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg text-white ${loginLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-#102A52hover:bg-blue-800'}`}>{loginLoading ? '⏳ جاري التحقق...' : '🔐 دخول'}</button>
+            <button onClick={handleLogin} disabled={loginLoading} className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg text-white ${loginLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#102A52] hover:bg-blue-800'}`}>{loginLoading ? '⏳ جاري التحقق...' : '🔐 دخول'}</button>
             <button onClick={onBackToStore} className="w-full border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold transition-all hover:bg-gray-50">← العودة للمتجر</button>
           </div>
-          <div className="mt-6 bg-blue-50 rounded-xl p-4 text-center"><p className="text-xs text-#183C6B">🔒 الوصول مخصص للمسؤولين فقط</p></div>
+          <div className="mt-6 bg-blue-50 rounded-xl p-4 text-center"><p className="text-xs text-[#183C6B]">🔒 الوصول مخصص للمسؤولين فقط</p></div>
         </div>
       </div>
     );
@@ -1568,14 +1568,14 @@ function AdminApp({
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Header */}
-      <header className="bg-#0B1833text-white px-4 py-3 flex items-center justify-between shadow-lg fixed top-0 left-0 right-0 z-50">
+      <header className="bg-[#0B1833] text-white px-4 py-3 flex items-center justify-between shadow-lg fixed top-0 left-0 right-0 z-50">
         <div className="flex items-center gap-3"><Logo size="sm" /><div><h1 className="font-bold text-base">لوحة تحكم المعراج</h1><p className="text-blue-200 text-xs">مرحباً بك أيها المسؤول</p></div></div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <button onClick={() => setShowNotif(!showNotif)} className="relative bg-#102A52hover:bg-#183C6B p-2 rounded-xl transition-all">🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{unread}</span>}</button>
-            {showNotif && (<div className="absolute left-0 top-12 w-72 bg-white rounded-xl shadow-2xl border z-50"><div className="bg-#0B1833text-white px-4 py-3 font-bold flex justify-between rounded-t-xl"><span>الإشعارات</span><button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))} className="text-xs text-blue-200 hover:text-white">تعيين الكل كمقروء</button></div><div className="max-h-64 overflow-y-auto">{notifications.length === 0 ? <p className="text-center text-gray-400 py-6 text-sm">لا توجد إشعارات</p> : notifications.map(n => (<div key={n.id} className={`px-4 py-3 border-b text-sm ${n.read ? 'bg-white text-gray-500' : 'bg-blue-50 text-#0B1833font-bold'}`}>{n.message}</div>))}</div></div>)}
+            <button onClick={() => setShowNotif(!showNotif)} className="relative bg-[#102A52] hover:bg-[#183C6B] p-2 rounded-xl transition-all">🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{unread}</span>}</button>
+            {showNotif && (<div className="absolute left-0 top-12 w-72 bg-white rounded-xl shadow-2xl border z-50"><div className="bg-[#0B1833] text-white px-4 py-3 font-bold flex justify-between rounded-t-xl"><span>الإشعارات</span><button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))} className="text-xs text-blue-200 hover:text-white">تعيين الكل كمقروء</button></div><div className="max-h-64 overflow-y-auto">{notifications.length === 0 ? <p className="text-center text-gray-400 py-6 text-sm">لا توجد إشعارات</p> : notifications.map(n => (<div key={n.id} className={`px-4 py-3 border-b text-sm ${n.read ? 'bg-white text-gray-500' : 'bg-blue-50 text-[#0B1833] font-bold'}`}>{n.message}</div>))}</div></div>)}
           </div>
-          <button onClick={onBackToStore} className="bg-#102A52hover:bg-#183C6B px-3 py-2 rounded-xl text-sm transition-all font-bold">🏪 المتجر</button>
+          <button onClick={onBackToStore} className="bg-[#102A52] hover:bg-[#183C6B] px-3 py-2 rounded-xl text-sm transition-all font-bold">🏪 المتجر</button>
           <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-xl text-sm transition-all font-bold">🚪 خروج</button>
         </div>
       </header>
@@ -1585,7 +1585,7 @@ function AdminApp({
         <aside className="w-56 bg-white shadow-lg fixed top-16 right-0 bottom-0 overflow-y-auto hidden md:block">
           <nav className="p-4 space-y-2">
             {[{ id: 'dashboard' as const, icon: '📊', label: 'لوحة المعلومات' }, { id: 'orders' as const, icon: '📋', label: `الطلبات (${orders.length})` }, { id: 'products' as const, icon: '📦', label: `المنتجات (${products.length})` }, { id: 'landing' as const, icon: '🚀', label: `صفحات الهبوط (${landingPages.length})` }].map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === t.id ? 'bg-#183C6B text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-xl">{t.icon}</span><span className="text-sm">{t.label}</span></button>
+              <button key={t.id} onClick={() => setTab(t.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === t.id ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-xl">{t.icon}</span><span className="text-sm">{t.label}</span></button>
             ))}
           </nav>
           <div className="p-4 space-y-3 border-t mt-4"><div className="bg-blue-50 rounded-xl p-3"><p className="text-xs text-gray-500">الإيرادات الكلية</p><p className="text-lg font-bold text-blue-700">{totalRevenue.toLocaleString()} دج</p></div><div className="bg-yellow-50 rounded-xl p-3"><p className="text-xs text-gray-500">طلبات معلقة</p><p className="text-lg font-bold text-yellow-700">{pendingCount}</p></div></div>
@@ -1596,7 +1596,7 @@ function AdminApp({
           {/* Mobile Tabs */}
           <div className="flex md:hidden gap-2 mb-4 overflow-x-auto">
             {[{ id: 'dashboard' as const, label: '📊 لوحة' }, { id: 'orders' as const, label: '📋 الطلبات' }, { id: 'products' as const, label: '📦 المنتجات' }, { id: 'landing' as const, label: '🚀 هبوط' }].map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${tab === t.id ? 'bg-#183C6B text-white' : 'bg-white text-gray-600'}`}>{t.label}</button>
+              <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${tab === t.id ? 'bg-[#183C6B] text-white' : 'bg-white text-gray-600'}`}>{t.label}</button>
             ))}
           </div>
 
@@ -1617,7 +1617,7 @@ function AdminApp({
                     : 'استبدل YOUR_PIXEL_ID في index.html برقم البيكسل الخاص بك من Facebook Business Manager'}
                 </p>
               </div>
-              <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="bg-#183C6B hover:bg-#102A52text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap">📊 Events Manager</a>
+              <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap">📊 Events Manager</a>
             </div>
 
             {/* NOEST API Status */}
@@ -1637,7 +1637,7 @@ function AdminApp({
             <div className="bg-white rounded-2xl shadow-md p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">🕐 آخر الطلبات</h3>
               {orders.length === 0 ? <div className="text-center py-10"><p className="text-5xl mb-3">📭</p><p className="text-gray-400">لا توجد طلبات بعد</p></div> : (
-                <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50"><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-r-xl">رقم التتبع</th><th className="px-3 py-3 text-right text-gray-600 font-bold">العميل</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الولاية</th><th className="px-3 py-3 text-right text-gray-600 font-bold">المبلغ</th><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-l-xl">الحالة</th></tr></thead><tbody>{orders.slice(0, 5).map(order => (<tr key={order.id} className="border-b hover:bg-gray-50"><td className="px-3 py-3 font-mono text-#102A52font-bold text-xs">{order.tracking}</td><td className="px-3 py-3 font-bold">{order.customer}</td><td className="px-3 py-3 text-gray-600">{order.wilaya}</td><td className="px-3 py-3 font-bold text-blue-700">{order.total.toLocaleString()} دج</td><td className="px-3 py-3"><span className={`px-2 py-1 rounded-full text-xs font-bold ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' : order.status === 'shipped' ? 'bg-purple-100 text-purple-700' : order.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>{order.status === 'pending' ? '⏳ معلق' : order.status === 'confirmed' ? '✅ مؤكد' : order.status === 'shipped' ? '🚚 مشحون' : order.status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</span></td></tr>))}</tbody></table></div>
+                <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50"><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-r-xl">رقم التتبع</th><th className="px-3 py-3 text-right text-gray-600 font-bold">العميل</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الولاية</th><th className="px-3 py-3 text-right text-gray-600 font-bold">المبلغ</th><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-l-xl">الحالة</th></tr></thead><tbody>{orders.slice(0, 5).map(order => (<tr key={order.id} className="border-b hover:bg-gray-50"><td className="px-3 py-3 font-mono text-[#102A52] font-bold text-xs">{order.tracking}</td><td className="px-3 py-3 font-bold">{order.customer}</td><td className="px-3 py-3 text-gray-600">{order.wilaya}</td><td className="px-3 py-3 font-bold text-blue-700">{order.total.toLocaleString()} دج</td><td className="px-3 py-3"><span className={`px-2 py-1 rounded-full text-xs font-bold ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' : order.status === 'shipped' ? 'bg-purple-100 text-purple-700' : order.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>{order.status === 'pending' ? '⏳ معلق' : order.status === 'confirmed' ? '✅ مؤكد' : order.status === 'shipped' ? '🚚 مشحون' : order.status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</span></td></tr>))}</tbody></table></div>
               )}
             </div>
           </div>)}
@@ -1647,21 +1647,21 @@ function AdminApp({
             <h2 className="text-2xl font-bold text-gray-800">📋 إدارة الطلبات</h2>
             {orders.length === 0 ? <div className="bg-white rounded-2xl shadow-md p-12 text-center"><p className="text-6xl mb-4">📭</p><p className="text-gray-400 text-lg">لا توجد طلبات بعد</p></div> : orders.map(order => (
               <div key={order.id} className="bg-white rounded-2xl shadow-md p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-#102A52font-bold">{order.tracking}</span>{order.noestId && <span className="bg-blue-100 text-#102A52text-xs px-2 py-0.5 rounded-full font-bold">✅ NOEST</span>}</div><p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 text-sm">📍 {order.wilaya} - {order.address}</p><p className="text-gray-600 text-sm">🚚 {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${order.selectedOffice || ''}`}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p><p className="text-gray-400 text-xs">{order.date}</p></div></div>
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-[#102A52] font-bold">{order.tracking}</span>{order.noestId && <span className="bg-blue-100 text-[#102A52] text-xs px-2 py-0.5 rounded-full font-bold">✅ NOEST</span>}</div><p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 text-sm">📍 {order.wilaya} - {order.address}</p><p className="text-gray-600 text-sm">🚚 {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${order.selectedOffice || ''}`}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p><p className="text-gray-400 text-xs">{order.date}</p></div></div>
                 <div className="bg-gray-50 rounded-xl p-3 mb-3">{order.items.map(item => (<div key={item.id} className="flex justify-between text-sm"><span>{item.name} × {item.quantity}</span><span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span></div>))}</div>
-                <div className="flex flex-wrap gap-2">{(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as Order['status'][]).map(status => (<button key={status} onClick={() => { setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status } : o)); db.updateOrderStatus(order.id, status); showToast('تم تحديث حالة الطلب'); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${order.status === status ? 'bg-#183C6B text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}>{status === 'pending' ? '⏳ معلق' : status === 'confirmed' ? '✅ مؤكد' : status === 'shipped' ? '🚚 مشحون' : status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</button>))}</div>
+                <div className="flex flex-wrap gap-2">{(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as Order['status'][]).map(status => (<button key={status} onClick={() => { setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status } : o)); db.updateOrderStatus(order.id, status); showToast('تم تحديث حالة الطلب'); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${order.status === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}>{status === 'pending' ? '⏳ معلق' : status === 'confirmed' ? '✅ مؤكد' : status === 'shipped' ? '🚚 مشحون' : status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</button>))}</div>
               </div>
             ))}
           </div>)}
 
           {/* PRODUCTS TAB */}
           {tab === 'products' && (<div className="space-y-6">
-            <div className="flex items-center justify-between"><h2 className="text-2xl font-bold text-gray-800">📦 إدارة المنتجات</h2><button onClick={openAddProduct} className="bg-#183C6B hover:bg-#102A52text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md">➕ إضافة منتج</button></div>
+            <div className="flex items-center justify-between"><h2 className="text-2xl font-bold text-gray-800">📦 إدارة المنتجات</h2><button onClick={openAddProduct} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md">➕ إضافة منتج</button></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map(product => (
                 <div key={product.id} className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-all">
-                  <div className="relative h-40"><img src={safeImage(product.images)} alt={product.name} className="w-full h-full object-cover" />{product.badge && <span className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold">{product.badge}</span>}<span className="absolute top-2 left-2 bg-#102A52text-white text-xs px-2 py-1 rounded-full font-bold">{product.category}</span></div>
-                  <div className="p-4"><h3 className="font-bold text-gray-800 mb-1 text-sm">{product.name}</h3><div className="flex items-center justify-between mb-3"><span className="text-#102A52font-bold">{product.price.toLocaleString()} دج</span><span className="text-gray-400 text-xs">مخزون: {product.stock}</span></div><div className="flex gap-2"><button onClick={() => openEditProduct(product)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-#102A52py-2 rounded-lg font-bold text-sm transition-all">✏️ تعديل</button><button onClick={() => setDeleteConfirm(product.id)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 py-2 rounded-lg font-bold text-sm transition-all">🗑️ حذف</button></div></div>
+                  <div className="relative h-40"><img src={safeImage(product.images)} alt={product.name} className="w-full h-full object-cover" />{product.badge && <span className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold">{product.badge}</span>}<span className="absolute top-2 left-2 bg-[#102A52] text-white text-xs px-2 py-1 rounded-full font-bold">{product.category}</span></div>
+                  <div className="p-4"><h3 className="font-bold text-gray-800 mb-1 text-sm">{product.name}</h3><div className="flex items-center justify-between mb-3"><span className="text-[#102A52] font-bold">{product.price.toLocaleString()} دج</span><span className="text-gray-400 text-xs">مخزون: {product.stock}</span></div><div className="flex gap-2"><button onClick={() => openEditProduct(product)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-[#102A52] py-2 rounded-lg font-bold text-sm transition-all">✏️ تعديل</button><button onClick={() => setDeleteConfirm(product.id)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 py-2 rounded-lg font-bold text-sm transition-all">🗑️ حذف</button></div></div>
                 </div>
               ))}
             </div>
@@ -1678,7 +1678,7 @@ function AdminApp({
                   <button onClick={fetchLandingPages} disabled={lpLoading} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-bold text-sm transition-all">
                     {lpLoading ? '⏳' : '🔄'}
                   </button>
-                  <button onClick={openAddLp} className="bg-#183C6B hover:bg-#102A52text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md">
+                  <button onClick={openAddLp} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md">
                     ➕ إنشاء صفحة
                   </button>
                 </div>
@@ -1702,7 +1702,7 @@ function AdminApp({
               {/* Loading */}
               {lpLoading && !lpError && (
                 <div className="bg-white rounded-2xl shadow-md p-12 text-center">
-                  <div className="w-10 h-10 border-4 border-blue-200 border-t-#102A52rounded-full animate-spin mx-auto mb-3" />
+                  <div className="w-10 h-10 border-4 border-blue-200 border-t-[#102A52] rounded-full animate-spin mx-auto mb-3" />
                   <p className="text-gray-500 font-bold">جاري تحميل صفحات الهبوط...</p>
                 </div>
               )}
@@ -1713,7 +1713,7 @@ function AdminApp({
                   <p className="text-6xl mb-4">🚀</p>
                   <h3 className="text-xl font-bold text-gray-800 mb-2">لا توجد صفحات هبوط بعد</h3>
                   <p className="text-gray-500 mb-6 text-sm">أنشئ صفحة هبوط مخصصة لكل منتج لاستخدامها في حملاتك الإعلانية على فيسبوك</p>
-                  <button onClick={openAddLp} className="bg-#183C6B hover:bg-#102A52text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md">
+                  <button onClick={openAddLp} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md">
                     ➕ إنشاء أول صفحة هبوط
                   </button>
                 </div>
@@ -1744,9 +1744,9 @@ function AdminApp({
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500">
-                                  <span className="bg-blue-100 text-#102A52px-2 py-0.5 rounded font-mono font-bold">/l/{lp.slug}</span>
+                                  <span className="bg-blue-100 text-[#102A52] px-2 py-0.5 rounded font-mono font-bold">/l/{lp.slug}</span>
                                   {linkedProduct && (
-                                    <span className="bg-blue-50 text-#102A52px-2 py-0.5 rounded font-bold">
+                                    <span className="bg-blue-50 text-[#102A52] px-2 py-0.5 rounded font-bold">
                                       📦 {linkedProduct.name}
                                     </span>
                                   )}
@@ -1771,7 +1771,7 @@ function AdminApp({
                               <button onClick={() => handleToggleLpActive(lp)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${lp.is_active ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-blue-50 hover:bg-blue-100 text-blue-700'}`}>
                                 {lp.is_active ? '⏸️ تعطيل' : '▶️ تفعيل'}
                               </button>
-                              <button onClick={() => openEditLp(lp)} className="bg-blue-50 hover:bg-blue-100 text-#102A52px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
+                              <button onClick={() => openEditLp(lp)} className="bg-blue-50 hover:bg-blue-100 text-[#102A52] px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
                                 ✏️ تعديل
                               </button>
                               <a href={`/l/${lp.slug}`} target="_blank" rel="noopener noreferrer" className="bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1">
@@ -1798,8 +1798,8 @@ function AdminApp({
               {/* How to use */}
               {!lpLoading && landingPages.length > 0 && (
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
-                  <h4 className="font-bold text-#0B1833text-sm mb-2">📋 كيف تستخدم صفحات الهبوط في حملاتك:</h4>
-                  <ul className="text-#102A52text-xs space-y-1">
+                  <h4 className="font-bold text-[#0B1833] text-sm mb-2">📋 كيف تستخدم صفحات الهبوط في حملاتك:</h4>
+                  <ul className="text-[#102A52] text-xs space-y-1">
                     <li>1. أنشئ صفحة هبوط وربطها بمنتج</li>
                     <li>2. انسخ الرابط (مثل: <code className="bg-blue-100 px-1 rounded">/l/your-slug</code>)</li>
                     <li>3. استخدم الرابط كـ <strong>Destination URL</strong> في إعلان فيسبوك</li>
@@ -1819,19 +1819,19 @@ function AdminApp({
       {showProductForm && (
         <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="bg-#102A52text-white px-6 py-4 flex justify-between items-center"><h3 className="text-lg font-bold">{editingProduct ? '✏️ تعديل المنتج' : '➕ إضافة منتج جديد'}</h3><button onClick={() => setShowProductForm(false)} className="text-white hover:text-gray-200 text-xl">✕</button></div>
+            <div className="bg-[#102A52] text-white px-6 py-4 flex justify-between items-center"><h3 className="text-lg font-bold">{editingProduct ? '✏️ تعديل المنتج' : '➕ إضافة منتج جديد'}</h3><button onClick={() => setShowProductForm(false)} className="text-white hover:text-gray-200 text-xl">✕</button></div>
             <div className="p-6 space-y-4">
-              <div><label className="block text-sm font-bold text-gray-700 mb-2">📸 صور المنتج (حتى 6 صور) {isSupabaseConfigured() ? <span className="text-#183C6B text-xs font-normal">🔒 رفع آمن عبر الخادم</span> : <span className="text-amber-500 text-xs font-normal">💾 محلي فقط</span>}</label><div className="grid grid-cols-3 gap-3 mb-3">{productImages.map((img, i) => (<div key={i} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-blue-200"><img src={img} alt="" className="w-full h-full object-cover" />{i === 0 && <span className="absolute top-1 right-1 bg-#183C6B text-white text-xs px-1.5 py-0.5 rounded-full">رئيسية</span>}{isSupabaseUrl(img) && <span className="absolute bottom-1 right-1 bg-#183C6B text-white text-xs px-1 py-0.5 rounded-full">☁️</span>}<button onClick={() => handleRemoveImage(i)} className="absolute top-1 left-1 bg-red-500 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-sm">✕</button></div>))}{Object.entries(uploadProgress).map(([key, percent]) => (<div key={key} className="aspect-square rounded-xl border-2 border-blue-300 bg-blue-50 flex flex-col items-center justify-center gap-2"><div className="w-10 h-10 border-4 border-blue-200 border-t-#183C6B rounded-full animate-spin" /><span className="text-xs font-bold text-blue-700">{percent}%</span></div>))}{!uploadingImages && productImages.length < 6 && <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-xl border-2 border-dashed border-blue-300 hover:border-#183C6B flex flex-col items-center justify-center gap-2 text-#183C6B hover:bg-blue-50 transition-all"><span className="text-2xl">{isSupabaseConfigured() ? '🔒' : '+'}</span><span className="text-xs font-bold">{isSupabaseConfigured() ? 'رفع آمن' : 'رفع صورة'}</span></button>}</div><input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} /></div>
+              <div><label className="block text-sm font-bold text-gray-700 mb-2">📸 صور المنتج (حتى 6 صور) {isSupabaseConfigured() ? <span className="text-[#183C6B] text-xs font-normal">🔒 رفع آمن عبر الخادم</span> : <span className="text-amber-500 text-xs font-normal">💾 محلي فقط</span>}</label><div className="grid grid-cols-3 gap-3 mb-3">{productImages.map((img, i) => (<div key={i} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-blue-200"><img src={img} alt="" className="w-full h-full object-cover" />{i === 0 && <span className="absolute top-1 right-1 bg-[#183C6B] text-white text-xs px-1.5 py-0.5 rounded-full">رئيسية</span>}{isSupabaseUrl(img) && <span className="absolute bottom-1 right-1 bg-[#183C6B] text-white text-xs px-1 py-0.5 rounded-full">☁️</span>}<button onClick={() => handleRemoveImage(i)} className="absolute top-1 left-1 bg-red-500 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-sm">✕</button></div>))}{Object.entries(uploadProgress).map(([key, percent]) => (<div key={key} className="aspect-square rounded-xl border-2 border-blue-300 bg-blue-50 flex flex-col items-center justify-center gap-2"><div className="w-10 h-10 border-4 border-blue-200 border-t-[#183C6B] rounded-full animate-spin" /><span className="text-xs font-bold text-blue-700">{percent}%</span></div>))}{!uploadingImages && productImages.length < 6 && <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-xl border-2 border-dashed border-blue-300 hover:border-[#183C6B] flex flex-col items-center justify-center gap-2 text-[#183C6B] hover:bg-blue-50 transition-all"><span className="text-2xl">{isSupabaseConfigured() ? '🔒' : '+'}</span><span className="text-xs font-bold">{isSupabaseConfigured() ? 'رفع آمن' : 'رفع صورة'}</span></button>}</div><input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">اسم المنتج *</label><input type="text" value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" placeholder="اسم المنتج" /></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">السعر (دج) *</label><input type="number" value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" placeholder="1500" /></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">المخزون *</label><input type="number" value={productForm.stock} onChange={e => setProductForm(p => ({ ...p, stock: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" placeholder="50" /></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">الطور الدراسي</label><select value={productForm.category} onChange={e => setProductForm(p => ({ ...p, category: e.target.value as Product['category'] }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none"><option value="تحضيري">تحضيري</option><option value="ابتدائي">ابتدائي</option><option value="متوسط">متوسط</option></select></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">شارة (اختياري)</label><input type="text" value={productForm.badge} onChange={e => setProductForm(p => ({ ...p, badge: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" placeholder="الأكثر مبيعاً" /></div>
-                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الوصف</label><textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" rows={3} placeholder="وصف المنتج..." /></div>
-                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الفوائد التعليمية (كل فائدة في سطر)</label><textarea value={productForm.benefits} onChange={e => setProductForm(p => ({ ...p, benefits: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none" rows={3} placeholder={"فائدة 1\nفائدة 2\nفائدة 3"} /></div>
+                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">اسم المنتج *</label><input type="text" value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="اسم المنتج" /></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">السعر (دج) *</label><input type="number" value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="1500" /></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">المخزون *</label><input type="number" value={productForm.stock} onChange={e => setProductForm(p => ({ ...p, stock: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="50" /></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">الطور الدراسي</label><select value={productForm.category} onChange={e => setProductForm(p => ({ ...p, category: e.target.value as Product['category'] }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="تحضيري">تحضيري</option><option value="ابتدائي">ابتدائي</option><option value="متوسط">متوسط</option></select></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">شارة (اختياري)</label><input type="text" value={productForm.badge} onChange={e => setProductForm(p => ({ ...p, badge: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="الأكثر مبيعاً" /></div>
+                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الوصف</label><textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder="وصف المنتج..." /></div>
+                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الفوائد التعليمية (كل فائدة في سطر)</label><textarea value={productForm.benefits} onChange={e => setProductForm(p => ({ ...p, benefits: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"فائدة 1\nفائدة 2\nفائدة 3"} /></div>
               </div>
-              <div className="flex gap-3 pt-2"><button onClick={handleSaveProduct} className="flex-1 bg-#183C6B hover:bg-#102A52text-white py-3 rounded-xl font-bold transition-all">💾 {editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج'}</button><button onClick={() => setShowProductForm(false)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button></div>
+              <div className="flex gap-3 pt-2"><button onClick={handleSaveProduct} className="flex-1 bg-[#183C6B] hover:bg-[#102A52] text-white py-3 rounded-xl font-bold transition-all">💾 {editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج'}</button><button onClick={() => setShowProductForm(false)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button></div>
             </div>
           </div>
         </div>
@@ -1843,7 +1843,7 @@ function AdminApp({
       {showLpForm && (
         <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="bg-#102A52text-white px-6 py-4 flex justify-between items-center">
+            <div className="bg-[#102A52] text-white px-6 py-4 flex justify-between items-center">
               <h3 className="text-lg font-bold">{editingLp ? '✏️ تعديل صفحة الهبوط' : '➕ إنشاء صفحة هبوط جديدة'}</h3>
               <button onClick={() => setShowLpForm(false)} className="text-white hover:text-gray-200 text-xl">✕</button>
             </div>
@@ -1855,7 +1855,7 @@ function AdminApp({
                   type="text"
                   value={lpForm.title}
                   onChange={e => handleLpTitleChange(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
                   placeholder="مثال: بطاقات الأبجدية — عرض خاص"
                 />
               </div>
@@ -1870,7 +1870,7 @@ function AdminApp({
                   type="text"
                   value={lpForm.slug}
                   onChange={e => setLpForm(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\u0600-\u06FF-]/g, '') }))}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none font-mono text-sm"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none font-mono text-sm"
                   placeholder="alphabet-cards"
                   dir="ltr"
                 />
@@ -1895,7 +1895,7 @@ function AdminApp({
                       cta_url: pid ? `/?checkout=1` : prev.cta_url,
                     }));
                   }}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
                 >
                   <option value="">— بدون منتج مرتبط —</option>
                   {products.map(p => (
@@ -1913,7 +1913,7 @@ function AdminApp({
                   type="text"
                   value={lpForm.headline}
                   onChange={e => setLpForm(prev => ({ ...prev, headline: e.target.value }))}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
                   placeholder="علّم الحروف بطريقة تفاعلية وممتعة!"
                 />
               </div>
@@ -1924,7 +1924,7 @@ function AdminApp({
                 <textarea
                   value={lpForm.description}
                   onChange={e => setLpForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
                   rows={3}
                   placeholder="وصف جذاب يظهر في صفحة الهبوط..."
                 />
@@ -1946,7 +1946,7 @@ function AdminApp({
                       type="text"
                       value={lpForm.image_url}
                       onChange={e => setLpForm(prev => ({ ...prev, image_url: e.target.value }))}
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:border-#183C6B outline-none text-sm"
+                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:border-[#183C6B] outline-none text-sm"
                       placeholder="رابط الصورة (URL) أو ارفع من جهازك"
                       dir="ltr"
                     />
@@ -1970,7 +1970,7 @@ function AdminApp({
                     type="text"
                     value={lpForm.cta_text}
                     onChange={e => setLpForm(prev => ({ ...prev, cta_text: e.target.value }))}
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
                     placeholder="اشتري الآن"
                   />
                 </div>
@@ -1980,7 +1980,7 @@ function AdminApp({
                     type="text"
                     value={lpForm.cta_url}
                     onChange={e => setLpForm(prev => ({ ...prev, cta_url: e.target.value }))}
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-#183C6B outline-none text-sm"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none text-sm"
                     placeholder="افتراضي: رابط Checkout المنتج"
                     dir="ltr"
                   />
@@ -1991,7 +1991,7 @@ function AdminApp({
               <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-4">
                 <button
                   onClick={() => setLpForm(prev => ({ ...prev, is_active: !prev.is_active }))}
-                  className={`w-12 h-7 rounded-full transition-all relative ${lpForm.is_active ? 'bg-#183C6B' : 'bg-gray-300'}`}
+                  className={`w-12 h-7 rounded-full transition-all relative ${lpForm.is_active ? 'bg-[#183C6B]' : 'bg-gray-300'}`}
                 >
                   <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all ${lpForm.is_active ? 'left-0.5' : 'right-0.5'}`} />
                 </button>
@@ -2004,8 +2004,8 @@ function AdminApp({
               {/* Preview URL */}
               {lpForm.slug && (
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 flex items-center gap-2">
-                  <span className="text-#102A52font-bold text-sm">🔗 الرابط:</span>
-                  <code className="text-#0B1833text-xs font-mono bg-blue-100 px-2 py-1 rounded flex-1" dir="ltr">
+                  <span className="text-[#102A52] font-bold text-sm">🔗 الرابط:</span>
+                  <code className="text-[#0B1833] text-xs font-mono bg-blue-100 px-2 py-1 rounded flex-1" dir="ltr">
                     {window.location.origin}/l/{lpForm.slug}
                   </code>
                 </div>
@@ -2016,7 +2016,7 @@ function AdminApp({
                 <button
                   onClick={handleSaveLp}
                   disabled={lpSaving}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-all text-white ${lpSaving ? 'bg-gray-400 cursor-not-allowed' : 'bg-#183C6B hover:bg-blue-700'}`}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-all text-white ${lpSaving ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#183C6B] hover:bg-blue-700'}`}
                 >
                   {lpSaving ? '⏳ جاري الحفظ...' : `💾 ${editingLp ? 'حفظ التعديلات' : 'إنشاء الصفحة'}`}
                 </button>
@@ -2262,8 +2262,8 @@ export function App() {
         <div className="text-center space-y-6">
           <Logo size="lg" />
           <div className="flex items-center justify-center gap-3">
-            <div className="w-8 h-8 border-4 border-blue-200 border-t-#102A52rounded-full animate-spin" />
-            <span className="text-#102A52font-bold text-lg">جاري تحميل المنتجات...</span>
+            <div className="w-8 h-8 border-4 border-blue-200 border-t-[#102A52] rounded-full animate-spin" />
+            <span className="text-[#102A52] font-bold text-lg">جاري تحميل المنتجات...</span>
           </div>
           <p className="text-gray-400 text-sm">الاتصال بقاعدة البيانات</p>
         </div>

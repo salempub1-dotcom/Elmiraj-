@@ -1156,7 +1156,7 @@ function AdminApp({
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [tab, setTab] = useState<'dashboard' | 'orders' | 'products' | 'landing'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'orders' | 'products' | 'landing' | 'system'>('dashboard');
   const [showNotif, setShowNotif] = useState(false);
   // ── Landing Pages State ──
   const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
@@ -1179,6 +1179,20 @@ function AdminApp({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { try { localStorage.setItem('almiraj_admin', isAdmin ? 'true' : 'false'); } catch { /* */ } }, [isAdmin]);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/admin/system')) {
+      setTab('system');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const basePath = tab === 'system' ? '/admin/system' : '/admin';
+    if (window.location.pathname !== basePath) {
+      window.history.pushState(null, '', basePath);
+    }
+  }, [tab]);
+
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -1604,30 +1618,19 @@ function AdminApp({
           {tab === 'dashboard' && (<div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-800">📊 لوحة المعلومات</h2>
 
-            {/* Facebook Pixel Status */}
-            <div className={`rounded-2xl p-4 border-2 flex items-center gap-3 ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'bg-blue-50 border-blue-300' : 'bg-red-50 border-red-300'}`}>
-              <span className="text-2xl">{typeof window !== 'undefined' && typeof window.fbq === 'function' ? '✅' : '⚠️'}</span>
-              <div className="flex-1">
-                <p className={`font-bold text-sm ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'text-blue-700' : 'text-red-700'}`}>
-                  {typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'فيسبوك بيكسل مفعّل ✅' : 'فيسبوك بيكسل غير مفعّل ⚠️'}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {typeof window !== 'undefined' && typeof window.fbq === 'function'
-                    ? 'جميع أحداث الكتالوج تعمل: PageView, ViewContent, AddToCart, InitiateCheckout, Purchase, Search'
-                    : 'استبدل YOUR_PIXEL_ID في index.html برقم البيكسل الخاص بك من Facebook Business Manager'}
-                </p>
-              </div>
-              <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap">📊 Events Manager</a>
+            {/* System status bar - full diagnostics moved to /admin/system */}
+          <div className="rounded-2xl border-2 p-4 flex flex-wrap items-center justify-between gap-3 bg-green-50 border-green-200">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🟢</span>
+              <span className="font-bold text-sm text-gray-800">جميع أنظمة المتجر تعمل بشكل طبيعي</span>
             </div>
-
-            {/* NOEST API Status */}
-            <NoestStatusCard showToast={showToast} />
-
-            {/* Supabase Storage Status */}
-            <SupabaseStatusCard showToast={showToast} />
-
-            {/* System Health Check */}
-            <SystemHealthCard showToast={showToast} />
+            <button
+              onClick={() => setTab('system')}
+              className="text-sm font-bold text-blue-700 hover:text-blue-900 underline"
+            >
+              عرض التفاصيل →
+            </button>
+          </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[{ label: 'إجمالي الطلبات', value: orders.length, icon: '📋', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' }, { label: 'الطلبات المعلقة', value: pendingCount, icon: '⏳', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' }, { label: 'إجمالي الإيرادات', value: `${totalRevenue.toLocaleString()}`, icon: '💰', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' }, { label: 'عدد المنتجات', value: products.length, icon: '📦', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' }].map((s, i) => (
@@ -1641,6 +1644,43 @@ function AdminApp({
               )}
             </div>
           </div>)}
+          {/* SYSTEM TAB - separated diagnostics page (/admin/system) */}
+          {tab === 'system' && (
+            <div className="space-y-6">
+              <button
+                onClick={() => setTab('dashboard')}
+                className="text-sm font-bold text-blue-700 hover:text-blue-900"
+              >
+                ← رجوع للوحة المعلومات
+              </button>
+              <h2 className="text-2xl font-bold text-gray-800">⚙️ النظام والتكاملات</h2>
+
+              {/* Facebook Pixel Status */}
+              <div className={`rounded-2xl p-4 border-2 flex items-center gap-3 ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'bg-blue-50 border-blue-300' : 'bg-red-50 border-red-300'}`}>
+                <span className="text-2xl">{typeof window !== 'undefined' && typeof window.fbq === 'function' ? '✅' : '⚠️'}</span>
+                <div className="flex-1">
+                  <p className={`font-bold text-sm ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'text-blue-700' : 'text-red-700'}`}>
+                    {typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'فيسبوك بيكسل مفعّل ✅' : 'فيسبوك بيكسل غير مفعّل ⚠️'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {typeof window !== 'undefined' && typeof window.fbq === 'function'
+                      ? 'جميع أحداث الكتالوج تعمل: PageView, ViewContent, AddToCart, InitiateCheckout, Purchase, Search'
+                      : 'استبدل YOUR_PIXEL_ID في index.html برقم البيكسل الخاص بك من Facebook Business Manager'}
+                  </p>
+                </div>
+                <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap">📊 Events Manager</a>
+              </div>
+
+              {/* NOEST API Status */}
+              <NoestStatusCard showToast={showToast} />
+
+              {/* Supabase Storage Status */}
+              <SupabaseStatusCard showToast={showToast} />
+
+              {/* System Health Check */}
+              <SystemHealthCard showToast={showToast} />
+            </div>
+          )}
 
           {/* ORDERS TAB */}
           {tab === 'orders' && (<div className="space-y-4">

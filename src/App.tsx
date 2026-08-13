@@ -334,6 +334,8 @@ function StoreApp({
   const navigate = useNavigate();
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('الكل');
+  // فلترة المستوى الدراسي داخل واجهة المتجر — 'all' = كل سنوات الطور المختار
+  const [selectedLevel, setSelectedLevel] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -465,9 +467,13 @@ function StoreApp({
 
   const filteredProducts = products.filter(p => {
     const matchCat = selectedCategory === 'الكل' || p.category === selectedCategory;
+    const matchLevel = selectedCategory === 'الكل' || selectedLevel === 'all' || p.level === selectedLevel;
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCat && matchSearch;
+    return matchCat && matchLevel && matchSearch;
   });
+
+  // نص خيار "الكل" داخل قائمة المستوى — يتغيّر حسب الطور المختار
+  const allLevelsLabel = (cat: string) => cat === 'متوسط' ? 'جميع سنوات المتوسط' : cat === 'ابتدائي' ? 'جميع سنوات الابتدائي' : 'جميع منتجات التحضيري';
 
   const triggerCartAnimation = () => { setCartAnimating(true); setTimeout(() => setCartAnimating(false), 1000); playAddSound(); };
 
@@ -682,6 +688,7 @@ function StoreApp({
               {(['تحضيري', 'ابتدائي', 'متوسط'] as const).map(cat => (<button key={cat} onClick={() => {
                 setSelectedCategory(cat);
                 setActiveSection('products');
+                setSelectedLevel('all');
                 fbTrackCustom('ViewCategory', { content_category: cat, content_name: `طور ${cat}` });
               }} className="bg-white/20 hover:bg-white/30 border border-white/40 text-white px-6 py-3 rounded-xl font-bold transition-all">{catEmoji(cat)} {cat}</button>))}
             </div>
@@ -712,18 +719,48 @@ function StoreApp({
             <div className="flex flex-wrap justify-center gap-3 mb-8">
               {['الكل', 'تحضيري', 'ابتدائي', 'متوسط'].map(cat => (<button key={cat} onClick={() => {
                 setSelectedCategory(cat);
+                setSelectedLevel('all');
                 // ✅ ViewCategory — لتحسين استهداف الجمهور
                 if (cat !== 'الكل') {
                   fbTrackCustom('ViewCategory', { content_category: cat, content_name: `طور ${cat}` });
                 }
               }} className={`px-5 py-2.5 rounded-xl font-bold transition-all ${selectedCategory === cat ? 'bg-[#102A52] text-white shadow-md' : 'bg-white text-gray-600 hover:bg-blue-50 border border-gray-200'}`}>{catEmoji(cat)} {cat}</button>))}
             </div>
+            {/* المستوى الدراسي — Dropdown تابع للطور المختار، يظهر فقط عند وجود أكثر من سنة دراسية واحدة */}
+            {selectedCategory !== 'الكل' && LEVELS_BY_CATEGORY[selectedCategory as Product['category']].length > 1 && (
+              <div className="flex flex-col items-center gap-2 mb-8">
+                <label className="text-sm font-bold text-gray-600">السنة الدراسية:</label>
+                <select
+                  value={selectedLevel}
+                  onChange={e => {
+                    setSelectedLevel(e.target.value);
+                    if (e.target.value !== 'all') {
+                      fbTrackCustom('ViewCategory', { content_category: selectedCategory, content_name: `مستوى ${e.target.value}` });
+                    }
+                  }}
+                  className="w-full max-w-xs border-2 border-gray-200 rounded-xl px-4 py-2.5 bg-white font-bold text-[#102A52] focus:border-[#183C6B] outline-none"
+                >
+                  <option value="all">{allLevelsLabel(selectedCategory)}</option>
+                  {LEVELS_BY_CATEGORY[selectedCategory as Product['category']].map(l => (
+                    <option key={l.value} value={l.value}>{l.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="md:hidden mb-6"><input type="text" value={searchQuery} onChange={e => {
               setSearchQuery(e.target.value);
               if (e.target.value.length >= 3) {
                 fbTrack('Search', { search_string: e.target.value, content_category: selectedCategory });
               }
             }} placeholder="ابحث عن منتج..." className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none" /></div>
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-6xl mb-4">🔍</p>
+                <p className="text-gray-400 text-lg font-bold">
+                  {selectedLevel !== 'all' ? 'لا توجد منتجات متوفرة لهذا المستوى حالياً' : 'لا توجد منتجات مطابقة لبحثك'}
+                </p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredProducts.map(product => (
                 <div key={product.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden group">
@@ -749,6 +786,7 @@ function StoreApp({
                 </div>
               ))}
             </div>
+            )}
           </div>
         </section>
       )}

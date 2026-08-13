@@ -19,9 +19,11 @@ interface Product {
   stock: number;
   sales: number;
   benefits: string[];
+  // محتويات المنتج (كل عنصر في سطر) — اختياري، تُعرض في صفحة المنتج عند توفرها
+  contents?: string[];
   badge?: string;
 }
-
+  
 interface CartItem extends Product {
   quantity: number;
 }
@@ -301,6 +303,7 @@ function StoreApp({
   setNotifications: React.Dispatch<React.SetStateAction<Notif[]>>;
   onOpenAdmin: () => void;
 }) {
+  const navigate = useNavigate();
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('الكل');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -697,18 +700,17 @@ function StoreApp({
               {filteredProducts.map(product => (
                 <div key={product.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden group">
                   <div className="relative h-48 overflow-hidden cursor-pointer" onClick={() => {
-                    setSelectedProduct(product);
-                    setCurrentImageIndex(0);
-                    // ✅ ViewContent — أساسي لحملات الكتالوج وRetargeting
-                    fbTrack('ViewContent', buildCatalogData(product));
-                  }}>
+                    // ✅ الانتقال إلى صفحة المنتج المستقلة /lp/:id (بدل فتح الـpopup)
+                    // ViewContent يتم إطلاقه تلقائياً داخل ProductLanding عند التحميل
+                    navigate(`/lp/${product.id}`);
+}}>
                     <img src={safeImage(product.images)} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     {product.badge && <span className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold">{product.badge}</span>}
                     <span className="absolute top-2 left-2 bg-[#102A52] text-white text-xs px-2 py-1 rounded-full font-bold">{product.category}</span>
                     {safeImages(product.images).length > 1 && <span className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">📸 {product.images.length}</span>}
                   </div>
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-800 mb-1 text-sm leading-tight">{product.name}</h3>
+                    <h3 className="font-bold text-gray-800 mb-1 text-sm leading-tight cursor-pointer hover:text-[#102A52]" onClick={() => navigate(`/lp/${product.id}`)}>{product.name}</h3>
                     <p className="text-gray-500 text-xs mb-3 line-clamp-2">{safeStr(product.description)}</p>
                     <div className="flex items-center justify-between mb-3"><span className="text-[#102A52] font-bold text-lg">{product.price.toLocaleString()} دج</span><span className="text-gray-400 text-xs">المخزون: {product.stock}</span></div>
                     <div className="flex gap-2">
@@ -1172,7 +1174,7 @@ function AdminApp({
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState({ name: '', description: '', price: '', category: 'تحضيري' as Product['category'], stock: '', benefits: '', badge: '' });
+  const [productForm, setProductForm] = useState({ name: '', description: '', price: '', category: 'تحضيري' as Product['category'], stock: '', benefits: '', contents: '', badge: '' });
   const [productImages, setProductImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -1249,12 +1251,12 @@ function AdminApp({
     onBackToStore();
   };
 
-  const openAddProduct = () => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', category: 'تحضيري', stock: '', benefits: '', badge: '' }); setProductImages([]); setShowProductForm(true); };
-  const openEditProduct = (p: Product) => { setEditingProduct(p); setProductForm({ name: p.name, description: p.description, price: p.price.toString(), category: p.category, stock: p.stock.toString(), benefits: p.benefits.join('\n'), badge: p.badge || '' }); setProductImages(p.images); setShowProductForm(true); };
+  const openAddProduct = () => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', category: 'تحضيري', stock: '', benefits: '', contents: '', badge: '' }); setProductImages([]); setShowProductForm(true); };
+  const openEditProduct = (p: Product) => { setEditingProduct(p); setProductForm({ name: p.name, description: p.description, price: p.price.toString(), category: p.category, stock: p.stock.toString(), benefits: p.benefits.join('\n'), contents: safeArr(p.contents).join('\n'), badge: p.badge || '' }); setProductImages(p.images); setShowProductForm(true); };
 
   const handleSaveProduct = () => {
     if (!productForm.name || !productForm.price || !productForm.stock) { showToast('يرجى ملء الحقول المطلوبة', 'error'); return; }
-    const data: Product = { id: editingProduct ? editingProduct.id : Date.now(), name: productForm.name, description: productForm.description, price: parseInt(productForm.price), category: productForm.category, stock: parseInt(productForm.stock), sales: editingProduct ? editingProduct.sales : 0, images: productImages.length > 0 ? productImages : ['https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400'], benefits: productForm.benefits.split('\n').filter(b => b.trim()), badge: productForm.badge || undefined };
+    const data: Product = { id: editingProduct ? editingProduct.id : Date.now(), name: productForm.name, description: productForm.description, price: parseInt(productForm.price), category: productForm.category, stock: parseInt(productForm.stock), sales: editingProduct ? editingProduct.sales : 0, images: productImages.length > 0 ? productImages : ['https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400'], benefits: productForm.benefits.split('\n').filter(b => b.trim()), contents: productForm.contents.split('\n').filter(c => c.trim()), badge: productForm.badge || undefined };
     if (editingProduct) { setProducts(prev => prev.map(p => p.id === editingProduct.id ? data : p)); showToast('تم تحديث المنتج بنجاح'); }
     else { setProducts(prev => [data, ...prev]); showToast('تم إضافة المنتج بنجاح'); }
     // ── Persist to Supabase ──
@@ -1870,6 +1872,7 @@ function AdminApp({
                 <div><label className="block text-sm font-bold text-gray-700 mb-1">شارة (اختياري)</label><input type="text" value={productForm.badge} onChange={e => setProductForm(p => ({ ...p, badge: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="الأكثر مبيعاً" /></div>
                 <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الوصف</label><textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder="وصف المنتج..." /></div>
                 <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الفوائد التعليمية (كل فائدة في سطر)</label><textarea value={productForm.benefits} onChange={e => setProductForm(p => ({ ...p, benefits: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"فائدة 1\nفائدة 2\nفائدة 3"} /></div>
+                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">محتويات المنتج (كل عنصر في سطر — تظهر في صفحة المنتج)</label><textarea value={productForm.contents} onChange={e => setProductForm(p => ({ ...p, contents: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"مثال: 20 بطاقة تعليمية ملونة\nدليل استخدام\nعلبة تغليف أنيقة"} /></div>
               </div>
               <div className="flex gap-3 pt-2"><button onClick={handleSaveProduct} className="flex-1 bg-[#183C6B] hover:bg-[#102A52] text-white py-3 rounded-xl font-bold transition-all">💾 {editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج'}</button><button onClick={() => setShowProductForm(false)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button></div>
             </div>
@@ -2169,6 +2172,7 @@ export function App() {
             images: safeImages(p.images).length > 0 ? safeImages(p.images) : [PLACEHOLDER_IMAGE],
             description: safeStr(p.description),
             benefits: safeArr(p.benefits),
+            contents: safeArr(p.contents),
           }));
           setProducts(sanitized);
           setDbSource('supabase');

@@ -28,6 +28,7 @@ interface DbProduct {
   stock: number;
   sales: number;
   benefits: string[];
+  contents?: string[];
   badge?: string | null;
 }
 

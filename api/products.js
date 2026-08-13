@@ -127,6 +127,7 @@ export default async function handler(req, res) {
         stock: p.stock || 0,
         sales: p.sales || 0,
         benefits: p.benefits || [],
+    contents: p.contents || [],
         badge: p.badge || null,
       }));
 
@@ -167,6 +168,7 @@ export default async function handler(req, res) {
         stock: p.stock || 0,
         sales: p.sales || 0,
         benefits: p.benefits || [],
+        contents: p.contents || [],
         badge: p.badge || null,
         updated_at: new Date().toISOString(),
       });

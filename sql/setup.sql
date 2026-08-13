@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS products (
   stock           INTEGER      NOT NULL DEFAULT 0,
   sales           INTEGER      NOT NULL DEFAULT 0,
   benefits        TEXT[]       NOT NULL DEFAULT '{}',
+  contents        TEXT[]       NOT NULL DEFAULT '{}',
   badge           TEXT         DEFAULT NULL,
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
@@ -39,6 +40,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS images      TEXT[] NOT NULL DEFAUL
 ALTER TABLE products ADD COLUMN IF NOT EXISTS stock       INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS sales       INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS benefits    TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS contents    TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS badge       TEXT DEFAULT NULL;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW();
 ALTER TABLE products ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW();
@@ -52,6 +54,7 @@ UPDATE products SET images      = '{}'  WHERE images     IS NULL;
 UPDATE products SET stock       = 0    WHERE stock       IS NULL;
 UPDATE products SET sales       = 0    WHERE sales       IS NULL;
 UPDATE products SET benefits    = '{}'  WHERE benefits   IS NULL;
+UPDATE products SET contents    = '{}'  WHERE contents   IS NULL;
 
 -- Set defaults on existing columns (safe to re-run)
 ALTER TABLE products ALTER COLUMN name        SET DEFAULT '';
@@ -62,6 +65,7 @@ ALTER TABLE products ALTER COLUMN images      SET DEFAULT '{}';
 ALTER TABLE products ALTER COLUMN stock       SET DEFAULT 0;
 ALTER TABLE products ALTER COLUMN sales       SET DEFAULT 0;
 ALTER TABLE products ALTER COLUMN benefits    SET DEFAULT '{}';
+ALTER TABLE products ALTER COLUMN contents    SET DEFAULT '{}';
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_products_category   ON products(category);

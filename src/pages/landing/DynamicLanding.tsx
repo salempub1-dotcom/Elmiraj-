@@ -588,7 +588,7 @@ export default function DynamicLanding() {
             <div>
               <h4 className="font-bold mb-3 text-amber-400">تواصل معنا</h4>
               <div className="space-y-2 text-blue-300 text-sm">
-                <p>📞 <a href="tel:0782272080" className="hover:text-white">0782272080</a></p>
+                <p>📞 <a href="tel:0564234231" className="hover:text-white">0564234231</a></p>
                 <p>📧 <a href="mailto:contact@almiraj.dz" className="hover:text-white">contact@almiraj.dz</a></p>
                 <p>📍 الجزائر العاصمة، الجزائر 🇩🇿</p>
               </div>

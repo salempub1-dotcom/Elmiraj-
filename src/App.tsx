@@ -813,7 +813,7 @@ function StoreApp({
             <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-8">📞 اتصل بنا</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
-                <div><h3 className="text-lg font-bold text-gray-700 mb-1">📱 الهاتف</h3><a href="tel:0782272080" className="text-[#102A52] font-bold text-xl hover:underline">0782272080</a></div>
+                <div><h3 className="text-lg font-bold text-gray-700 mb-1">📱 الهاتف</h3><a href="tel:0564234231" className="text-[#102A52] font-bold text-xl hover:underline">0564234231</a></div>
                 <div><h3 className="text-lg font-bold text-gray-700 mb-1">📧 البريد الإلكتروني</h3><a href="mailto:contact@almiraj.dz" className="text-[#102A52] hover:underline">contact@almiraj.dz</a></div>
                 <div><h3 className="text-lg font-bold text-gray-700 mb-1">📍 العنوان</h3><p className="text-gray-600">الجزائر العاصمة، الجزائر 🇩🇿</p></div>
               </div>
@@ -833,7 +833,7 @@ function StoreApp({
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div><div className="flex items-center gap-3 mb-3"><Logo size="sm" /><div><h3 className="font-bold text-lg cursor-default select-none" onClick={handleSecretClick}>المعراج</h3><p className="text-blue-300 text-xs">متجر تعليمي للأساتذة</p></div></div><p className="text-blue-300 text-sm">أدوات مساعدة لإعداد الدروس وتفعيل التلاميذ</p></div>
-            <div><h4 className="font-bold mb-3 text-amber-400">تواصل معنا</h4><div className="space-y-2 text-blue-300 text-sm"><p>📞 <a href="tel:0782272080" className="hover:text-white">0782272080</a></p><p>📧 <a href="mailto:contact@almiraj.dz" className="hover:text-white">contact@almiraj.dz</a></p><p>📍 الجزائر العاصمة، الجزائر 🇩🇿</p></div></div>
+            <div><h4 className="font-bold mb-3 text-amber-400">تواصل معنا</h4><div className="space-y-2 text-blue-300 text-sm"><p>📞 <a href="tel:0564234231" className="hover:text-white">0564234231</a></p><p>📧 <a href="mailto:contact@almiraj.dz" className="hover:text-white">contact@almiraj.dz</a></p><p>📍 الجزائر العاصمة، الجزائر 🇩🇿</p></div></div>
             <div><h4 className="font-bold mb-3 text-amber-400">تابعنا</h4><div className="flex gap-3 flex-wrap">{socialLinks.map((s, i) => (<a key={i} href={s.href} target="_blank" rel="noopener noreferrer" className={`${s.footerBg} p-2.5 rounded-xl transition-all`}><svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d={s.icon} /></svg></a>))}</div></div>
           </div>
           <div className="border-t border-[#102A52] pt-6 text-center"><p className="text-blue-400 text-sm">2024 المعراج - جميع الحقوق محفوظة 🇩🇿</p></div>
@@ -937,7 +937,7 @@ function StoreApp({
                           <p className="text-red-600 text-xs mt-1">{orderError}</p>
                         </div>
                       </div>
-                      <p className="text-red-500 text-xs">يرجى التحقق من البيانات والمحاولة مرة أخرى. إذا استمرت المشكلة تواصل معنا على 0782272080</p>
+                      <p className="text-red-500 text-xs">يرجى التحقق من البيانات والمحاولة مرة أخرى. إذا استمرت المشكلة تواصل معنا على 0564234231</p>
                     </div>
                   )}
                   <button onClick={handlePlaceOrder} disabled={placingOrder} className={`w-full py-4 rounded-xl font-bold text-lg transition-all text-white ${placingOrder ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#102A52] hover:bg-[#0B1833] shadow-lg'}`}>{placingOrder ? '⏳ جاري إرسال الطلب لشركة التوصيل...' : orderError ? '🔄 إعادة المحاولة' : '✅ تأكيد الطلب'}</button>

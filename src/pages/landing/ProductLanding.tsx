@@ -16,8 +16,23 @@ interface Product {
   benefits: string[];
   // محتويات المنتج — تظهر فقط إن كانت موجودة (بيانات ديناميكية من لوحة التحكم)
   contents?: string[];
+  // المستوى الدراسي (رمز مختصر مثل 1AP أو 1MS) — اختياري، تابع للطور الدراسي (category)
+  level?: string;
   badge?: string;
 }
+// خريطة مسطحة: رمز المستوى → التسمية العربية الكاملة (مطابقة لِـ App.tsx — أبقِها متزامنة)
+const LEVEL_LABELS: Record<string, string> = {
+  PREP: 'تحضيري',
+  '1AP': 'السنة الأولى ابتدائي',
+  '2AP': 'السنة الثانية ابتدائي',
+  '3AP': 'السنة الثالثة ابتدائي',
+  '4AP': 'السنة الرابعة ابتدائي',
+  '5AP': 'السنة الخامسة ابتدائي',
+  '1MS': 'السنة الأولى متوسط',
+  '2MS': 'السنة الثانية متوسط',
+  '3MS': 'السنة الثالثة متوسط',
+  '4MS': 'السنة الرابعة متوسط',
+};
 
 interface CartItem extends Product {
   quantity: number;
@@ -367,6 +382,11 @@ export default function ProductLanding({
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 leading-tight">
                 {product.name}
               </h1>
+              {product.level && LEVEL_LABELS[product.level] && (
+                <p className="mt-2 inline-flex items-center gap-1.5 bg-[#0B1833] text-white text-xs sm:text-sm px-3 py-1.5 rounded-full font-bold">
+                  📘 {LEVEL_LABELS[product.level]}
+                </p>
+              )}
             </div>
 
             {/* Price */}

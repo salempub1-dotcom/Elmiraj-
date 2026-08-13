@@ -128,6 +128,7 @@ export default async function handler(req, res) {
         sales: p.sales || 0,
         benefits: p.benefits || [],
         contents: p.contents || [],
+        level: p.level || null,
         badge: p.badge || null,
       }));
 
@@ -169,6 +170,7 @@ export default async function handler(req, res) {
         sales: p.sales || 0,
         benefits: p.benefits || [],
         contents: p.contents || [],
+        level: p.level || null,
         badge: p.badge || null,
         updated_at: new Date().toISOString(),
       });

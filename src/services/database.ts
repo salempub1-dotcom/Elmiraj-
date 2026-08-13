@@ -29,6 +29,7 @@ interface DbProduct {
   sales: number;
   benefits: string[];
   contents?: string[];
+  level?: string | null;
   badge?: string | null;
 }
 

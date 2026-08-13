@@ -21,9 +21,37 @@ interface Product {
   benefits: string[];
   // محتويات المنتج (كل عنصر في سطر) — اختياري، تُعرض في صفحة المنتج عند توفرها
   contents?: string[];
+  // المستوى الدراسي (رمز مختصر مثل 1AP أو 1MS) — اختياري، تابع للطور الدراسي (category)
+  level?: string;
   badge?: string;
 }
   
+// المستوى الدراسي حسب الطور — قيم مختصرة للتخزين + تسميات عربية كاملة للعرض
+const LEVELS_BY_CATEGORY: Record<Product['category'], { value: string; label: string }[]> = {
+  'تحضيري': [
+    { value: 'PREP', label: 'تحضيري' },
+  ],
+  'ابتدائي': [
+    { value: '1AP', label: 'السنة الأولى ابتدائي' },
+    { value: '2AP', label: 'السنة الثانية ابتدائي' },
+    { value: '3AP', label: 'السنة الثالثة ابتدائي' },
+    { value: '4AP', label: 'السنة الرابعة ابتدائي' },
+    { value: '5AP', label: 'السنة الخامسة ابتدائي' },
+  ],
+  'متوسط': [
+    { value: '1MS', label: 'السنة الأولى متوسط' },
+    { value: '2MS', label: 'السنة الثانية متوسط' },
+    { value: '3MS', label: 'السنة الثالثة متوسط' },
+    { value: '4MS', label: 'السنة الرابعة متوسط' },
+  ],
+};
+
+// خريطة مسطحة: رمز المستوى إلى التسمية العربية الكاملة (للعرض السريع بدون معرفة الطور)
+const LEVEL_LABELS: Record<string, string> = Object.values(LEVELS_BY_CATEGORY).flat().reduce(
+  (acc, l) => { acc[l.value] = l.label; return acc; },
+  {} as Record<string, string>
+);
+
 interface CartItem extends Product {
   quantity: number;
 }
@@ -1174,7 +1202,7 @@ function AdminApp({
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState({ name: '', description: '', price: '', category: 'تحضيري' as Product['category'], stock: '', benefits: '', contents: '', badge: '' });
+  const [productForm, setProductForm] = useState({ name: '', description: '', price: '', category: 'تحضيري' as Product['category'], stock: '', benefits: '', contents: '', level: '', badge: '' });
   const [productImages, setProductImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -1251,12 +1279,12 @@ function AdminApp({
     onBackToStore();
   };
 
-  const openAddProduct = () => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', category: 'تحضيري', stock: '', benefits: '', contents: '', badge: '' }); setProductImages([]); setShowProductForm(true); };
-  const openEditProduct = (p: Product) => { setEditingProduct(p); setProductForm({ name: p.name, description: p.description, price: p.price.toString(), category: p.category, stock: p.stock.toString(), benefits: p.benefits.join('\n'), contents: safeArr(p.contents).join('\n'), badge: p.badge || '' }); setProductImages(p.images); setShowProductForm(true); };
+  const openAddProduct = () => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', category: 'تحضيري', stock: '', benefits: '', contents: '', level: '', badge: '' }); setProductImages([]); setShowProductForm(true); };
+  const openEditProduct = (p: Product) => { setEditingProduct(p); setProductForm({ name: p.name, description: p.description, price: p.price.toString(), category: p.category, stock: p.stock.toString(), benefits: p.benefits.join('\n'), contents: safeArr(p.contents).join('\n'), level: p.level || '', badge: p.badge || '' }); setProductImages(p.images); setShowProductForm(true); };
 
   const handleSaveProduct = () => {
     if (!productForm.name || !productForm.price || !productForm.stock) { showToast('يرجى ملء الحقول المطلوبة', 'error'); return; }
-    const data: Product = { id: editingProduct ? editingProduct.id : Date.now(), name: productForm.name, description: productForm.description, price: parseInt(productForm.price), category: productForm.category, stock: parseInt(productForm.stock), sales: editingProduct ? editingProduct.sales : 0, images: productImages.length > 0 ? productImages : ['https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400'], benefits: productForm.benefits.split('\n').filter(b => b.trim()), contents: productForm.contents.split('\n').filter(c => c.trim()), badge: productForm.badge || undefined };
+    const data: Product = { id: editingProduct ? editingProduct.id : Date.now(), name: productForm.name, description: productForm.description, price: parseInt(productForm.price), category: productForm.category, stock: parseInt(productForm.stock), sales: editingProduct ? editingProduct.sales : 0, images: productImages.length > 0 ? productImages : ['https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400'], benefits: productForm.benefits.split('\n').filter(b => b.trim()), contents: productForm.contents.split('\n').filter(c => c.trim()), level: productForm.level || undefined, badge: productForm.badge || undefined };
     if (editingProduct) { setProducts(prev => prev.map(p => p.id === editingProduct.id ? data : p)); showToast('تم تحديث المنتج بنجاح'); }
     else { setProducts(prev => [data, ...prev]); showToast('تم إضافة المنتج بنجاح'); }
     // ── Persist to Supabase ──
@@ -1868,7 +1896,8 @@ function AdminApp({
                 <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">اسم المنتج *</label><input type="text" value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="اسم المنتج" /></div>
                 <div><label className="block text-sm font-bold text-gray-700 mb-1">السعر (دج) *</label><input type="number" value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="1500" /></div>
                 <div><label className="block text-sm font-bold text-gray-700 mb-1">المخزون *</label><input type="number" value={productForm.stock} onChange={e => setProductForm(p => ({ ...p, stock: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="50" /></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">الطور الدراسي</label><select value={productForm.category} onChange={e => setProductForm(p => ({ ...p, category: e.target.value as Product['category'] }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="تحضيري">تحضيري</option><option value="ابتدائي">ابتدائي</option><option value="متوسط">متوسط</option></select></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">الطور الدراسي</label><select value={productForm.category} onChange={e => { const newCat = e.target.value as Product['category']; setProductForm(p => ({ ...p, category: newCat, level: LEVELS_BY_CATEGORY[newCat].some(l => l.value === p.level) ? p.level : '' })); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="تحضيري">تحضيري</option><option value="ابتدائي">ابتدائي</option><option value="متوسط">متوسط</option></select></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">المستوى الدراسي (اختياري)</label><select value={productForm.level} onChange={e => setProductForm(p => ({ ...p, level: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="">بدون تحديد</option>{LEVELS_BY_CATEGORY[productForm.category].map(l => <option key={l.value} value={l.value}>{l.label}</option>)}</select></div>
                 <div><label className="block text-sm font-bold text-gray-700 mb-1">شارة (اختياري)</label><input type="text" value={productForm.badge} onChange={e => setProductForm(p => ({ ...p, badge: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="الأكثر مبيعاً" /></div>
                 <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الوصف</label><textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder="وصف المنتج..." /></div>
                 <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الفوائد التعليمية (كل فائدة في سطر)</label><textarea value={productForm.benefits} onChange={e => setProductForm(p => ({ ...p, benefits: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"فائدة 1\nفائدة 2\nفائدة 3"} /></div>
@@ -2173,6 +2202,7 @@ export function App() {
             description: safeStr(p.description),
             benefits: safeArr(p.benefits),
             contents: safeArr(p.contents),
+            level: p.level || undefined,
           }));
           setProducts(sanitized);
           setDbSource('supabase');

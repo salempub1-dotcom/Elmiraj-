@@ -1239,6 +1239,7 @@ function AdminApp({
   const lpFileInputRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showProductForm, setShowProductForm] = useState(false);
+  const [savingProduct, setSavingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState({ name: '', description: '', price: '', category: 'تحضيري' as Product['category'], stock: '', benefits: '', contents: '', level: '', badge: '' });
   const [productImages, setProductImages] = useState<string[]>([]);
@@ -1320,15 +1321,21 @@ function AdminApp({
   const openAddProduct = () => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', category: 'تحضيري', stock: '', benefits: '', contents: '', level: '', badge: '' }); setProductImages([]); setShowProductForm(true); };
   const openEditProduct = (p: Product) => { setEditingProduct(p); setProductForm({ name: p.name, description: p.description, price: p.price.toString(), category: p.category, stock: p.stock.toString(), benefits: p.benefits.join('\n'), contents: safeArr(p.contents).join('\n'), level: p.level || '', badge: p.badge || '' }); setProductImages(p.images); setShowProductForm(true); };
 
-  const handleSaveProduct = () => {
+  const handleSaveProduct = async () => {
     if (!productForm.name || !productForm.price || !productForm.stock) { showToast('يرجى ملء الحقول المطلوبة', 'error'); return; }
+    if (savingProduct) return;
     const data: Product = { id: editingProduct ? editingProduct.id : Date.now(), name: productForm.name, description: productForm.description, price: parseInt(productForm.price), category: productForm.category, stock: parseInt(productForm.stock), sales: editingProduct ? editingProduct.sales : 0, images: productImages.length > 0 ? productImages : ['https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400'], benefits: productForm.benefits.split('\n').filter(b => b.trim()), contents: productForm.contents.split('\n').filter(c => c.trim()), level: productForm.level || undefined, badge: productForm.badge || undefined };
+    // Persist to Supabase first, then update UI only on real success
+    setSavingProduct(true);
+    const result = await db.saveProduct(data as any);
+    setSavingProduct(false);
+    if (!result.ok) {
+      console.warn('[DB] Product save failed:', result.error);
+      showToast(`فشل حفظ المنتج في قاعدة البيانات: ${result.message || result.error || 'خطأ غير معروف'}`, 'error');
+      return;
+    }
     if (editingProduct) { setProducts(prev => prev.map(p => p.id === editingProduct.id ? data : p)); showToast('تم تحديث المنتج بنجاح'); }
     else { setProducts(prev => [data, ...prev]); showToast('تم إضافة المنتج بنجاح'); }
-    // ── Persist to Supabase ──
-    db.saveProduct(data as any).then(r => {
-      if (!r.ok) console.warn('[DB] ⚠️ Product save failed:', r.error);
-    });
     setShowProductForm(false);
   };
 
@@ -1941,7 +1948,7 @@ function AdminApp({
                 <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الفوائد التعليمية (كل فائدة في سطر)</label><textarea value={productForm.benefits} onChange={e => setProductForm(p => ({ ...p, benefits: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"فائدة 1\nفائدة 2\nفائدة 3"} /></div>
                 <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">محتويات المنتج (كل عنصر في سطر — تظهر في صفحة المنتج)</label><textarea value={productForm.contents} onChange={e => setProductForm(p => ({ ...p, contents: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"مثال: 20 بطاقة تعليمية ملونة\nدليل استخدام\nعلبة تغليف أنيقة"} /></div>
               </div>
-              <div className="flex gap-3 pt-2"><button onClick={handleSaveProduct} className="flex-1 bg-[#183C6B] hover:bg-[#102A52] text-white py-3 rounded-xl font-bold transition-all">💾 {editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج'}</button><button onClick={() => setShowProductForm(false)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button></div>
+              <div className="flex gap-3 pt-2"><button onClick={handleSaveProduct} disabled={savingProduct} className="flex-1 bg-[#183C6B] hover:bg-[#102A52] disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold transition-all">{savingProduct ? '⏳ جاري الحفظ...' : `💾 ${editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج'}`}</button><button onClick={() => setShowProductForm(false)} disabled={savingProduct} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed">إلغاء</button></div>
             </div>
           </div>
         </div>

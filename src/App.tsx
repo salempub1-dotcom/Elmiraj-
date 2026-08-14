@@ -1220,7 +1220,19 @@ function AdminApp({
   setNotifications: React.Dispatch<React.SetStateAction<Notif[]>>;
   onBackToStore: () => void;
 }) {
-  const [isAdmin, setIsAdmin] = useState(() => { try { return localStorage.getItem('almiraj_admin') === 'true'; } catch { return false; } });
+  const [isAdmin, setIsAdmin] = useState(() => {
+    try {
+      const flag = localStorage.getItem('almiraj_admin') === 'true';
+      const token = localStorage.getItem('almiraj_token') || '';
+      if (flag && db.isTokenLikelyValid(token)) return true;
+      if (flag) {
+        // Stale/invalid token — don't trust the almiraj_admin flag alone.
+        localStorage.removeItem('almiraj_admin');
+        localStorage.removeItem('almiraj_token');
+      }
+      return false;
+    } catch { return false; }
+  });
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
@@ -1319,6 +1331,21 @@ function AdminApp({
     onBackToStore();
   };
 
+  // Centralized handler for any admin API call that comes back 401.
+  // Unlike handleLogout, this stays on /admin and shows the login screen
+  // with a clear message instead of navigating back to the store.
+  const handleSessionExpired = useCallback(() => {
+    setIsAdmin(false);
+    setAdminPassword('');
+    setAdminLoginError(db.SESSION_EXPIRED_MESSAGE);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => handleSessionExpired();
+    window.addEventListener(db.ADMIN_AUTH_EXPIRED_EVENT, handler);
+    return () => window.removeEventListener(db.ADMIN_AUTH_EXPIRED_EVENT, handler);
+  }, [handleSessionExpired]);
+
   const openAddProduct = () => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', category: 'تحضيري', stock: '', benefits: '', contents: '', level: '', badge: '' }); setProductImages([]); setShowProductForm(true); };
   const openEditProduct = (p: Product) => { setEditingProduct(p); setProductForm({ name: p.name, description: p.description, price: p.price.toString(), category: p.category, stock: p.stock.toString(), benefits: p.benefits.join('\n'), contents: safeArr(p.contents).join('\n'), level: p.level || '', badge: p.badge || '' }); setProductImages(p.images); setShowProductForm(true); };
 
@@ -1332,7 +1359,9 @@ function AdminApp({
     setSavingProduct(false);
     if (!result.ok) {
       console.warn('[DB] Product save failed:', result.error);
-      showToast(`فشل حفظ المنتج في قاعدة البيانات: ${result.message || result.error || 'خطأ غير معروف'}`, 'error');
+      if (result.error !== db.AUTH_EXPIRED) {
+        showToast(`فشل حفظ المنتج في قاعدة البيانات: ${result.message || result.error || 'خطأ غير معروف'}`, 'error');
+      }
       return;
     }
     if (editingProduct) { setProducts(prev => prev.map(p => p.id === editingProduct.id ? data : p)); showToast('تم تحديث المنتج بنجاح'); }
@@ -1459,6 +1488,7 @@ function AdminApp({
       const r = await fetch('/api/admin/landing-pages', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
+      if (db.notifyIfAdminAuthExpired(r.status)) { return; }
       const data = await r.json();
       if (data.ok && Array.isArray(data.data)) {
         setLandingPages(data.data);
@@ -1571,6 +1601,7 @@ function AdminApp({
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (db.notifyIfAdminAuthExpired(r.status)) { return; }
       const data = await r.json();
 
       if (data.ok) {
@@ -1599,6 +1630,7 @@ function AdminApp({
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !lp.is_active }),
       });
+      if (db.notifyIfAdminAuthExpired(r.status)) { return; }
       const data = await r.json();
       if (data.ok) {
         setLandingPages(prev => prev.map(p => p.id === lp.id ? { ...p, is_active: !p.is_active } : p));
@@ -1619,6 +1651,7 @@ function AdminApp({
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
+      if (db.notifyIfAdminAuthExpired(r.status)) { setLpDelConfirm(null); return; }
       const data = await r.json();
       if (data.ok) {
         setLandingPages(prev => prev.filter(p => p.id !== id));
@@ -2349,7 +2382,7 @@ export function App() {
         } else if (result.error === 'TABLE_NOT_FOUND') {
           console.error('[DB] ❌ Table "orders" does not exist');
           setDbError('⚠️ جدول orders غير موجود في Supabase — شغّل SQL الإعداد');
-        } else if (result.error && result.error !== 'NO_TOKEN' && result.error !== 'SUPABASE_NOT_CONFIGURED' && result.error !== 'API_UNREACHABLE') {
+        } else if (result.error && result.error !== 'NO_TOKEN' && result.error !== 'SUPABASE_NOT_CONFIGURED' && result.error !== 'API_UNREACHABLE' && result.error !== db.AUTH_EXPIRED) {
           console.error('[DB] ❌ Orders fetch error:', result.error);
           setDbError(`⚠️ فشل تحميل الطلبات: ${result.error}`);
         }

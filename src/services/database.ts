@@ -58,6 +58,59 @@ function getToken(): string {
 }
 
 // ═════════════════════════════════════════════════════════════
+// ADMIN SESSION EXPIRY — centralized handling
+// ═════════════════════════════════════════════════════════════
+// Any admin-authenticated API call that gets a 401 should clear the
+// stored admin session and notify the app so it can log the user out
+// and show the login screen with a clear message. This event is the
+// single source of truth for that behavior — dispatched here, and
+// consumed by exactly one listener at the top level of the admin UI.
+
+export const ADMIN_AUTH_EXPIRED_EVENT = 'almiraj-admin-auth-expired';
+export const AUTH_EXPIRED = 'AUTH_EXPIRED';
+export const SESSION_EXPIRED_MESSAGE = 'انتهت جلسة الإدارة، يرجى تسجيل الدخول مجدداً';
+
+/**
+ * Call after any admin-authenticated fetch. If the response status is 401,
+ * clears the stored admin session and dispatches ADMIN_AUTH_EXPIRED_EVENT
+ * so the UI can log the user out and show the login screen.
+ * Returns true if this was an auth-expiry (caller should stop further handling).
+ */
+export function notifyIfAdminAuthExpired(status: number): boolean {
+  if (status !== 401) return false;
+  try {
+    localStorage.removeItem('almiraj_admin');
+    localStorage.removeItem('almiraj_token');
+  } catch { /* ignore */ }
+  try {
+    window.dispatchEvent(new CustomEvent(ADMIN_AUTH_EXPIRED_EVENT, { detail: { message: SESSION_EXPIRED_MESSAGE } }));
+  } catch { /* ignore */ }
+  return true;
+}
+
+/**
+ * Client-side check of whether a token is still within the (unchanged) 24h
+ * validity window used by the server. This is only a UX gate to avoid
+ * showing the admin dashboard with a stale token before the first API
+ * call — the server remains the source of truth for actual validity.
+ */
+export function isTokenLikelyValid(token: string): boolean {
+  if (!token) return false;
+  try {
+    const decoded = atob(token);
+    const c1 = decoded.indexOf(':');
+    const c2 = decoded.indexOf(':', c1 + 1);
+    if (c1 === -1 || c2 === -1) return false;
+    const ts = decoded.substring(c1 + 1, c2);
+    const age = Date.now() - parseInt(ts, 10);
+    if (isNaN(age) || age > 86400000 || age < 0) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ═════════════════════════════════════════════════════════════
 // PRODUCTS
 // ═════════════════════════════════════════════════════════════
 
@@ -151,6 +204,9 @@ export async function saveProduct(product: DbProduct): Promise<DbResult> {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ action: 'save', product }),
     });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
     const result = await r.json();
     if (result.ok) {
       console.log(`[DB] ✅ Product saved: ${product.name}`);
@@ -175,6 +231,9 @@ export async function deleteProduct(id: number): Promise<DbResult> {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ action: 'delete', id }),
     });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
     const result = await r.json();
     if (result.ok) console.log(`[DB] ✅ Product deleted: id=${id}`);
     return result;
@@ -235,6 +294,10 @@ export async function fetchOrders(retries = 1): Promise<DbResult<DbOrder[]>> {
       });
       clearTimeout(timeout);
 
+      if (notifyIfAdminAuthExpired(r.status)) {
+        return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       if (!r.ok) {
         lastError = `HTTP ${r.status}`;
         continue;
@@ -259,10 +322,6 @@ export async function fetchOrders(retries = 1): Promise<DbResult<DbOrder[]>> {
 
       if (result.error === 'SUPABASE_NOT_CONFIGURED') {
         return { ok: false, error: 'SUPABASE_NOT_CONFIGURED' };
-      }
-
-      if (r.status === 401 || result.error?.includes('auth')) {
-        return { ok: false, error: 'AUTH_FAILED', message: 'جلسة المسؤول منتهية — أعد تسجيل الدخول' };
       }
 
       lastError = result.error || 'Unknown error';
@@ -315,6 +374,9 @@ export async function updateOrderStatus(id: string, status: string): Promise<DbR
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ action: 'update_status', id, status }),
     });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
     const result = await r.json();
     if (result.ok) console.log(`[DB] ✅ Order ${id} → ${status}`);
     return result;

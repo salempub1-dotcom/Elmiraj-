@@ -489,9 +489,9 @@ export default function ProductLanding({
 
               <button
                 onClick={() => setShowQuickOrder(true)}
-                className="w-full bg-[#183C6B] hover:bg-[#102A52] text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                            className="w-full bg-[#25D366] hover:bg-[#1DA851] text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
               >
-                📱 طلب سريع عبر واتساب
+                            📱 يمكنك الطلب عبر الواتساب
               </button>
             </div>
 

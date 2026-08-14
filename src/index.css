@@ -1,1 +1,33 @@
 @import "tailwindcss";
+
+/* ============================================================
+   طباعة قسم "آخر الطلبات" فقط (لوحة تحكم الإدارة)
+   ============================================================ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #recent-orders-print-area,
+  #recent-orders-print-area * {
+    visibility: visible;
+  }
+  #recent-orders-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    overflow: visible !important;
+  }
+  #recent-orders-print-area table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  #recent-orders-print-area th,
+  #recent-orders-print-area td {
+    border: 1px solid #ccc;
+    color: #000 !important;
+  }
+}

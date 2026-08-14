@@ -337,6 +337,8 @@ function StoreApp({
   const [selectedCategory, setSelectedCategory] = useState('الكل');
   // فلترة المستوى الدراسي داخل واجهة المتجر — 'all' = كل سنوات الطور المختار
   const [selectedLevel, setSelectedLevel] = useState('all');
+  // حالة بصرية فقط (فتح/إغلاق شكلي لسهم الـDropdown) — لا تؤثر على منطق الفلترة
+  const [levelDropdownOpen, setLevelDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -729,24 +731,31 @@ function StoreApp({
             </div>
             {/* المستوى الدراسي — Dropdown تابع للطور المختار، يظهر فقط عند وجود أكثر من سنة دراسية واحدة */}
             {selectedCategory !== 'الكل' && LEVELS_BY_CATEGORY[selectedCategory as Product['category']].length > 1 && (
-              <div className="flex flex-col items-center gap-2 mb-8">
-                <label className="text-sm font-bold text-gray-600">السنة الدراسية:</label>
-                <select
-                  value={selectedLevel}
-                  onChange={e => {
-                    setSelectedLevel(e.target.value);
-                    if (e.target.value !== 'all') {
-                      fbTrackCustom('ViewCategory', { content_category: selectedCategory, content_name: `مستوى ${e.target.value}` });
-                    }
-                  }}
-                  className="w-full max-w-xs border-2 border-gray-200 rounded-xl px-4 py-2.5 bg-white font-bold text-[#102A52] focus:border-[#183C6B] outline-none"
-                >
-                  <option value="all">{allLevelsLabel(selectedCategory)}</option>
-                  {LEVELS_BY_CATEGORY[selectedCategory as Product['category']].map(l => (
-                    <option key={l.value} value={l.value}>{l.label}</option>
-                  ))}
-                </select>
-              </div>
+          <div className="flex flex-col items-center gap-2 mb-8">
+            <label className="text-sm font-bold text-gray-600">السنة الدراسية:</label>
+            <div className="relative w-full max-w-xs">
+              <select
+                value={selectedLevel}
+                onChange={e => {
+                  setSelectedLevel(e.target.value);
+                  if (e.target.value !== 'all') {
+                    fbTrackCustom('ViewCategory', { content_category: selectedCategory, content_name: `مستوى ${e.target.value}` });
+                  }
+                }}
+                onFocus={() => setLevelDropdownOpen(true)}
+                onBlur={() => setLevelDropdownOpen(false)}
+                className="w-full appearance-none border-2 border-gray-300 rounded-xl pl-10 pr-4 py-3 bg-white font-bold text-[#102A52] shadow-sm outline-none transition-all hover:border-[#183C6B]/70 focus:border-[#183C6B] focus:ring-2 focus:ring-[#183C6B]/20"
+              >
+                <option value="all">{allLevelsLabel(selectedCategory)}</option>
+                {LEVELS_BY_CATEGORY[selectedCategory as Product['category']].map(l => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+              <svg className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#102A52] transition-transform duration-200 ${levelDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
             )}
             <div className="md:hidden mb-6"><input type="text" value={searchQuery} onChange={e => {
               setSearchQuery(e.target.value);

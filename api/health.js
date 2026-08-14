@@ -318,11 +318,17 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_tracking ON orders(tracking);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
 
+-- Archive support (adds columns safely — existing rows/orders are unaffected)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_archived ON orders(archived);
+
 -- Fix NULL values
 UPDATE orders SET tracking = '' WHERE tracking IS NULL;
 UPDATE orders SET customer = '' WHERE customer IS NULL;
 UPDATE orders SET items = '[]'::jsonb WHERE items IS NULL;
 UPDATE orders SET status = 'pending' WHERE status IS NULL;
+UPDATE orders SET archived = false WHERE archived IS NULL;
 
 -- ═══ LANDING PAGES ═══
 CREATE TABLE IF NOT EXISTS landing_pages (

@@ -78,6 +78,8 @@ interface Order {
   status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   date: string;
   noestId?: string;
+  archived?: boolean;
+  archivedAt?: string | null;
 }
 
 interface Notif {
@@ -1246,7 +1248,8 @@ function AdminApp({
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [tab, setTab] = useState<'dashboard' | 'orders' | 'products' | 'landing' | 'system'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'orders' | 'archive' | 'products' | 'landing' | 'system'>('dashboard');
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [showNotif, setShowNotif] = useState(false);
   // ── Landing Pages State ──
   const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
@@ -1297,7 +1300,116 @@ function AdminApp({
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => { setToast({ message, type }); }, []);
   const unread = notifications.filter(n => !n.read).length;
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
-  const pendingCount = orders.filter(o => o.status === 'pending').length;
+  const pendingCount = orders.filter(o => o.status === 'pending' && !o.archived).length;
+  // ── الطلبات المؤرشفة تُخفى من "آخر الطلبات" و"إدارة الطلبات" لكنها تبقى محفوظة ──
+  const visibleOrders = orders.filter(o => !o.archived);
+  const archivedOrders = orders.filter(o => o.archived);
+  const RECENT_ORDERS_LIMIT = 10; // حد أقصى لعرض "آخر الطلبات" في لوحة المعلومات (الباقي في تبويب الطلبات)
+  const recentOrders = visibleOrders.slice(0, RECENT_ORDERS_LIMIT);
+  const selectedRecentOrders = recentOrders.filter(o => selectedOrderIds.has(o.id));
+  // الإجراءات (طباعة/تحميل) تعمل على التحديد إن وُجد، وإلا على آخر الطلبات الظاهرة بالكامل
+  const ordersForBulkAction = selectedRecentOrders.length > 0 ? selectedRecentOrders : recentOrders;
+
+  const toggleOrderSelected = (id: string) => {
+    setSelectedOrderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const allRecentSelected = recentOrders.length > 0 && recentOrders.every(o => selectedOrderIds.has(o.id));
+  const toggleSelectAllRecent = () => {
+    setSelectedOrderIds(prev => {
+      if (allRecentSelected) return new Set();
+      const next = new Set(prev);
+      recentOrders.forEach(o => next.add(o.id));
+      return next;
+    });
+  };
+
+  // ── تأكيد سريع لطلب معلّق — نفس الحالة ونفس API الحاليين (updateOrderStatus) ──
+  const handleQuickConfirm = (order: Order) => {
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'confirmed' } : o));
+    db.updateOrderStatus(order.id, 'confirmed');
+    showToast('تم تأكيد الطلب');
+  };
+
+  // ── أرشفة/استرجاع طلب — لا تُحذف البيانات أبداً ──
+  const handleArchiveOrder = async (order: Order) => {
+    const result = await db.setOrderArchived(order.id, true);
+    if (result.ok) {
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, archived: true, archivedAt: new Date().toISOString() } : o));
+      setSelectedOrderIds(prev => { const next = new Set(prev); next.delete(order.id); return next; });
+      showToast('تم أرشفة الطلب');
+    } else if (result.error !== db.AUTH_EXPIRED) {
+      showToast(result.hint || result.error || 'فشل أرشفة الطلب', 'error');
+    }
+  };
+  const handleRestoreOrder = async (order: Order) => {
+    const result = await db.setOrderArchived(order.id, false);
+    if (result.ok) {
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, archived: false, archivedAt: null } : o));
+      showToast('تم استرجاع الطلب من الأرشيف');
+    } else if (result.error !== db.AUTH_EXPIRED) {
+      showToast(result.hint || result.error || 'فشل استرجاع الطلب', 'error');
+    }
+  };
+  const handleArchiveSelected = async () => {
+    const targets = selectedRecentOrders.length > 0 ? selectedRecentOrders : [];
+    if (targets.length === 0) return;
+    const results = await Promise.all(targets.map(o => db.setOrderArchived(o.id, true)));
+    const okIds = targets.filter((_, i) => results[i].ok).map(o => o.id);
+    if (okIds.length > 0) {
+      setOrders(prev => prev.map(o => okIds.includes(o.id) ? { ...o, archived: true, archivedAt: new Date().toISOString() } : o));
+    }
+    setSelectedOrderIds(new Set());
+    showToast(okIds.length === targets.length ? `تم أرشفة ${okIds.length} طلب` : `تم أرشفة ${okIds.length} من ${targets.length} طلب`, okIds.length === targets.length ? 'success' : 'error');
+  };
+
+  // ── حذف نهائي — خيار ثانوي فقط، مع تأكيد واضح، ولا يحدث تلقائياً أبداً ──
+  const handleDeleteOrder = async (order: Order) => {
+    if (!window.confirm(`هل أنت متأكد من حذف الطلب ${order.tracking} نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    const result = await db.deleteOrder(order.id);
+    if (result.ok) {
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      setSelectedOrderIds(prev => { const next = new Set(prev); next.delete(order.id); return next; });
+      showToast('تم حذف الطلب نهائياً');
+    } else if (result.error !== db.AUTH_EXPIRED) {
+      showToast(result.error || 'فشل حذف الطلب', 'error');
+    }
+  };
+
+  // ── تحميل CSV — يفتح مباشرة في Excel/Google Sheets (UTF-8 BOM) ──
+  const orderStatusLabelPlain = (status: Order['status']) => status === 'pending' ? 'معلق' : status === 'confirmed' ? 'مؤكد' : status === 'shipped' ? 'مشحون' : status === 'delivered' ? 'موصل' : 'ملغي';
+  const downloadOrdersCSV = (list: Order[]) => {
+    if (list.length === 0) { showToast('لا توجد طلبات للتحميل', 'error'); return; }
+    const headers = ['التاريخ', 'رقم التتبع', 'اسم العميل', 'رقم الهاتف', 'الولاية', 'الإجمالي مع التوصيل', 'الحالة'];
+    const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+    const rows = [headers.map(escape).join(',')];
+    list.forEach(o => {
+      rows.push([o.date, o.tracking, o.customer, o.phone, o.wilaya, `${o.total.toLocaleString()} دج`, orderStatusLabelPlain(o.status)].map(escape).join(','));
+    });
+    const csv = '﻿' + rows.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `almiraj-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // ── طباعة — تطبع كل "آخر الطلبات" الظاهرة، أو المحدد فقط إن وُجد تحديد ──
+  const handlePrintRecentOrders = () => {
+    if (selectedRecentOrders.length > 0) {
+      document.body.classList.add('print-selected-only');
+      const cleanup = () => { document.body.classList.remove('print-selected-only'); window.removeEventListener('afterprint', cleanup); };
+      window.addEventListener('afterprint', cleanup);
+    }
+    window.print();
+  };
 
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -1716,7 +1828,7 @@ function AdminApp({
         {/* Sidebar */}
         <aside className="w-56 bg-white shadow-lg fixed top-16 right-0 bottom-0 overflow-y-auto hidden md:block">
           <nav className="p-4 space-y-2">
-            {[{ id: 'dashboard' as const, icon: '📊', label: 'لوحة المعلومات' }, { id: 'orders' as const, icon: '📋', label: `الطلبات (${orders.length})` }, { id: 'products' as const, icon: '📦', label: `المنتجات (${products.length})` }, { id: 'landing' as const, icon: '🚀', label: `صفحات الهبوط (${landingPages.length})` }].map(t => (
+                        {[{ id: 'dashboard' as const, icon: '📊', label: 'لوحة المعلومات' }, { id: 'orders' as const, icon: '📋', label: `الطلبات (${visibleOrders.length})` }, { id: 'archive' as const, icon: '🗄️', label: `الأرشيف (${archivedOrders.length})` }, { id: 'products' as const, icon: '📦', label: `المنتجات (${products.length})` }, { id: 'landing' as const, icon: '🚀', label: `صفحات الهبوط (${landingPages.length})` }].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === t.id ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-xl">{t.icon}</span><span className="text-sm">{t.label}</span></button>
             ))}
           </nav>
@@ -1727,7 +1839,7 @@ function AdminApp({
         <main className="flex-1 md:mr-56 p-4 md:p-6">
           {/* Mobile Tabs */}
           <div className="flex md:hidden gap-2 mb-4 overflow-x-auto">
-            {[{ id: 'dashboard' as const, label: '📊 لوحة' }, { id: 'orders' as const, label: '📋 الطلبات' }, { id: 'products' as const, label: '📦 المنتجات' }, { id: 'landing' as const, label: '🚀 هبوط' }].map(t => (
+                        {[{ id: 'dashboard' as const, label: '📊 لوحة' }, { id: 'orders' as const, label: '📋 الطلبات' }, { id: 'archive' as const, label: '🗄️ الأرشيف' }, { id: 'products' as const, label: '📦 المنتجات' }, { id: 'landing' as const, label: '🚀 هبوط' }].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${tab === t.id ? 'bg-[#183C6B] text-white' : 'bg-white text-gray-600'}`}>{t.label}</button>
             ))}
           </div>
@@ -1755,16 +1867,28 @@ function AdminApp({
                 <div key={i} className={`${s.bg} border-2 ${s.border} rounded-2xl p-4`}><div className="flex items-center justify-between mb-2"><span className="text-2xl">{s.icon}</span><span className={`text-xl font-bold ${s.text}`}>{s.value}</span></div><p className="text-gray-600 text-sm font-medium">{s.label}</p></div>
               ))}
             </div>
-            <div id="recent-orders-print-area" className="bg-white rounded-2xl shadow-md p-6">
+                        <div id="recent-orders-print-area" className="bg-white rounded-2xl shadow-md p-6">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
                 <h3 className="text-lg font-bold text-gray-800">🕐 آخر الطلبات</h3>
-                {orders.length > 0 && (
-                  <button onClick={() => window.print()} className="print:hidden bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🖨️ طباعة آخر الطلبات</button>
+                {recentOrders.length > 0 && (
+                  <div className="print:hidden flex flex-wrap items-center gap-2">
+                    <button onClick={handlePrintRecentOrders} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🖨️ طباعة آخر الطلبات</button>
+                    <button onClick={() => downloadOrdersCSV(ordersForBulkAction)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">⬇️ تحميل CSV</button>
+                  </div>
                 )}
               </div>
+              {selectedRecentOrders.length > 0 && (
+                <div className="print:hidden flex flex-wrap items-center gap-2 mb-3 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+                  <span className="text-xs font-bold text-blue-700">تم تحديد {selectedRecentOrders.length} طلب</span>
+                  <button onClick={handlePrintRecentOrders} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🖨️ طباعة المحدد</button>
+                  <button onClick={() => downloadOrdersCSV(selectedRecentOrders)} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">⬇️ تحميل المحدد</button>
+                  <button onClick={handleArchiveSelected} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">📦 أرشفة المحدد</button>
+                  <button onClick={() => setSelectedOrderIds(new Set())} className="text-xs text-gray-500 hover:text-gray-700 underline mr-auto">إلغاء التحديد</button>
+                </div>
+              )}
               <p className="hidden print:block text-xs text-gray-500 mb-3">تاريخ الطباعة: {new Date().toLocaleString('ar-DZ')}</p>
-              {orders.length === 0 ? <div className="text-center py-10"><p className="text-5xl mb-3">📭</p><p className="text-gray-400">لا توجد طلبات بعد</p></div> : (
-                <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50"><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-r-xl">التاريخ</th><th className="px-3 py-3 text-right text-gray-600 font-bold">رقم التتبع</th><th className="px-3 py-3 text-right text-gray-600 font-bold">العميل</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الهاتف</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الولاية</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الإجمالي (مع التوصيل)</th><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-l-xl">الحالة</th></tr></thead><tbody>{orders.slice(0, 10).map(order => (<tr key={order.id} className="border-b hover:bg-gray-50"><td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap">{order.date}</td><td className="px-3 py-3 font-mono text-[#102A52] font-bold text-xs">{order.tracking}</td><td className="px-3 py-3 font-bold">{order.customer}</td><td className="px-3 py-3 text-gray-600 text-xs" dir="ltr">{order.phone}</td><td className="px-3 py-3 text-gray-600">{order.wilaya}</td><td className="px-3 py-3 font-bold text-blue-700">{order.total.toLocaleString()} دج</td><td className="px-3 py-3"><span className={`px-2 py-1 rounded-full text-xs font-bold ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' : order.status === 'shipped' ? 'bg-purple-100 text-purple-700' : order.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>{order.status === 'pending' ? '⏳ معلق' : order.status === 'confirmed' ? '✅ مؤكد' : order.status === 'shipped' ? '🚚 مشحون' : order.status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</span></td></tr>))}</tbody></table></div>
+              {recentOrders.length === 0 ? <div className="text-center py-10"><p className="text-5xl mb-3">📭</p><p className="text-gray-400">لا توجد طلبات بعد</p></div> : (
+                <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50"><th className="print:hidden px-3 py-3 text-right rounded-r-xl"><input type="checkbox" checked={allRecentSelected} onChange={toggleSelectAllRecent} aria-label="تحديد الكل" /></th><th className="px-3 py-3 text-right text-gray-600 font-bold">التاريخ</th><th className="px-3 py-3 text-right text-gray-600 font-bold">رقم التتبع</th><th className="px-3 py-3 text-right text-gray-600 font-bold">العميل</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الهاتف</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الولاية</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الإجمالي (مع التوصيل)</th><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-l-xl">الحالة</th></tr></thead><tbody>{recentOrders.map(order => (<tr key={order.id} className={`border-b hover:bg-gray-50 ${selectedOrderIds.has(order.id) ? 'is-selected' : ''}`}><td className="print:hidden px-3 py-3"><input type="checkbox" checked={selectedOrderIds.has(order.id)} onChange={() => toggleOrderSelected(order.id)} aria-label={`تحديد الطلب ${order.tracking}`} /></td><td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap">{order.date}</td><td className="px-3 py-3 font-mono text-[#102A52] font-bold text-xs">{order.tracking}</td><td className="px-3 py-3 font-bold">{order.customer}</td><td className="px-3 py-3 text-gray-600 text-xs" dir="ltr">{order.phone}</td><td className="px-3 py-3 text-gray-600">{order.wilaya}</td><td className="px-3 py-3 font-bold text-blue-700">{order.total.toLocaleString()} دج</td><td className="px-3 py-3"><div className="flex items-center gap-2 flex-wrap"><span className={`px-2 py-1 rounded-full text-xs font-bold ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' : order.status === 'shipped' ? 'bg-purple-100 text-purple-700' : order.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>{order.status === 'pending' ? '⏳ معلق' : order.status === 'confirmed' ? '✅ مؤكد' : order.status === 'shipped' ? '🚚 مشحون' : order.status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</span>{order.status === 'pending' && (<button onClick={() => handleQuickConfirm(order)} className="print:hidden bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded-lg text-xs font-bold transition-all">✅ تأكيد</button>)}</div></td></tr>))}</tbody></table></div>
               )}
             </div>
           </div>)}
@@ -1809,11 +1933,30 @@ function AdminApp({
           {/* ORDERS TAB */}
           {tab === 'orders' && (<div className="space-y-4">
             <h2 className="text-2xl font-bold text-gray-800">📋 إدارة الطلبات</h2>
-            {orders.length === 0 ? <div className="bg-white rounded-2xl shadow-md p-12 text-center"><p className="text-6xl mb-4">📭</p><p className="text-gray-400 text-lg">لا توجد طلبات بعد</p></div> : orders.map(order => (
+            {visibleOrders.length === 0 ? <div className="bg-white rounded-2xl shadow-md p-12 text-center"><p className="text-6xl mb-4">📭</p><p className="text-gray-400 text-lg">لا توجد طلبات بعد</p></div> : visibleOrders.map(order => (
               <div key={order.id} className="bg-white rounded-2xl shadow-md p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-[#102A52] font-bold">{order.tracking}</span>{order.noestId && <span className="bg-blue-100 text-[#102A52] text-xs px-2 py-0.5 rounded-full font-bold">✅ NOEST</span>}</div><p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 text-sm">📍 {order.wilaya} - {order.address}</p><p className="text-gray-600 text-sm">🚚 {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${order.selectedOffice || ''}`}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p><p className="text-gray-400 text-xs">{order.date}</p></div></div>
                 <div className="bg-gray-50 rounded-xl p-3 mb-3">{order.items.map(item => (<div key={item.id} className="flex justify-between text-sm"><span>{item.name} × {item.quantity}</span><span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span></div>))}</div>
-                <div className="flex flex-wrap gap-2">{(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as Order['status'][]).map(status => (<button key={status} onClick={() => { setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status } : o)); db.updateOrderStatus(order.id, status); showToast('تم تحديث حالة الطلب'); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${order.status === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}>{status === 'pending' ? '⏳ معلق' : status === 'confirmed' ? '✅ مؤكد' : status === 'shipped' ? '🚚 مشحون' : status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</button>))}</div>
+                <div className="flex flex-wrap gap-2 mb-2">{(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as Order['status'][]).map(status => (<button key={status} onClick={() => { setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status } : o)); db.updateOrderStatus(order.id, status); showToast('تم تحديث حالة الطلب'); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${order.status === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}>{status === 'pending' ? '⏳ معلق' : status === 'confirmed' ? '✅ مؤكد' : status === 'shipped' ? '🚚 مشحون' : status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</button>))}</div>
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
+                  <button onClick={() => handleArchiveOrder(order)} className="text-xs text-gray-500 hover:text-[#183C6B] font-bold transition-all">📦 أرشفة</button>
+                  <button onClick={() => handleDeleteOrder(order)} className="text-xs text-red-400 hover:text-red-600 transition-all">🗑️ حذف</button>
+                </div>
+              </div>
+            ))}
+          </div>)}
+
+          {/* ARCHIVE TAB */}
+          {tab === 'archive' && (<div className="space-y-4">
+            <h2 className="text-2xl font-bold text-gray-800">🗄️ أرشيف الطلبات</h2>
+            <p className="text-gray-500 text-sm">الطلبات هنا محفوظة بالكامل ولا تظهر في "آخر الطلبات" أو "إدارة الطلبات". يمكن استرجاعها في أي وقت.</p>
+            {archivedOrders.length === 0 ? <div className="bg-white rounded-2xl shadow-md p-12 text-center"><p className="text-6xl mb-4">🗄️</p><p className="text-gray-400 text-lg">لا توجد طلبات مؤرشفة</p></div> : archivedOrders.map(order => (
+              <div key={order.id} className="bg-white rounded-2xl shadow-md p-5 opacity-90">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-[#102A52] font-bold">{order.tracking}</span><span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">🗄️ مؤرشف</span></div><p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 text-sm">📍 {order.wilaya}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p><p className="text-gray-400 text-xs">{order.date}</p></div></div>
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
+                  <button onClick={() => handleRestoreOrder(order)} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">↩️ استرجاع من الأرشيف</button>
+                  <button onClick={() => handleDeleteOrder(order)} className="text-xs text-red-400 hover:text-red-600 transition-all mr-auto">🗑️ حذف نهائي</button>
+                </div>
               </div>
             ))}
           </div>)}
@@ -2391,6 +2534,8 @@ export function App() {
             status: o.status as Order['status'],
             date: o.date as string,
             noestId: (o.noest_id || o.noestId) as string | undefined,
+            archived: Boolean(o.archived),
+            archivedAt: (o.archived_at || o.archivedAt || null) as string | null,
           }));
           console.log(`[DB] ✅ Loaded ${mapped.length} orders from Supabase`);
           setOrders(mapped);

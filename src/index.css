@@ -30,4 +30,8 @@
     border: 1px solid #ccc;
     color: #000 !important;
   }
+  /* عند "طباعة المحدد" فقط: أخفِ أي صف غير محدد داخل الجدول */
+  body.print-selected-only #recent-orders-print-area tbody tr:not(.is-selected) {
+    display: none;
+  }
 }

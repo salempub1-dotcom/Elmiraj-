@@ -164,9 +164,64 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── ARCHIVE / UNARCHIVE: Hide/show an order without deleting it (admin only) ──
+  if (action === 'archive' || action === 'unarchive') {
+    const admin = verifyAdminToken(req.headers.authorization);
+    if (!admin) {
+      return res.status(401).json({ ok: false, error: 'Admin authentication required' });
+    }
+
+    const { id } = body;
+    if (!id) return res.status(400).json({ ok: false, error: 'id is required' });
+
+    const archived = action === 'archive';
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ archived, archived_at: archived ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) {
+        console.error('[ORDERS] Archive error:', error.message, error.code);
+        const hint = error.code === '42703'
+          ? 'عمود الأرشفة (archived) غير موجود بعد في جدول orders. افتح /api/health وشغّل SQL الإعداد لإضافته.'
+          : null;
+        return res.status(200).json({ ok: false, error: error.message, code: error.code, hint });
+      }
+
+      console.log(`[ORDERS] ✅ ${archived ? 'Archived' : 'Restored'} order ${id}`);
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: e.message });
+    }
+  }
+
+  // ── DELETE: Permanently remove an order — explicit admin action only ──
+  if (action === 'delete') {
+    const admin = verifyAdminToken(req.headers.authorization);
+    if (!admin) {
+      return res.status(401).json({ ok: false, error: 'Admin authentication required' });
+    }
+
+    const { id } = body;
+    if (!id) return res.status(400).json({ ok: false, error: 'id is required' });
+
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) {
+        console.error('[ORDERS] Delete error:', error.message);
+        return res.status(200).json({ ok: false, error: error.message });
+      }
+      console.log(`[ORDERS] ✅ Deleted order ${id}`);
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: e.message });
+    }
+  }
+
   return res.status(400).json({
     ok: false,
     error: `Unknown action: ${action}`,
-    available: ['list', 'save', 'update_status'],
+    available: ['list', 'save', 'update_status', 'archive', 'unarchive', 'delete'],
   });
 }

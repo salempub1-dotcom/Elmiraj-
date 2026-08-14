@@ -15,7 +15,8 @@ interface DbResult<T = void> {
   data?: T;
   error?: string;
   code?: string;
-  message?: string;
+    message?: string;
+  hint?: string;
 }
 
 interface DbProduct {
@@ -47,7 +48,9 @@ interface DbOrder {
   selected_office?: string | null;
   status: string;
   date: string;
-  noest_id?: string | null;
+    noest_id?: string | null;
+  archived?: boolean;
+  archived_at?: string | null;
 }
 
 // ── Helper ───────────────────────────────────────────────────
@@ -379,6 +382,54 @@ export async function updateOrderStatus(id: string, status: string): Promise<DbR
     }
     const result = await r.json();
     if (result.ok) console.log(`[DB] ✅ Order ${id} → ${status}`);
+    return result;
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Archive / restore an order — admin only. Never deletes data; only
+ * flips the `archived` flag (and `archived_at`) so it can be hidden
+ * from "آخر الطلبات" / "إدارة الطلبات" while staying in the database.
+ */
+export async function setOrderArchived(id: string, archived: boolean): Promise<DbResult> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: archived ? 'archive' : 'unarchive', id }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    const result = await r.json();
+    if (result.ok) console.log(`[DB] ✅ Order ${id} ${archived ? 'archived' : 'restored'}`);
+    else console.warn(`[DB] ⚠️ Archive toggle failed: ${result.error}`);
+    return result;
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Permanently delete an order — admin only. Reserved for test/incorrect
+ * orders; the caller is responsible for confirming with the user first.
+ */
+export async function deleteOrder(id: string): Promise<DbResult> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'delete', id }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    const result = await r.json();
+    if (result.ok) console.log(`[DB] ✅ Order deleted: id=${id}`);
     return result;
   } catch (e) {
     return { ok: false, error: String(e) };

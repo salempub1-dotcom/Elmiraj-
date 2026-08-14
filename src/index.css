@@ -1,6 +1,17 @@
 @import "tailwindcss";
 
 /* ============================================================
+   Typography — Cairo كخط أساسي للموقع كله
+   ============================================================ */
+@theme {
+  --font-sans: "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  font-family: "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ============================================================
    طباعة قسم "آخر الطلبات" فقط (لوحة تحكم الإدارة)
    ============================================================ */
 @media print {

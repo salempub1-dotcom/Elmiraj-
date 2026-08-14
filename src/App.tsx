@@ -787,12 +787,12 @@ function StoreApp({
                     {safeImages(product.images).length > 1 && <span className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">📸 {product.images.length}</span>}
                   </div>
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-800 mb-1 text-sm leading-tight cursor-pointer hover:text-[#102A52]" onClick={() => navigate(`/lp/${product.id}`)}>{product.name}</h3>
-                    <p className="text-gray-500 text-xs mb-3 line-clamp-2">{safeStr(product.description)}</p>
-                    <div className="flex items-center justify-between mb-3"><span className="text-[#102A52] font-bold text-lg">{product.price.toLocaleString()} دج</span><span className="text-gray-400 text-xs">المخزون: {product.stock}</span></div>
+                                        <h3 className="font-bold text-gray-800 mb-1 text-base leading-tight cursor-pointer hover:text-[#102A52]" onClick={() => navigate(`/lp/${product.id}`)}>{product.name}</h3>
+                                        <p className="text-slate-600 text-sm font-medium leading-[1.65] mb-3 line-clamp-2">{safeStr(product.description)}</p>
+                                        <div className="flex items-center justify-between mb-3"><span className="text-[#102A52] font-bold text-lg">{product.price.toLocaleString()} دج</span><span className="text-gray-500 text-sm font-medium">المخزون: {product.stock}</span></div>
                     <div className="flex gap-2">
-                      <button onClick={() => addToCart(product)} className="flex-1 bg-[#102A52] hover:bg-[#0B1833] text-white py-2 rounded-lg font-bold text-xs transition-all">🛒 أضف للعربة</button>
-                      <button onClick={() => buyNow(product)} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg font-bold text-xs transition-all">⚡ اشتري الآن</button>
+                                            <button onClick={() => addToCart(product)} className="flex-1 bg-[#102A52] hover:bg-[#0B1833] text-white py-2 rounded-lg font-bold text-base transition-all">🛒 أضف للعربة</button>
+                                            <button onClick={() => buyNow(product)} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg font-bold text-base transition-all">⚡ اشتري الآن</button>
                     </div>
                   </div>
                 </div>

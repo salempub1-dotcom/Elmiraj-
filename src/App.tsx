@@ -1379,7 +1379,25 @@ function AdminApp({
     }
   };
 
-  // ── تحميل CSV — يفتح مباشرة في Excel/Google Sheets (UTF-8 BOM) ──
+  // ── حذف المحدد (جماعي) — نهائي من قاعدة البيانات، مع تأكيد يوضّح العدد ──
+// نسمح بالحذف لأي حالة (خصوصاً الملغية/التجريبية)، لكن نحذّر إضافياً إن كانت الحالة غير ملغية
+const handleDeleteSelected = async () => {
+const targets = selectedRecentOrders;
+if (targets.length === 0) return;
+const nonCancelledCount = targets.filter(o => o.status !== 'cancelled').length;
+const confirmMsg = `هل أنت متأكد من حذف ${targets.length} طلب نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`
++ (nonCancelledCount > 0 ? `\n\n⚠️ تنبيه: ${nonCancelledCount} من الطلبات المحددة ليست بحالة "ملغي" — تأكد أنها تجريبية أو خاطئة قبل المتابعة.` : '');
+if (!window.confirm(confirmMsg)) return;
+const results = await Promise.all(targets.map(o => db.deleteOrder(o.id)));
+const okIds = targets.filter((_, i) => results[i].ok).map(o => o.id);
+if (okIds.length > 0) {
+setOrders(prev => prev.filter(o => !okIds.includes(o.id)));
+}
+setSelectedOrderIds(new Set());
+showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب نهائياً` : `تم حذف ${okIds.length} من ${targets.length} طلب`, okIds.length === targets.length ? 'success' : 'error');
+};
+
+// ── تحميل CSV — يفتح مباشرة في Excel/Google Sheets (UTF-8 BOM) ──
   const orderStatusLabelPlain = (status: Order['status']) => status === 'pending' ? 'معلق' : status === 'confirmed' ? 'مؤكد' : status === 'shipped' ? 'مشحون' : status === 'delivered' ? 'موصل' : 'ملغي';
   const downloadOrdersCSV = (list: Order[]) => {
     if (list.length === 0) { showToast('لا توجد طلبات للتحميل', 'error'); return; }
@@ -1883,6 +1901,7 @@ function AdminApp({
                   <button onClick={handlePrintRecentOrders} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🖨️ طباعة المحدد</button>
                   <button onClick={() => downloadOrdersCSV(selectedRecentOrders)} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">⬇️ تحميل المحدد</button>
                   <button onClick={handleArchiveSelected} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">📦 أرشفة المحدد</button>
+                  <button onClick={handleDeleteSelected} className="bg-white border border-red-300 hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🗑️ حذف المحدد</button>
                   <button onClick={() => setSelectedOrderIds(new Set())} className="text-xs text-gray-500 hover:text-gray-700 underline mr-auto">إلغاء التحديد</button>
                 </div>
               )}

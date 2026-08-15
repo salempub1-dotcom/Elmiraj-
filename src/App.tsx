@@ -5,6 +5,10 @@ import { uploadProductImage, deleteProductImage, isSupabaseConfigured, isSupabas
 import ProductLanding from './pages/landing/ProductLanding';
 import DynamicLanding from './pages/landing/DynamicLanding';
 import * as db from './services/database';
+import HeroSection, { type LevelCategory } from './components/home/HeroSection';
+import WhyChooseSection from './components/home/WhyChooseSection';
+import TopProductsSection from './components/home/TopProductsSection';
+import ClassroomShowcaseSection from './components/home/ClassroomShowcaseSection';
 
 // ============================================================
 // TYPES
@@ -477,6 +481,10 @@ function StoreApp({
     return matchCat && matchLevel && matchSearch;
   });
 
+  // "الأكثر طلبًا لدى الأساتذة" — أفضل المنتجات حسب المبيعات الفعلية (sales)، بيانات حقيقية
+  // من نفس مصدر بيانات المتجر (Supabase أو fallback)، بدون أي بيانات وهمية.
+  const topProducts = [...products].sort((a, b) => (b.sales ?? 0) - (a.sales ?? 0)).slice(0, 4);
+
   // نص خيار "الكل" داخل قائمة المستوى — يتغيّر حسب الطور المختار
   const allLevelsLabel = (cat: string) => cat === 'متوسط' ? 'جميع سنوات المتوسط' : cat === 'ابتدائي' ? 'جميع سنوات الابتدائي' : 'جميع منتجات التحضيري';
 
@@ -684,41 +692,39 @@ function StoreApp({
 
       {/* HERO */}
       {activeSection === 'home' && (
-        <section className="bg-gradient-to-br from-[#071226] via-[#0B1833] to-[#183C6B] text-white py-20 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="flex justify-center mb-6"><Logo size="lg" /></div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">أدوات تعليمية مبتكرة لأساتذة المستقبل</h1>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">نقدم للأساتذة أدوات تعليمية تفاعلية تساعد في تحضير الدروس وتجعل التلاميذ أكثر تفاعلاً وانخراطاً في العملية التعليمية</p>
-            <div className="flex flex-wrap justify-center gap-4 mb-8">
-              {(['تحضيري', 'ابتدائي', 'متوسط'] as const).map(cat => (<button key={cat} onClick={() => {
-                setSelectedCategory(cat);
-                setActiveSection('products');
-                setSelectedLevel('all');
-                fbTrackCustom('ViewCategory', { content_category: cat, content_name: `طور ${cat}` });
-              }} className="bg-white/20 hover:bg-white/30 border border-white/40 text-white px-6 py-3 rounded-xl font-bold transition-all">{catEmoji(cat)} {cat}</button>))}
-            </div>
-            <button onClick={() => setActiveSection('products')} className="bg-amber-500 hover:bg-amber-600 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all shadow-xl">🛍️ تصفح المنتجات</button>
-          </div>
-        </section>
+        <HeroSection
+          onBrowseProducts={() => setActiveSection('products')}
+          onSelectLevel={(cat: LevelCategory) => {
+            setSelectedCategory(cat);
+            setActiveSection('products');
+            setSelectedLevel('all');
+            fbTrackCustom('ViewCategory', { content_category: cat, content_name: `طور ${cat}` });
+          }}
+        />
       )}
 
-      {/* FEATURES */}
+      {/* WHY CHOOSE US — قسم Conversion-focused مباشرة بعد الـHero */}
+      {activeSection === 'home' && <WhyChooseSection />}
+
+      {/* TOP PRODUCTS — الأكثر طلبًا لدى الأساتذة (بيانات حقيقية) */}
       {activeSection === 'home' && (
-        <section className="py-12 px-4 bg-white">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-8">منصة المعراج ليست مجرد منصة تعليمية، بل شريك نجاح حقيقي لكل أستاذ طموح</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[{ icon: '🎯', title: 'أدوات تفاعلية فعّالة', desc: 'تساعد الأستاذ في تنويع طرق التدريس وجذب انتباه التلاميذ طوال الحصة' }, { icon: '📋', title: 'تنويع طرق التدريس', desc: 'أدوات متنوعة تساعد الأستاذ على تقديم الدروس بأساليب مختلفة تناسب جميع التلاميذ' }, { icon: '🔬', title: 'مبنية على أسس تربوية', desc: 'كل منتج مصمم وفق أحدث الأساليب التربوية لضمان أقصى فائدة تعليمية' }].map((f, i) => (
-                <div key={i} className="bg-blue-50 rounded-2xl p-6 text-center hover:shadow-md transition-all"><span className="text-4xl block mb-3">{f.icon}</span><h3 className="text-lg font-bold text-[#0B1833] mb-2">{f.title}</h3><p className="text-gray-600 text-sm">{f.desc}</p></div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <TopProductsSection
+          products={topProducts}
+          onAddToCart={(p) => { const full = products.find(x => x.id === p.id); if (full) addToCart(full); }}
+          onBuyNow={(p) => { const full = products.find(x => x.id === p.id); if (full) buyNow(full); }}
+          onViewProduct={(id: number) => navigate(`/lp/${id}`)}
+          onViewAll={() => setActiveSection('products')}
+        />
+      )}
+
+      {/* CLASSROOM SHOWCASE — عرض تحريري لاستعمال وسائل المعراج داخل القسم */}
+      {activeSection === 'home' && (
+        <ClassroomShowcaseSection onDiscoverProducts={() => setActiveSection('products')} />
       )}
 
       {/* PRODUCTS */}
       {(activeSection === 'home' || activeSection === 'products') && (
-        <section className="py-12 px-4 bg-gray-50">
+        <section id="education-levels" className="py-12 px-4 bg-gray-50 scroll-mt-20">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-8">الأطوار التعليمية</h2>
             <div className="flex flex-wrap justify-center gap-3 mb-8">

@@ -504,8 +504,8 @@ export default function ProductLanding({
               ].map((badge, i) => (
                 <div key={i} className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
                   <span className="text-2xl block mb-1">{badge.icon}</span>
-                  <span className="text-sm font-bold text-gray-700 block">{badge.label}</span>
-                  <span className="text-sm text-gray-500 font-medium">{badge.desc}</span>
+                  <span className="text-xs font-bold text-gray-600 block">{badge.label}</span>
+                  <span className="text-[10px] text-gray-400">{badge.desc}</span>
                 </div>
               ))}
             </div>
@@ -521,7 +521,7 @@ export default function ProductLanding({
             {[
               { icon: '🎨', title: 'تصميم احترافي', desc: 'بطاقات مصممة بعناية لتجذب انتباه التلاميذ وتحفّزهم على التعلم' },
               { icon: '📋', title: 'مبنية على المنهاج', desc: 'محتوى متوافق مع المناهج الدراسية الجزائرية لكل الأطوار' },
-              { icon: '🏆', title: 'ثقة الأساتذة', desc: `أكثر من ${products.reduce((s, p) => s + p.sales, 0)}+ أستاذ يستخدمون أدواتنا` },
+              { icon: '🏆', title: '🏆 اختيار آلاف الأساتذة', desc: '+10,000 أستاذ اختاروا المعراج' },
             ].map((feature, i) => (
               <div key={i} className="bg-blue-50 rounded-2xl p-6 text-center hover:shadow-md transition-all">
                 <span className="text-4xl block mb-3">{feature.icon}</span>

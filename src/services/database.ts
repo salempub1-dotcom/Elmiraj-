@@ -51,6 +51,8 @@ interface DbOrder {
     noest_id?: string | null;
   archived?: boolean;
   archived_at?: string | null;
+  internal_note?: string | null;
+  reminder_date?: string | null;
 }
 
 // ── Helper ───────────────────────────────────────────────────
@@ -382,6 +384,34 @@ export async function updateOrderStatus(id: string, status: string): Promise<DbR
     }
     const result = await r.json();
     if (result.ok) console.log(`[DB] ✅ Order ${id} → ${status}`);
+    return result;
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Update an order's internal note and/or reminder date — admin only.
+ * Pass only the field(s) you want to change; omitted fields are left untouched.
+ * Internal-admin data — never surfaced to customer-facing routes.
+ */
+export async function updateOrderNote(
+  id: string,
+  fields: { internal_note?: string; reminder_date?: string }
+): Promise<DbResult> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'update_note', id, ...fields }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    const result = await r.json();
+    if (result.ok) console.log(`[DB] ✅ Order ${id} note/reminder updated`);
+    else console.warn(`[DB] ⚠️ Order note update failed: ${result.error}`);
     return result;
   } catch (e) {
     return { ok: false, error: String(e) };

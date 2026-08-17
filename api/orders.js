@@ -4,6 +4,7 @@
 // POST action 'save'          — save new order (validates tracking exists)
 // POST action 'list'          — list all orders (admin auth)
 // POST action 'update_status' — update order status (admin auth)
+// POST action 'update_note'   — update internal note / reminder date (admin auth)
 //
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
 // ============================================================
@@ -141,7 +142,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: 'id and status are required' });
     }
 
-    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'confirmed', 'waiting_customer', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ ok: false, error: `Invalid status. Valid: ${validStatuses.join(', ')}` });
     }
@@ -158,6 +159,45 @@ export default async function handler(req, res) {
       }
 
       console.log(`[ORDERS] ✅ Updated order ${id} → ${status}`);
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: e.message });
+    }
+  }
+
+  // ── UPDATE NOTE: Set/clear internal note and/or reminder date (admin only) ──
+  // Internal-admin data only — never returned to customer-facing routes.
+  if (action === 'update_note') {
+    const admin = verifyAdminToken(req.headers.authorization);
+    if (!admin) {
+      return res.status(401).json({ ok: false, error: 'Admin authentication required' });
+    }
+
+    const { id } = body;
+    if (!id) return res.status(400).json({ ok: false, error: 'id is required' });
+
+    // Only touch fields that were actually sent, so callers can update
+    // just the note or just the reminder without clobbering the other.
+    const update = { updated_at: new Date().toISOString() };
+    if (Object.prototype.hasOwnProperty.call(body, 'internal_note')) {
+      update.internal_note = body.internal_note === '' ? null : body.internal_note;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'reminder_date')) {
+      update.reminder_date = body.reminder_date === '' ? null : body.reminder_date;
+    }
+
+    try {
+      const { error } = await supabase.from('orders').update(update).eq('id', id);
+
+      if (error) {
+        console.error('[ORDERS] Update note error:', error.message, error.code);
+        const hint = error.code === '42703'
+          ? 'الأعمدة internal_note / reminder_date غير موجودة بعد في جدول orders. شغّل الـ Migration الخاصة بها.'
+          : null;
+        return res.status(200).json({ ok: false, error: error.message, code: error.code, hint });
+      }
+
+      console.log(`[ORDERS] ✅ Updated note/reminder for order ${id}`);
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(200).json({ ok: false, error: e.message });
@@ -222,6 +262,6 @@ export default async function handler(req, res) {
   return res.status(400).json({
     ok: false,
     error: `Unknown action: ${action}`,
-    available: ['list', 'save', 'update_status', 'archive', 'unarchive', 'delete'],
+    available: ['list', 'save', 'update_status', 'update_note', 'archive', 'unarchive', 'delete'],
   });
 }

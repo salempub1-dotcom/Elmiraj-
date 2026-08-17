@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import { createOrder, getWilayas, getCommunes, getDesks, getWilayaCodeFromDeskCode, pingProxy, diagnoseNoest, type NoestWilaya, type NoestCommune, type NoestDesk, type CreateOrderResult } from './services/noestApi';
 import { uploadProductImage, deleteProductImage, isSupabaseConfigured, isSupabaseUrl, testSupabaseConnection, getSupabaseInfo, compressImage } from './services/supabase';
@@ -79,11 +79,14 @@ interface Order {
   shipping: number;
   deliveryType: 'home' | 'office';
   selectedOffice?: string;
-  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'waiting_customer' | 'shipped' | 'delivered' | 'cancelled';
   date: string;
   noestId?: string;
   archived?: boolean;
   archivedAt?: string | null;
+  createdAt?: string;
+  internalNote?: string | null;
+  reminderDate?: string | null;
 }
 
 interface Notif {
@@ -1224,6 +1227,33 @@ function SystemHealthCard({ showToast }: { showToast: (msg: string, type?: 'succ
 }
 
 // ============================================================
+// ORDER STATUS METADATA — single source of truth for label/colors
+// used across the dashboard table, orders list, and filters.
+// ============================================================
+const STATUS_META: Record<Order['status'], { label: string; badge: string; button: string }> = {
+  pending: { label: '⏳ معلق', badge: 'bg-yellow-100 text-yellow-700', button: 'hover:bg-yellow-50 hover:text-yellow-700' },
+  confirmed: { label: '✅ مؤكد', badge: 'bg-blue-100 text-blue-700', button: 'hover:bg-blue-50 hover:text-blue-700' },
+  waiting_customer: { label: '🟣 بانتظار العميل', badge: 'bg-purple-100 text-purple-700', button: 'hover:bg-purple-50 hover:text-purple-700' },
+  shipped: { label: '🚚 مشحون', badge: 'bg-indigo-100 text-indigo-700', button: 'hover:bg-indigo-50 hover:text-indigo-700' },
+  delivered: { label: '📦 موصل', badge: 'bg-teal-100 text-teal-700', button: 'hover:bg-teal-50 hover:text-teal-700' },
+  cancelled: { label: '❌ ملغي', badge: 'bg-red-100 text-red-700', button: 'hover:bg-red-50 hover:text-red-700' },
+};
+const ORDER_STATUS_LIST: Order['status'][] = ['pending', 'confirmed', 'waiting_customer', 'shipped', 'delivered', 'cancelled'];
+
+// ── Algeria timezone (UTC+1, no DST) date helpers — used for order filters ──
+const ALGERIA_OFFSET_MS = 60 * 60 * 1000;
+function algeriaPartsFrom(ms: number) {
+  const d = new Date(ms + ALGERIA_OFFSET_MS);
+  return { y: d.getUTCFullYear(), m: d.getUTCMonth(), day: d.getUTCDate() };
+}
+function algeriaDayStartUTC(y: number, m: number, day: number) {
+  return new Date(Date.UTC(y, m, day, 0, 0, 0, 0) - ALGERIA_OFFSET_MS);
+}
+function algeriaDayEndUTC(y: number, m: number, day: number) {
+  return new Date(Date.UTC(y, m, day, 23, 59, 59, 999) - ALGERIA_OFFSET_MS);
+}
+
+// ============================================================
 // ADMIN APP COMPONENT
 // ============================================================
 function AdminApp({
@@ -1256,6 +1286,15 @@ function AdminApp({
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [tab, setTab] = useState<'dashboard' | 'orders' | 'archive' | 'products' | 'landing' | 'system'>('dashboard');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  // ── Orders: filters, search, and inline note/reminder editing ──
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | Order['status']>('all');
+  const [orderDateFilter, setOrderDateFilter] = useState<'all' | 'today' | 'yesterday' | '7d' | '30d' | 'this_week' | 'this_month' | 'custom'>('all');
+  const [orderDateFrom, setOrderDateFrom] = useState('');
+  const [orderDateTo, setOrderDateTo] = useState('');
+  const [noteOpenId, setNoteOpenId] = useState<string | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, { note: string; reminder: string }>>({});
+  const [noteSavingId, setNoteSavingId] = useState<string | null>(null);
   const [showNotif, setShowNotif] = useState(false);
   // ── Landing Pages State ──
   const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
@@ -1310,6 +1349,69 @@ function AdminApp({
   // ── الطلبات المؤرشفة تُخفى من "آخر الطلبات" و"إدارة الطلبات" لكنها تبقى محفوظة ──
   const visibleOrders = orders.filter(o => !o.archived);
   const archivedOrders = orders.filter(o => o.archived);
+
+  // ── Orders tab: combined filters (status AND date AND search) ──
+  const orderDateRange = useMemo((): { start: Date; end: Date } | null => {
+    const now = Date.now();
+    const today = algeriaPartsFrom(now);
+    switch (orderDateFilter) {
+      case 'all':
+        return null;
+      case 'today':
+        return { start: algeriaDayStartUTC(today.y, today.m, today.day), end: algeriaDayEndUTC(today.y, today.m, today.day) };
+      case 'yesterday': {
+        const y = algeriaPartsFrom(now - 24 * 60 * 60 * 1000);
+        return { start: algeriaDayStartUTC(y.y, y.m, y.day), end: algeriaDayEndUTC(y.y, y.m, y.day) };
+      }
+      case '7d':
+        return { start: algeriaDayStartUTC(today.y, today.m, today.day - 6), end: algeriaDayEndUTC(today.y, today.m, today.day) };
+      case '30d':
+        return { start: algeriaDayStartUTC(today.y, today.m, today.day - 29), end: algeriaDayEndUTC(today.y, today.m, today.day) };
+      case 'this_week': {
+        // Week starts Monday (ISO). Algeria's business week (Sat–Fri) varies by convention,
+        // so ISO Monday-start is used here as the simplest, most predictable default.
+        const d = new Date(now + ALGERIA_OFFSET_MS);
+        const isoDow = (d.getUTCDay() + 6) % 7; // 0=Monday..6=Sunday
+        return { start: algeriaDayStartUTC(today.y, today.m, today.day - isoDow), end: algeriaDayEndUTC(today.y, today.m, today.day) };
+      }
+      case 'this_month':
+        return { start: algeriaDayStartUTC(today.y, today.m, 1), end: algeriaDayEndUTC(today.y, today.m, today.day) };
+      case 'custom': {
+        if (!orderDateFrom && !orderDateTo) return null;
+        const [fy, fm, fd] = (orderDateFrom || orderDateTo).split('-').map(Number);
+        const [ty, tm, td] = (orderDateTo || orderDateFrom).split('-').map(Number);
+        return { start: algeriaDayStartUTC(fy, fm - 1, fd), end: algeriaDayEndUTC(ty, tm - 1, td) };
+      }
+      default:
+        return null;
+    }
+  }, [orderDateFilter, orderDateFrom, orderDateTo]);
+
+  const filteredOrders = useMemo(() => {
+    const q = orderSearch.trim().toLowerCase();
+    return visibleOrders.filter(o => {
+      if (orderStatusFilter !== 'all' && o.status !== orderStatusFilter) return false;
+      if (orderDateRange) {
+        if (!o.createdAt) return false; // legacy orders without a timestamp can't be date-filtered
+        const d = new Date(o.createdAt);
+        if (isNaN(d.getTime()) || d < orderDateRange.start || d > orderDateRange.end) return false;
+      }
+      if (q) {
+        const hay = `${o.customer} ${o.phone} ${o.id} ${o.tracking}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [visibleOrders, orderStatusFilter, orderDateRange, orderSearch]);
+
+  const hasActiveOrderFilters = orderStatusFilter !== 'all' || orderDateFilter !== 'all' || orderSearch.trim() !== '';
+  const resetOrderFilters = () => {
+    setOrderStatusFilter('all');
+    setOrderDateFilter('all');
+    setOrderDateFrom('');
+    setOrderDateTo('');
+    setOrderSearch('');
+  };
   const RECENT_ORDERS_LIMIT = 10; // حد أقصى لعرض "آخر الطلبات" في لوحة المعلومات (الباقي في تبويب الطلبات)
   const recentOrders = visibleOrders.slice(0, RECENT_ORDERS_LIMIT);
   const selectedRecentOrders = recentOrders.filter(o => selectedOrderIds.has(o.id));
@@ -1370,6 +1472,25 @@ function AdminApp({
     }
     setSelectedOrderIds(new Set());
     showToast(okIds.length === targets.length ? `تم أرشفة ${okIds.length} طلب` : `تم أرشفة ${okIds.length} من ${targets.length} طلب`, okIds.length === targets.length ? 'success' : 'error');
+  };
+
+  // ── ملاحظة داخلية + تذكير — بيانات إدارية فقط، لا تظهر للعميل أبداً ──
+  const openOrderNote = (order: Order) => {
+    setNoteDrafts(prev => ({ ...prev, [order.id]: { note: order.internalNote || '', reminder: order.reminderDate || '' } }));
+    setNoteOpenId(order.id);
+  };
+  const handleSaveOrderNote = async (order: Order) => {
+    const draft = noteDrafts[order.id];
+    if (!draft) return;
+    setNoteSavingId(order.id);
+    const result = await db.updateOrderNote(order.id, { internal_note: draft.note, reminder_date: draft.reminder });
+    setNoteSavingId(null);
+    if (result.ok) {
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, internalNote: draft.note || null, reminderDate: draft.reminder || null } : o));
+      showToast('تم حفظ الملاحظة');
+    } else if (result.error !== db.AUTH_EXPIRED) {
+      showToast(result.hint || result.error || 'فشل حفظ الملاحظة', 'error');
+    }
   };
 
   // ── حذف نهائي — خيار ثانوي فقط، مع تأكيد واضح، ولا يحدث تلقائياً أبداً ──
@@ -1913,7 +2034,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               )}
               <p className="hidden print:block text-xs text-gray-500 mb-3">تاريخ الطباعة: {new Date().toLocaleString('ar-DZ')}</p>
               {recentOrders.length === 0 ? <div className="text-center py-10"><p className="text-5xl mb-3">📭</p><p className="text-gray-400">لا توجد طلبات بعد</p></div> : (
-                <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50"><th className="print:hidden px-3 py-3 text-right rounded-r-xl"><input type="checkbox" checked={allRecentSelected} onChange={toggleSelectAllRecent} aria-label="تحديد الكل" /></th><th className="px-3 py-3 text-right text-gray-600 font-bold">التاريخ</th><th className="px-3 py-3 text-right text-gray-600 font-bold">رقم التتبع</th><th className="px-3 py-3 text-right text-gray-600 font-bold">العميل</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الهاتف</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الولاية</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الإجمالي (مع التوصيل)</th><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-l-xl">الحالة</th></tr></thead><tbody>{recentOrders.map(order => (<tr key={order.id} className={`border-b hover:bg-gray-50 ${selectedOrderIds.has(order.id) ? 'is-selected' : ''}`}><td className="print:hidden px-3 py-3"><input type="checkbox" checked={selectedOrderIds.has(order.id)} onChange={() => toggleOrderSelected(order.id)} aria-label={`تحديد الطلب ${order.tracking}`} /></td><td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap">{order.date}</td><td className="px-3 py-3 font-mono text-[#102A52] font-bold text-xs">{order.tracking}</td><td className="px-3 py-3 font-bold">{order.customer}</td><td className="px-3 py-3 text-gray-600 text-xs" dir="ltr">{order.phone}</td><td className="px-3 py-3 text-gray-600">{order.wilaya}</td><td className="px-3 py-3 font-bold text-blue-700">{order.total.toLocaleString()} دج</td><td className="px-3 py-3"><div className="flex items-center gap-2 flex-wrap"><span className={`px-2 py-1 rounded-full text-xs font-bold ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' : order.status === 'shipped' ? 'bg-purple-100 text-purple-700' : order.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>{order.status === 'pending' ? '⏳ معلق' : order.status === 'confirmed' ? '✅ مؤكد' : order.status === 'shipped' ? '🚚 مشحون' : order.status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</span>{order.status === 'pending' && (<button onClick={() => handleQuickConfirm(order)} className="print:hidden bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded-lg text-xs font-bold transition-all">✅ تأكيد</button>)}</div></td></tr>))}</tbody></table></div>
+                <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50"><th className="print:hidden px-3 py-3 text-right rounded-r-xl"><input type="checkbox" checked={allRecentSelected} onChange={toggleSelectAllRecent} aria-label="تحديد الكل" /></th><th className="px-3 py-3 text-right text-gray-600 font-bold">التاريخ</th><th className="px-3 py-3 text-right text-gray-600 font-bold">رقم التتبع</th><th className="px-3 py-3 text-right text-gray-600 font-bold">العميل</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الهاتف</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الولاية</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الإجمالي (مع التوصيل)</th><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-l-xl">الحالة</th></tr></thead><tbody>{recentOrders.map(order => (<tr key={order.id} className={`border-b hover:bg-gray-50 ${selectedOrderIds.has(order.id) ? 'is-selected' : ''}`}><td className="print:hidden px-3 py-3"><input type="checkbox" checked={selectedOrderIds.has(order.id)} onChange={() => toggleOrderSelected(order.id)} aria-label={`تحديد الطلب ${order.tracking}`} /></td><td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap">{order.date}</td><td className="px-3 py-3 font-mono text-[#102A52] font-bold text-xs">{order.tracking}</td><td className="px-3 py-3 font-bold">{order.customer}</td><td className="px-3 py-3 text-gray-600 text-xs" dir="ltr">{order.phone}</td><td className="px-3 py-3 text-gray-600">{order.wilaya}</td><td className="px-3 py-3 font-bold text-blue-700">{order.total.toLocaleString()} دج</td><td className="px-3 py-3"><div className="flex items-center gap-2 flex-wrap"><span className={`px-2 py-1 rounded-full text-xs font-bold ${STATUS_META[order.status].badge}`}>{STATUS_META[order.status].label}</span>{order.status === 'pending' && (<button onClick={() => handleQuickConfirm(order)} className="print:hidden bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded-lg text-xs font-bold transition-all">✅ تأكيد</button>)}</div></td></tr>))}</tbody></table></div>
               )}
             </div>
           </div>)}
@@ -1958,18 +2079,158 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
           {/* ORDERS TAB */}
           {tab === 'orders' && (<div className="space-y-4">
             <h2 className="text-2xl font-bold text-gray-800">📋 إدارة الطلبات</h2>
-            {visibleOrders.length === 0 ? <div className="bg-white rounded-2xl shadow-md p-12 text-center"><p className="text-6xl mb-4">📭</p><p className="text-gray-400 text-lg">لا توجد طلبات بعد</p></div> : visibleOrders.map(order => (
-              <div key={order.id} className="bg-white rounded-2xl shadow-md p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-[#102A52] font-bold">{order.tracking}</span>{order.noestId && <span className="bg-blue-100 text-[#102A52] text-xs px-2 py-0.5 rounded-full font-bold">✅ NOEST</span>}</div><p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 text-sm">📍 {order.wilaya} - {order.address}</p><p className="text-gray-600 text-sm">🚚 {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${order.selectedOffice || ''}`}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p><p className="text-gray-400 text-xs">{order.date}</p></div></div>
-                <div className="bg-gray-50 rounded-xl p-3 mb-3">{order.items.map(item => (<div key={item.id} className="flex justify-between text-sm"><span>{item.name} × {item.quantity}</span><span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span></div>))}</div>
-                <div className="flex flex-wrap gap-2 mb-2">{(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as Order['status'][]).map(status => (<button key={status} onClick={() => { setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status } : o)); db.updateOrderStatus(order.id, status); showToast('تم تحديث حالة الطلب'); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${order.status === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}>{status === 'pending' ? '⏳ معلق' : status === 'confirmed' ? '✅ مؤكد' : status === 'shipped' ? '🚚 مشحون' : status === 'delivered' ? '📦 موصل' : '❌ ملغي'}</button>))}</div>
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
-                  <button onClick={() => handleArchiveOrder(order)} className="text-xs text-gray-500 hover:text-[#183C6B] font-bold transition-all">📦 أرشفة</button>
-                  <button onClick={() => handleDeleteOrder(order)} className="text-xs text-red-400 hover:text-red-600 transition-all">🗑️ حذف</button>
-                </div>
+
+            {/* ── Filters bar ── */}
+            <div className="bg-white rounded-2xl shadow-md p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  placeholder="🔍 البحث بالاسم، الهاتف، رقم الطلب أو رقم التتبع"
+                  className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-[#183C6B] focus:outline-none"
+                />
+                <select
+                  value={orderStatusFilter}
+                  onChange={e => setOrderStatusFilter(e.target.value as typeof orderStatusFilter)}
+                  className="border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:border-[#183C6B] focus:outline-none"
+                >
+                  <option value="all">جميع الحالات</option>
+                  {ORDER_STATUS_LIST.map(s => (<option key={s} value={s}>{STATUS_META[s].label}</option>))}
+                </select>
+                <select
+                  value={orderDateFilter}
+                  onChange={e => setOrderDateFilter(e.target.value as typeof orderDateFilter)}
+                  className="border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:border-[#183C6B] focus:outline-none"
+                >
+                  <option value="all">كل التواريخ</option>
+                  <option value="today">اليوم</option>
+                  <option value="yesterday">أمس</option>
+                  <option value="7d">آخر 7 أيام</option>
+                  <option value="30d">آخر 30 يومًا</option>
+                  <option value="this_week">هذا الأسبوع</option>
+                  <option value="this_month">هذا الشهر</option>
+                  <option value="custom">تاريخ مخصص</option>
+                </select>
               </div>
-            ))}
+
+              {orderDateFilter === 'custom' && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-xs text-gray-500 font-bold">من تاريخ</label>
+                  <input type="date" value={orderDateFrom} onChange={e => setOrderDateFrom(e.target.value)} className="border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#183C6B] focus:outline-none" />
+                  <label className="text-xs text-gray-500 font-bold">إلى تاريخ</label>
+                  <input type="date" value={orderDateTo} onChange={e => setOrderDateTo(e.target.value)} className="border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#183C6B] focus:outline-none" />
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <p className="text-sm font-bold text-gray-600">
+                  {filteredOrders.length.toLocaleString()} طلب{hasActiveOrderFilters ? ' (مطابق للفلاتر)' : ''}
+                </p>
+                {hasActiveOrderFilters && (
+                  <button onClick={resetOrderFilters} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">↺ إعادة تعيين</button>
+                )}
+              </div>
+            </div>
+
+            {filteredOrders.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-md p-12 text-center">
+                <p className="text-6xl mb-4">📭</p>
+                <p className="text-gray-400 text-lg">{hasActiveOrderFilters ? 'لا توجد طلبات مطابقة للفلاتر' : 'لا توجد طلبات بعد'}</p>
+              </div>
+            ) : filteredOrders.map(order => {
+              const isNoteOpen = noteOpenId === order.id;
+              const draft = noteDrafts[order.id] || { note: order.internalNote || '', reminder: order.reminderDate || '' };
+              const reminderTime = order.reminderDate ? new Date(order.reminderDate + 'T00:00:00').getTime() : null;
+              const todayAlgeria = algeriaPartsFrom(Date.now());
+              const todayStartMs = algeriaDayStartUTC(todayAlgeria.y, todayAlgeria.m, todayAlgeria.day).getTime();
+              const isReminderOverdue = reminderTime !== null && reminderTime < todayStartMs;
+              const isReminderToday = reminderTime !== null && !isReminderOverdue && reminderTime <= algeriaDayEndUTC(todayAlgeria.y, todayAlgeria.m, todayAlgeria.day).getTime();
+              return (
+                <div key={order.id} className="bg-white rounded-2xl shadow-md p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="font-mono text-[#102A52] font-bold">{order.tracking}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${STATUS_META[order.status].badge}`}>{STATUS_META[order.status].label}</span>
+                        {order.noestId && <span className="bg-blue-100 text-[#102A52] text-xs px-2 py-0.5 rounded-full font-bold">✅ NOEST</span>}
+                        {order.internalNote && <span className="bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full font-bold">📝 ملاحظة</span>}
+                        {isReminderOverdue && <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-bold">⚠️ متأخر {order.reminderDate}</span>}
+                        {isReminderToday && <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-bold">🔔 اليوم</span>}
+                        {!isReminderOverdue && !isReminderToday && order.reminderDate && <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">🔔 {order.reminderDate}</span>}
+                      </div>
+                      <p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p>
+                      <p className="text-gray-600 text-sm">📍 {order.wilaya} - {order.address}</p>
+                      <p className="text-gray-600 text-sm">🚚 {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${order.selectedOffice || ''}`}</p>
+                    </div>
+                    <div className="text-left"><p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p><p className="text-gray-400 text-xs">{order.date}</p></div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-3 mb-3">{order.items.map(item => (<div key={item.id} className="flex justify-between text-sm"><span>{item.name} × {item.quantity}</span><span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span></div>))}</div>
+
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {ORDER_STATUS_LIST.map(status => (
+                      <button
+                        key={status}
+                        onClick={() => { setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status } : o)); db.updateOrderStatus(order.id, status); showToast('تم تحديث حالة الطلب'); }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${order.status === status ? 'bg-[#183C6B] text-white' : `bg-gray-100 text-gray-600 ${STATUS_META[status].button}`}`}
+                      >
+                        {STATUS_META[status].label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── Internal note & reminder (admin-only) ── */}
+                  <div className="border-t pt-2">
+                    {!isNoteOpen ? (
+                      <button onClick={() => openOrderNote(order)} className="text-xs text-purple-600 hover:text-purple-800 font-bold transition-all">
+                        {order.internalNote || order.reminderDate ? '📝 عرض/تعديل الملاحظة والتذكير' : '📝 إضافة ملاحظة داخلية'}
+                      </button>
+                    ) : (
+                      <div className={`rounded-xl p-3 space-y-2 ${order.status === 'waiting_customer' ? 'bg-purple-50 border-2 border-purple-300' : 'bg-gray-50 border-2 border-gray-200'}`}>
+                        <label className="text-xs font-bold text-gray-600 block">📝 ملاحظة داخلية (لا تظهر للعميل)</label>
+                        <textarea
+                          value={draft.note}
+                          onChange={e => setNoteDrafts(prev => ({ ...prev, [order.id]: { ...draft, note: e.target.value } }))}
+                          placeholder="مثال: الزبونة طلبت إضافة Flash Cards أخرى. لا يتم إرسال الطلب حتى تتواصل معنا."
+                          rows={2}
+                          className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#183C6B] focus:outline-none resize-none"
+                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="text-xs font-bold text-gray-600">🔔 تذكير (اختياري)</label>
+                          <input
+                            type="date"
+                            value={draft.reminder}
+                            onChange={e => setNoteDrafts(prev => ({ ...prev, [order.id]: { ...draft, reminder: e.target.value } }))}
+                            className="border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#183C6B] focus:outline-none"
+                          />
+                          {draft.reminder && (
+                            <button onClick={() => setNoteDrafts(prev => ({ ...prev, [order.id]: { ...draft, reminder: '' } }))} className="text-xs text-gray-400 hover:text-red-500">✕ إزالة التذكير</button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => handleSaveOrderNote(order)}
+                            disabled={noteSavingId === order.id}
+                            className="bg-[#183C6B] hover:bg-[#102A52] disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
+                          >
+                            {noteSavingId === order.id ? 'جاري الحفظ...' : '💾 حفظ'}
+                          </button>
+                          <button onClick={() => setNoteOpenId(null)} className="text-xs text-gray-500 hover:text-gray-700 font-bold">إغلاق</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 pt-2 border-t mt-2">
+                    <button onClick={() => handleArchiveOrder(order)} className="text-xs text-gray-500 hover:text-[#183C6B] font-bold transition-all">📦 أرشفة</button>
+                    <button onClick={() => handleDeleteOrder(order)} className="text-xs text-red-400 hover:text-red-600 transition-all">🗑️ حذف</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>)}
+
 
           {/* ARCHIVE TAB */}
           {tab === 'archive' && (<div className="space-y-4">
@@ -2561,6 +2822,9 @@ export function App() {
             noestId: (o.noest_id || o.noestId) as string | undefined,
             archived: Boolean(o.archived),
             archivedAt: (o.archived_at || o.archivedAt || null) as string | null,
+            createdAt: (o.created_at || o.createdAt) as string | undefined,
+            internalNote: (o.internal_note ?? o.internalNote ?? null) as string | null,
+            reminderDate: (o.reminder_date ?? o.reminderDate ?? null) as string | null,
           }));
           console.log(`[DB] ✅ Loaded ${mapped.length} orders from Supabase`);
           setOrders(mapped);

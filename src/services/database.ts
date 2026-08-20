@@ -69,6 +69,21 @@ export interface DeliverySendResult {
   delivery_send_count: number;
 }
 
+/** Public tracking DTO returned by GET /api/track-order — see that file for field guarantees (no NOEST identifiers/secrets, no admin-only data). */
+export interface TrackOrderData {
+  orderNumber: string;
+  orderStatus: 'pending' | 'confirmed' | 'waiting_customer' | 'cancelled';
+  wilaya: string | null;
+  commune: string | null;
+  sentToDeliveryAt: string | null;
+  deliveryStatus: 'in_preparation' | 'shipped' | 'out_for_delivery' | 'delivered' | 'delivery_issue' | 'unknown' | null;
+  deliveryLabel: string | null;
+  lastUpdate: string | null;
+  history: { label: string; occurredAt: string | null }[];
+  message: string;
+  noestUnavailable?: boolean;
+}
+
 // ── Helper ───────────────────────────────────────────────────
 
 function getToken(): string {
@@ -542,6 +557,22 @@ export async function resendOrderToDelivery(id: string): Promise<DbResult<Delive
       return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
     }
     return await r.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Public order tracking — no admin auth. The customer supplies only the
+ * Al Miraj order number; the server maps it to a Supabase order and, if a
+ * real NOEST shipment exists, queries NOEST server-side for live status.
+ * Never sends/receives NOEST identifiers or admin-only fields.
+ */
+export async function trackOrder(orderNumber: string): Promise<DbResult<TrackOrderData>> {
+  try {
+    const r = await fetch(`/api/track-order?order_number=${encodeURIComponent(orderNumber)}`);
+    const result = await r.json();
+    return result;
   } catch (e) {
     return { ok: false, error: String(e) };
   }

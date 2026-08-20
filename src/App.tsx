@@ -1362,6 +1362,22 @@ function AdminApp({
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  // ── Theme (فاتح/ليلي) — لوحة الإدارة فقط، لا علاقة له بواجهة المتجر ──
+  // يُقرأ الاختيار المحفوظ (localStorage) بشكل متزامن عند أول render لتجنّب
+  // "وميض" الوضع الخاطئ (Flash of wrong theme) — لا حاجة لأي سكريبت مبكر في
+  // index.html لأن هذا تطبيق CSR بالكامل بدون SSR، فأول render أصلاً يحمل
+  // القيمة الصحيحة مباشرة. إن لم يوجد اختيار محفوظ، نعتمد تفضيل النظام
+  // (prefers-color-scheme) كقيمة أولية فقط؛ أول اختيار يدوي يصبح له الأولوية دائماً.
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('admin-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+      if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
+    } catch { /* */ }
+    return 'light';
+  });
+  useEffect(() => { try { localStorage.setItem('admin-theme', theme); } catch { /* */ } }, [theme]);
+  const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
   const [tab, setTab] = useState<'dashboard' | 'orders' | 'archive' | 'products' | 'landing' | 'system'>('dashboard');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   // ── إدارة الطلبات: بحث + فلاتر (حالة/تاريخ) ──────────────────
@@ -1659,10 +1675,10 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
   };
   const orderStatusBadgeClasses = (status: Order['status']) => {
     switch (normalizeOrderStatus(status)) {
-      case 'pending': return 'bg-yellow-100 text-yellow-700';
-      case 'confirmed': return 'bg-blue-100 text-blue-700';
-      case 'waiting_customer': return 'bg-violet-100 text-violet-700';
-      default: return 'bg-red-100 text-red-700';
+      case 'pending': return 'bg-yellow-100 dark:bg-[#4b3a12] text-yellow-700 dark:text-[#fcd34d]';
+      case 'confirmed': return 'bg-blue-100 dark:bg-[#1e3a5f] text-blue-700 dark:text-[#93c5fd]';
+      case 'waiting_customer': return 'bg-violet-100 dark:bg-[#3b2b52] text-violet-700 dark:text-[#c4b5fd]';
+      default: return 'bg-red-100 dark:bg-[#4b1f1f] text-red-700 dark:text-[#fca5a5]';
     }
   };
 
@@ -2085,16 +2101,16 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#071226] via-[#0B1833] to-[#183C6B] flex items-center justify-center p-4" dir="rtl">
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-8"><div className="flex justify-center mb-4"><Logo size="lg" /></div><h1 className="text-2xl font-bold text-blue-800">لوحة تحكم المعراج</h1><p className="text-gray-400 text-sm mt-1">للمسؤولين فقط</p></div>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8"><div className="flex justify-center mb-4"><Logo size="lg" /></div><h1 className="text-2xl font-bold text-blue-800 dark:text-blue-300">لوحة تحكم المعراج</h1><p className="text-gray-400 dark:text-gray-500 text-sm mt-1">للمسؤولين فقط</p></div>
           <div className="space-y-5">
-            <div><label className="block text-sm font-bold text-gray-700 mb-2">👤 اسم المستخدم</label><input type="text" value={adminUsername} onChange={e => setAdminUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none text-lg" placeholder="admin" /></div>
-            <div><label className="block text-sm font-bold text-gray-700 mb-2">🔒 كلمة المرور</label><input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none text-lg" placeholder="••••••••" /></div>
-            {adminLoginError && <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-600 text-sm font-bold text-center">❌ {adminLoginError}</div>}
-            <button onClick={handleLogin} disabled={loginLoading} className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg text-white ${loginLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#102A52] hover:bg-blue-800'}`}>{loginLoading ? '⏳ جاري التحقق...' : '🔐 دخول'}</button>
-            <button onClick={onBackToStore} className="w-full border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold transition-all hover:bg-gray-50">← العودة للمتجر</button>
+            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">👤 اسم المستخدم</label><input type="text" value={adminUsername} onChange={e => setAdminUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-3 focus:border-[#183C6B] outline-none text-lg" placeholder="admin" /></div>
+            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">🔒 كلمة المرور</label><input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-3 focus:border-[#183C6B] outline-none text-lg" placeholder="••••••••" /></div>
+            {adminLoginError && <div className="bg-red-50 dark:bg-red-950/40 border-2 border-red-200 dark:border-red-800 rounded-xl p-3 text-red-600 dark:text-red-400 text-sm font-bold text-center">❌ {adminLoginError}</div>}
+            <button onClick={handleLogin} disabled={loginLoading} className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg text-white ${loginLoading ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-[#102A52] hover:bg-blue-800'}`}>{loginLoading ? '⏳ جاري التحقق...' : '🔐 دخول'}</button>
+            <button onClick={onBackToStore} className="w-full border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold transition-all hover:bg-gray-50 dark:hover:bg-gray-700/60">← العودة للمتجر</button>
           </div>
-          <div className="mt-6 bg-blue-50 rounded-xl p-4 text-center"><p className="text-xs text-[#183C6B]">🔒 الوصول مخصص للمسؤولين فقط</p></div>
+          <div className="mt-6 bg-blue-50 dark:bg-blue-950/40 rounded-xl p-4 text-center"><p className="text-xs text-[#183C6B]">🔒 الوصول مخصص للمسؤولين فقط</p></div>
         </div>
       </div>
     );
@@ -2102,7 +2118,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
   // ---- ADMIN DASHBOARD ----
   return (
-    <div className="min-h-screen bg-gray-100" dir="rtl">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200" dir="rtl" data-theme={theme}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Header */}
@@ -2111,8 +2127,16 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
         <div className="flex items-center gap-2">
           <div className="relative">
             <button onClick={() => setShowNotif(!showNotif)} className="relative bg-[#102A52] hover:bg-[#183C6B] p-2 rounded-xl transition-all">🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{unread}</span>}</button>
-            {showNotif && (<div className="absolute left-0 top-12 w-72 bg-white rounded-xl shadow-2xl border z-50"><div className="bg-[#0B1833] text-white px-4 py-3 font-bold flex justify-between rounded-t-xl"><span>الإشعارات</span><button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))} className="text-xs text-blue-200 hover:text-white">تعيين الكل كمقروء</button></div><div className="max-h-64 overflow-y-auto">{notifications.length === 0 ? <p className="text-center text-gray-400 py-6 text-sm">لا توجد إشعارات</p> : notifications.map(n => (<div key={n.id} className={`px-4 py-3 border-b text-sm ${n.read ? 'bg-white text-gray-500' : 'bg-blue-50 text-[#0B1833] font-bold'}`}>{n.message}</div>))}</div></div>)}
+            {showNotif && (<div className="absolute left-0 top-12 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50"><div className="bg-[#0B1833] text-white px-4 py-3 font-bold flex justify-between rounded-t-xl"><span>الإشعارات</span><button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))} className="text-xs text-blue-200 hover:text-white">تعيين الكل كمقروء</button></div><div className="max-h-64 overflow-y-auto">{notifications.length === 0 ? <p className="text-center text-gray-400 dark:text-gray-500 py-6 text-sm">لا توجد إشعارات</p> : notifications.map(n => (<div key={n.id} className={`px-4 py-3 border-b text-sm ${n.read ? 'bg-white text-gray-500 dark:text-gray-400' : 'bg-blue-50 dark:bg-blue-950/40 text-[#0B1833] font-bold'}`}>{n.message}</div>))}</div></div>)}
           </div>
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الليلي'}
+            title={theme === 'dark' ? '☀️ الوضع الفاتح' : '🌙 الوضع الليلي'}
+            className="bg-[#102A52] hover:bg-[#183C6B] p-2 rounded-xl transition-all text-base leading-none"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
           <button onClick={onBackToStore} className="bg-[#102A52] hover:bg-[#183C6B] px-3 py-2 rounded-xl text-sm transition-all font-bold">🏪 المتجر</button>
           <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-xl text-sm transition-all font-bold">🚪 خروج</button>
         </div>
@@ -2120,12 +2144,12 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
       <div className="flex pt-16">
         {/* Sidebar */}
-        <aside className="w-56 bg-white shadow-lg fixed top-16 right-0 bottom-0 overflow-y-auto hidden md:block">
+        <aside className="w-56 bg-slate-50 dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 fixed top-16 right-0 bottom-0 overflow-y-auto hidden md:block transition-colors duration-200">
           <nav className="p-4 space-y-2">
-            <button onClick={() => setTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === 'dashboard' ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-xl">📊</span><span className="text-sm">لوحة المعلومات</span></button>
+            <button onClick={() => setTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === 'dashboard' ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300'}`}><span className="text-xl">📊</span><span className="text-sm">لوحة المعلومات</span></button>
 
             {/* ── اختصارات الطلبات بالحالة — تعيد استخدام نفس تبويب "الطلبات" مع فلتر الحالة ── */}
-            <p className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wide">الطلبات</p>
+            <p className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">الطلبات</p>
             {([
               { statusFilter: 'all' as const, icon: '📋', label: `جميع الطلبات (${visibleOrders.length})` },
               { statusFilter: 'confirmed' as const, icon: '🔵', label: `المؤكدة (${confirmedCount})` },
@@ -2135,77 +2159,87 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               <button
                 key={t.statusFilter}
                 onClick={() => { setTab('orders'); setOrderStatusFilter(t.statusFilter); }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold transition-all text-right ${tab === 'orders' && orderStatusFilter === t.statusFilter ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold transition-all text-right ${tab === 'orders' && orderStatusFilter === t.statusFilter ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300'}`}
               >
                 <span className="text-lg">{t.icon}</span><span className="text-sm">{t.label}</span>
               </button>
             ))}
-            <button onClick={() => setTab('archive')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold transition-all text-right ${tab === 'archive' ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-lg">📦</span><span className="text-sm">الأرشيف ({archivedOrders.length})</span></button>
+            <button onClick={() => setTab('archive')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold transition-all text-right ${tab === 'archive' ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300'}`}><span className="text-lg">📦</span><span className="text-sm">الأرشيف ({archivedOrders.length})</span></button>
 
             <div className="pt-2">
               {[{ id: 'products' as const, icon: '📦', label: `المنتجات (${products.length})` }, { id: 'landing' as const, icon: '🚀', label: `صفحات الهبوط (${landingPages.length})` }].map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === t.id ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-xl">{t.icon}</span><span className="text-sm">{t.label}</span></button>
+                <button key={t.id} onClick={() => setTab(t.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === t.id ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300'}`}><span className="text-xl">{t.icon}</span><span className="text-sm">{t.label}</span></button>
               ))}
             </div>
           </nav>
-          <div className="p-4 space-y-3 border-t mt-4"><div className="bg-blue-50 rounded-xl p-3"><p className="text-xs text-gray-500">الإيرادات الكلية</p><p className="text-lg font-bold text-blue-700">{totalRevenue.toLocaleString()} دج</p></div><div className="bg-yellow-50 rounded-xl p-3"><p className="text-xs text-gray-500">طلبات معلقة</p><p className="text-lg font-bold text-yellow-700">{pendingCount}</p></div></div>
+          <div className="p-4 space-y-3 border-t border-gray-200 dark:border-gray-700 mt-4"><div className="bg-blue-50 dark:bg-blue-950/40 rounded-xl p-3"><p className="text-xs text-gray-500 dark:text-gray-400">الإيرادات الكلية</p><p className="text-lg font-bold text-blue-700 dark:text-blue-300">{totalRevenue.toLocaleString()} دج</p></div><div className="bg-yellow-50 dark:bg-amber-950/40 rounded-xl p-3"><p className="text-xs text-gray-500 dark:text-gray-400">طلبات معلقة</p><p className="text-lg font-bold text-yellow-700 dark:text-amber-300">{pendingCount}</p></div></div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 md:mr-56 p-4 md:p-6">
+        <main className="flex-1 min-w-0 md:mr-56 p-4 md:p-6">
           {/* Mobile Tabs */}
           <div className="flex md:hidden gap-2 mb-4 overflow-x-auto">
                         {[{ id: 'dashboard' as const, label: '📊 لوحة' }, { id: 'orders' as const, label: '📋 الطلبات' }, { id: 'archive' as const, label: '🗄️ الأرشيف' }, { id: 'products' as const, label: '📦 المنتجات' }, { id: 'landing' as const, label: '🚀 هبوط' }].map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${tab === t.id ? 'bg-[#183C6B] text-white' : 'bg-white text-gray-600'}`}>{t.label}</button>
+              <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${tab === t.id ? 'bg-[#183C6B] text-white' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>{t.label}</button>
             ))}
           </div>
 
           {/* DASHBOARD TAB */}
           {tab === 'dashboard' && (<div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800">📊 لوحة المعلومات</h2>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">📊 لوحة المعلومات</h2>
 
             {/* System status bar - full diagnostics moved to /admin/system */}
-          <div className="rounded-2xl border-2 p-4 flex flex-wrap items-center justify-between gap-3 bg-green-50 border-green-200">
+          <div className="rounded-2xl border-2 p-4 flex flex-wrap items-center justify-between gap-3 bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800">
             <div className="flex items-center gap-2">
               <span className="text-2xl">🟢</span>
-              <span className="font-bold text-sm text-gray-800">جميع أنظمة المتجر تعمل بشكل طبيعي</span>
+              <span className="font-bold text-sm text-gray-800 dark:text-gray-50">جميع أنظمة المتجر تعمل بشكل طبيعي</span>
             </div>
             <button
               onClick={() => setTab('system')}
-              className="text-sm font-bold text-blue-700 hover:text-blue-900 underline"
+              className="text-sm font-bold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-200 underline"
             >
               عرض التفاصيل →
             </button>
           </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[{ label: 'إجمالي الطلبات', value: orders.length, icon: '📋', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' }, { label: 'الطلبات المعلقة', value: pendingCount, icon: '⏳', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' }, { label: 'إجمالي الإيرادات', value: `${totalRevenue.toLocaleString()}`, icon: '💰', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' }, { label: 'عدد المنتجات', value: products.length, icon: '📦', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' }].map((s, i) => (
-                <div key={i} className={`${s.bg} border-2 ${s.border} rounded-2xl p-4`}><div className="flex items-center justify-between mb-2"><span className="text-2xl">{s.icon}</span><span className={`text-xl font-bold ${s.text}`}>{s.value}</span></div><p className="text-gray-600 text-sm font-medium">{s.label}</p></div>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              {[
+                { label: 'إجمالي الطلبات', value: orders.length, icon: '📋', accent: 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700' },
+                { label: 'الطلبات المؤكدة', value: confirmedCount, icon: '🔵', accent: 'text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40' },
+                { label: 'الطلبات المعلقة', value: pendingCount, icon: '🟡', accent: 'text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40' },
+                { label: 'في انتظار العميل', value: waitingCustomerCount, icon: '🟣', accent: 'text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40' },
+                { label: 'إجمالي الإيرادات', value: `${totalRevenue.toLocaleString()} دج`, icon: '💰', accent: 'text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40' },
+              ].map((s, i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-4">
+                  <span className={`inline-flex w-9 h-9 rounded-lg items-center justify-center text-base mb-3 ${s.accent}`}>{s.icon}</span>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-50 leading-tight">{s.value}</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs font-medium mt-1">{s.label}</p>
+                </div>
               ))}
             </div>
-                        <div id="recent-orders-print-area" className="bg-white rounded-2xl shadow-md p-6">
+                        <div id="recent-orders-print-area" className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-                <h3 className="text-lg font-bold text-gray-800">🕐 آخر الطلبات</h3>
+                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-50">🕐 آخر الطلبات</h3>
                 {recentOrders.length > 0 && (
                   <div className="print:hidden flex flex-wrap items-center gap-2">
                     <button onClick={handlePrintRecentOrders} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🖨️ طباعة آخر الطلبات</button>
-                    <button onClick={() => downloadOrdersCSV(ordersForBulkAction)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">⬇️ تحميل CSV</button>
+                    <button onClick={() => downloadOrdersCSV(ordersForBulkAction)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">⬇️ تحميل CSV</button>
                   </div>
                 )}
               </div>
               {selectedRecentOrders.length > 0 && (
-                <div className="print:hidden flex flex-wrap items-center gap-2 mb-3 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
-                  <span className="text-xs font-bold text-blue-700">تم تحديد {selectedRecentOrders.length} طلب</span>
-                  <button onClick={handlePrintRecentOrders} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🖨️ طباعة المحدد</button>
-                  <button onClick={() => downloadOrdersCSV(selectedRecentOrders)} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">⬇️ تحميل المحدد</button>
-                  <button onClick={handleArchiveSelected} className="bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">📦 أرشفة المحدد</button>
-                  <button onClick={handleDeleteSelected} className="bg-white border border-red-300 hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🗑️ حذف المحدد</button>
-                  <button onClick={() => setSelectedOrderIds(new Set())} className="text-xs text-gray-500 hover:text-gray-700 underline mr-auto">إلغاء التحديد</button>
+                <div className="print:hidden flex flex-wrap items-center gap-2 mb-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl px-3 py-2">
+                  <span className="text-xs font-bold text-blue-700 dark:text-blue-300">تم تحديد {selectedRecentOrders.length} طلب</span>
+                  <button onClick={handlePrintRecentOrders} className="bg-white border border-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🖨️ طباعة المحدد</button>
+                  <button onClick={() => downloadOrdersCSV(selectedRecentOrders)} className="bg-white border border-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">⬇️ تحميل المحدد</button>
+                  <button onClick={handleArchiveSelected} className="bg-white border border-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">📦 أرشفة المحدد</button>
+                  <button onClick={handleDeleteSelected} className="bg-white border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">🗑️ حذف المحدد</button>
+                  <button onClick={() => setSelectedOrderIds(new Set())} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline mr-auto">إلغاء التحديد</button>
                 </div>
               )}
-              <p className="hidden print:block text-xs text-gray-500 mb-3">تاريخ الطباعة: {new Date().toLocaleString('ar-DZ')}</p>
-              {recentOrders.length === 0 ? <div className="text-center py-10"><p className="text-5xl mb-3">📭</p><p className="text-gray-400">لا توجد طلبات بعد</p></div> : (
-                <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50"><th className="print:hidden px-3 py-3 text-right rounded-r-xl"><input type="checkbox" checked={allRecentSelected} onChange={toggleSelectAllRecent} aria-label="تحديد الكل" /></th><th className="px-3 py-3 text-right text-gray-600 font-bold">التاريخ</th><th className="px-3 py-3 text-right text-gray-600 font-bold">رقم التتبع</th><th className="px-3 py-3 text-right text-gray-600 font-bold">العميل</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الهاتف</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الولاية</th><th className="px-3 py-3 text-right text-gray-600 font-bold">الإجمالي (مع التوصيل)</th><th className="px-3 py-3 text-right text-gray-600 font-bold rounded-l-xl">الحالة</th></tr></thead><tbody>{recentOrders.map(order => (<tr key={order.id} className={`border-b hover:bg-gray-50 ${selectedOrderIds.has(order.id) ? 'is-selected' : ''}`}><td className="print:hidden px-3 py-3"><input type="checkbox" checked={selectedOrderIds.has(order.id)} onChange={() => toggleOrderSelected(order.id)} aria-label={`تحديد الطلب ${order.tracking}`} /></td><td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap">{order.date}</td><td className="px-3 py-3 font-mono text-[#102A52] font-bold text-xs">{order.tracking}</td><td className="px-3 py-3 font-bold">{order.customer}</td><td className="px-3 py-3 text-gray-600 text-xs" dir="ltr">{order.phone}</td><td className="px-3 py-3 text-gray-600">{order.wilaya}</td><td className="px-3 py-3 font-bold text-blue-700">{order.total.toLocaleString()} دج</td><td className="px-3 py-3"><div className="flex items-center gap-2 flex-wrap"><span className={`px-2 py-1 rounded-full text-xs font-bold ${orderStatusBadgeClasses(order.status)}`}>{orderStatusLabel(order.status)}</span>{order.status === 'pending' && (<button onClick={() => handleQuickConfirm(order)} className="print:hidden bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded-lg text-xs font-bold transition-all">✅ تأكيد</button>)}</div></td></tr>))}</tbody></table></div>
+              <p className="hidden print:block text-xs text-gray-500 dark:text-gray-400 mb-3">تاريخ الطباعة: {new Date().toLocaleString('ar-DZ')}</p>
+              {recentOrders.length === 0 ? <div className="text-center py-10"><p className="text-5xl mb-3">📭</p><p className="text-gray-400 dark:text-gray-500">لا توجد طلبات بعد</p></div> : (
+                <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50 dark:bg-gray-800/60"><th className="print:hidden px-3 py-3 text-right rounded-r-xl"><input type="checkbox" checked={allRecentSelected} onChange={toggleSelectAllRecent} aria-label="تحديد الكل" /></th><th className="px-3 py-3 text-right text-gray-600 dark:text-gray-300 font-bold">التاريخ</th><th className="px-3 py-3 text-right text-gray-600 dark:text-gray-300 font-bold">رقم التتبع</th><th className="px-3 py-3 text-right text-gray-600 dark:text-gray-300 font-bold">العميل</th><th className="px-3 py-3 text-right text-gray-600 dark:text-gray-300 font-bold">الهاتف</th><th className="px-3 py-3 text-right text-gray-600 dark:text-gray-300 font-bold">الولاية</th><th className="px-3 py-3 text-right text-gray-600 dark:text-gray-300 font-bold">الإجمالي (مع التوصيل)</th><th className="px-3 py-3 text-right text-gray-600 dark:text-gray-300 font-bold rounded-l-xl">الحالة</th></tr></thead><tbody>{recentOrders.map(order => (<tr key={order.id} className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors ${selectedOrderIds.has(order.id) ? 'is-selected' : ''}`}><td className="print:hidden px-3 py-3"><input type="checkbox" checked={selectedOrderIds.has(order.id)} onChange={() => toggleOrderSelected(order.id)} aria-label={`تحديد الطلب ${order.tracking}`} /></td><td className="px-3 py-3 text-gray-600 dark:text-gray-300 text-xs whitespace-nowrap">{order.date}</td><td className="px-3 py-3 font-mono text-[#102A52] dark:text-blue-300 font-bold text-xs">{order.tracking}</td><td className="px-3 py-3 font-bold">{order.customer}</td><td className="px-3 py-3 text-gray-600 dark:text-gray-300 text-xs" dir="ltr">{order.phone}</td><td className="px-3 py-3 text-gray-600 dark:text-gray-300">{order.wilaya}</td><td className="px-3 py-3 font-bold text-blue-700 dark:text-blue-300">{order.total.toLocaleString()} دج</td><td className="px-3 py-3"><div className="flex items-center gap-2 flex-wrap"><span className={`px-2 py-1 rounded-full text-xs font-bold ${orderStatusBadgeClasses(order.status)}`}>{orderStatusLabel(order.status)}</span>{order.status === 'pending' && (<button onClick={() => handleQuickConfirm(order)} className="print:hidden bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-800/50 text-green-700 dark:text-green-300 px-2 py-1 rounded-lg text-xs font-bold transition-all">✅ تأكيد</button>)}</div></td></tr>))}</tbody></table></div>
               )}
             </div>
           </div>)}
@@ -2214,20 +2248,20 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
             <div className="space-y-6">
               <button
                 onClick={() => setTab('dashboard')}
-                className="text-sm font-bold text-blue-700 hover:text-blue-900"
+                className="text-sm font-bold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-200"
               >
                 ← رجوع للوحة المعلومات
               </button>
-              <h2 className="text-2xl font-bold text-gray-800">⚙️ النظام والتكاملات</h2>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">⚙️ النظام والتكاملات</h2>
 
               {/* Facebook Pixel Status */}
-              <div className={`rounded-2xl p-4 border-2 flex items-center gap-3 ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'bg-blue-50 border-blue-300' : 'bg-red-50 border-red-300'}`}>
+              <div className={`rounded-2xl p-4 border-2 flex items-center gap-3 ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700' : 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700'}`}>
                 <span className="text-2xl">{typeof window !== 'undefined' && typeof window.fbq === 'function' ? '✅' : '⚠️'}</span>
                 <div className="flex-1">
-                  <p className={`font-bold text-sm ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'text-blue-700' : 'text-red-700'}`}>
+                  <p className={`font-bold text-sm ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'}`}>
                     {typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'فيسبوك بيكسل مفعّل ✅' : 'فيسبوك بيكسل غير مفعّل ⚠️'}
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     {typeof window !== 'undefined' && typeof window.fbq === 'function'
                       ? 'جميع أحداث الكتالوج تعمل: PageView, ViewContent, AddToCart, InitiateCheckout, Purchase, Search'
                       : 'استبدل YOUR_PIXEL_ID في index.html برقم البيكسل الخاص بك من Facebook Business Manager'}
@@ -2249,22 +2283,22 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
           {/* ORDERS TAB */}
           {tab === 'orders' && (<div className="space-y-4">
-            <h2 className="text-2xl font-bold text-gray-800">📋 إدارة الطلبات</h2>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">📋 إدارة الطلبات</h2>
 
             {/* ── Toolbar: بحث + فلتر حالة + فلتر تاريخ + إعادة تعيين ── */}
-            <div className="bg-white rounded-2xl shadow-md p-4 space-y-3">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-4 space-y-3">
               <div className="flex flex-wrap gap-3">
                 <input
                   type="text"
                   value={orderSearchQuery}
                   onChange={e => setOrderSearchQuery(e.target.value)}
                   placeholder="🔍 البحث بالاسم، الهاتف أو رقم الطلب..."
-                  className="flex-1 min-w-[220px] border-2 border-gray-200 rounded-xl px-4 py-2 text-sm focus:border-[#183C6B] outline-none"
+                  className="flex-1 min-w-[220px] border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2 text-sm focus:border-[#183C6B] outline-none"
                 />
                 <select
                   value={orderStatusFilter}
                   onChange={e => setOrderStatusFilter(e.target.value as typeof orderStatusFilter)}
-                  className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:border-[#183C6B] outline-none"
+                  className="border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-3 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 focus:border-[#183C6B] outline-none"
                 >
                   <option value="all">جميع الحالات</option>
                   <option value="pending">🟡 معلق</option>
@@ -2275,7 +2309,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                 <select
                   value={orderDateFilter}
                   onChange={e => setOrderDateFilter(e.target.value as OrderDateFilter)}
-                  className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:border-[#183C6B] outline-none"
+                  className="border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-3 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 focus:border-[#183C6B] outline-none"
                 >
                   <option value="all">كل التواريخ</option>
                   <option value="today">اليوم</option>
@@ -2286,21 +2320,21 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                   <option value="thisMonth">هذا الشهر</option>
                   <option value="custom">تاريخ مخصص</option>
                 </select>
-                <button onClick={resetOrderFilters} className="border-2 border-gray-200 text-gray-600 hover:bg-gray-50 px-4 py-2 rounded-xl text-sm font-bold transition-all">↺ إعادة تعيين</button>
+                <button onClick={resetOrderFilters} className="border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60 px-4 py-2 rounded-xl text-sm font-bold transition-all">↺ إعادة تعيين</button>
               </div>
               {orderDateFilter === 'custom' && (
                 <div className="flex flex-wrap items-center gap-3">
-                  <label className="text-xs font-bold text-gray-500">من تاريخ<input type="date" value={orderDateFrom} onChange={e => setOrderDateFrom(e.target.value)} className="block mt-1 border-2 border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:border-[#183C6B] outline-none" /></label>
-                  <label className="text-xs font-bold text-gray-500">إلى تاريخ<input type="date" value={orderDateTo} onChange={e => setOrderDateTo(e.target.value)} className="block mt-1 border-2 border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:border-[#183C6B] outline-none" /></label>
+                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400">من تاريخ<input type="date" value={orderDateFrom} onChange={e => setOrderDateFrom(e.target.value)} className="block mt-1 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-3 py-1.5 text-sm focus:border-[#183C6B] outline-none" /></label>
+                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400">إلى تاريخ<input type="date" value={orderDateTo} onChange={e => setOrderDateTo(e.target.value)} className="block mt-1 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-3 py-1.5 text-sm focus:border-[#183C6B] outline-none" /></label>
                 </div>
               )}
-              <p className="text-xs text-gray-500 font-bold">{filteredOrders.length.toLocaleString()} طلبًا{(orderStatusFilter !== 'all' || orderDateFilter !== 'all' || orderSearchQuery.trim()) ? ' (من أصل ' + visibleOrders.length.toLocaleString() + ')' : ''}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">{filteredOrders.length.toLocaleString()} طلبًا{(orderStatusFilter !== 'all' || orderDateFilter !== 'all' || orderSearchQuery.trim()) ? ' (من أصل ' + visibleOrders.length.toLocaleString() + ')' : ''}</p>
             </div>
 
             {visibleOrders.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-md p-12 text-center"><p className="text-6xl mb-4">📭</p><p className="text-gray-400 text-lg">لا توجد طلبات بعد</p></div>
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center"><p className="text-6xl mb-4">📭</p><p className="text-gray-400 dark:text-gray-500 text-lg">لا توجد طلبات بعد</p></div>
             ) : filteredOrders.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-md p-12 text-center"><p className="text-6xl mb-4">🔍</p><p className="text-gray-400 text-lg">لا توجد طلبات مطابقة للفلاتر الحالية</p></div>
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center"><p className="text-6xl mb-4">🔍</p><p className="text-gray-400 dark:text-gray-500 text-lg">لا توجد طلبات مطابقة للفلاتر الحالية</p></div>
             ) : filteredOrders.map(order => (
               <OrderCard
                 key={order.id}
@@ -2320,14 +2354,14 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
           {/* ARCHIVE TAB */}
           {tab === 'archive' && (<div className="space-y-4">
-            <h2 className="text-2xl font-bold text-gray-800">🗄️ أرشيف الطلبات</h2>
-            <p className="text-gray-500 text-sm">الطلبات هنا محفوظة بالكامل ولا تظهر في "آخر الطلبات" أو "إدارة الطلبات". يمكن استرجاعها في أي وقت.</p>
-            {archivedOrders.length === 0 ? <div className="bg-white rounded-2xl shadow-md p-12 text-center"><p className="text-6xl mb-4">🗄️</p><p className="text-gray-400 text-lg">لا توجد طلبات مؤرشفة</p></div> : archivedOrders.map(order => (
-              <div key={order.id} className="bg-white rounded-2xl shadow-md p-5 opacity-90">
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-[#102A52] font-bold">{order.tracking}</span><span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">🗄️ مؤرشف</span></div><p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 text-sm">📍 {order.wilaya}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p><p className="text-gray-400 text-xs">{order.date}</p></div></div>
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">🗄️ أرشيف الطلبات</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">الطلبات هنا محفوظة بالكامل ولا تظهر في "آخر الطلبات" أو "إدارة الطلبات". يمكن استرجاعها في أي وقت.</p>
+            {archivedOrders.length === 0 ? <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center"><p className="text-6xl mb-4">🗄️</p><p className="text-gray-400 dark:text-gray-500 text-lg">لا توجد طلبات مؤرشفة</p></div> : archivedOrders.map(order => (
+              <div key={order.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-5 opacity-90">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-[#102A52] dark:text-blue-300 font-bold">{order.tracking}</span><span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full font-bold">🗄️ مؤرشف</span></div><p className="text-gray-600 dark:text-gray-300 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 dark:text-gray-300 text-sm">📍 {order.wilaya}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700 dark:text-blue-300">{order.total.toLocaleString()} دج</p><p className="text-gray-400 dark:text-gray-500 text-xs">{order.date}</p></div></div>
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
                   <button onClick={() => handleRestoreOrder(order)} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">↩️ استرجاع من الأرشيف</button>
-                  <button onClick={() => setOrderDeleteConfirm(order)} className="text-xs text-red-400 hover:text-red-600 transition-all mr-auto">🗑️ حذف نهائي</button>
+                  <button onClick={() => setOrderDeleteConfirm(order)} className="text-xs text-red-400 hover:text-red-600 dark:hover:text-red-400 transition-all mr-auto">🗑️ حذف نهائي</button>
                 </div>
               </div>
             ))}
@@ -2335,12 +2369,12 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
           {/* PRODUCTS TAB */}
           {tab === 'products' && (<div className="space-y-6">
-            <div className="flex items-center justify-between"><h2 className="text-2xl font-bold text-gray-800">📦 إدارة المنتجات</h2><button onClick={openAddProduct} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md">➕ إضافة منتج</button></div>
+            <div className="flex items-center justify-between"><h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">📦 إدارة المنتجات</h2><button onClick={openAddProduct} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md">➕ إضافة منتج</button></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map(product => (
-                <div key={product.id} className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-all">
+                <div key={product.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all">
                   <div className="relative h-40"><img src={safeImage(product.images)} alt={product.name} className="w-full h-full object-cover" />{product.badge && <span className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold">{product.badge}</span>}<span className="absolute top-2 left-2 bg-[#102A52] text-white text-xs px-2 py-1 rounded-full font-bold">{product.category}</span></div>
-                  <div className="p-4"><h3 className="font-bold text-gray-800 mb-1 text-sm">{product.name}</h3><div className="flex items-center justify-between mb-3"><span className="text-[#102A52] font-bold">{product.price.toLocaleString()} دج</span><span className="text-gray-400 text-xs">مخزون: {product.stock}</span></div><div className="flex gap-2"><button onClick={() => openEditProduct(product)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-[#102A52] py-2 rounded-lg font-bold text-sm transition-all">✏️ تعديل</button><button onClick={() => setDeleteConfirm(product.id)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 py-2 rounded-lg font-bold text-sm transition-all">🗑️ حذف</button></div></div>
+                  <div className="p-4"><h3 className="font-bold text-gray-800 dark:text-gray-50 mb-1 text-sm">{product.name}</h3><div className="flex items-center justify-between mb-3"><span className="text-[#102A52] dark:text-blue-300 font-bold">{product.price.toLocaleString()} دج</span><span className="text-gray-400 dark:text-gray-500 text-xs">مخزون: {product.stock}</span></div><div className="flex gap-2"><button onClick={() => openEditProduct(product)} className="flex-1 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-[#102A52] dark:text-blue-300 py-2 rounded-lg font-bold text-sm transition-all">✏️ تعديل</button><button onClick={() => setDeleteConfirm(product.id)} className="flex-1 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-300 py-2 rounded-lg font-bold text-sm transition-all">🗑️ حذف</button></div></div>
                 </div>
               ))}
             </div>
@@ -2352,9 +2386,9 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
           {tab === 'landing' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-2xl font-bold text-gray-800">🚀 صفحات الهبوط</h2>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">🚀 صفحات الهبوط</h2>
                 <div className="flex items-center gap-2">
-                  <button onClick={fetchLandingPages} disabled={lpLoading} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-bold text-sm transition-all">
+                  <button onClick={fetchLandingPages} disabled={lpLoading} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-2.5 rounded-xl font-bold text-sm transition-all">
                     {lpLoading ? '⏳' : '🔄'}
                   </button>
                   <button onClick={openAddLp} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md">
@@ -2365,33 +2399,33 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
               {/* Error Banner */}
               {lpError && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 flex items-start gap-3">
+                <div className="bg-red-50 dark:bg-red-950/40 border-2 border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-start gap-3">
                   <span className="text-xl">❌</span>
                   <div className="flex-1">
-                    <p className="font-bold text-red-700 text-sm">فشل تحميل صفحات الهبوط</p>
-                    <p className="text-red-600 text-xs mt-1">{lpError}</p>
-                    <p className="text-red-500 text-xs mt-2">
-                      💡 تأكد من: إنشاء جدول <code className="bg-red-100 px-1 rounded">landing_pages</code> في Supabase + نشر المشروع على Vercel + إضافة env vars
+                    <p className="font-bold text-red-700 dark:text-red-300 text-sm">فشل تحميل صفحات الهبوط</p>
+                    <p className="text-red-600 dark:text-red-400 text-xs mt-1">{lpError}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs mt-2">
+                      💡 تأكد من: إنشاء جدول <code className="bg-red-100 dark:bg-red-900/40 px-1 rounded">landing_pages</code> في Supabase + نشر المشروع على Vercel + إضافة env vars
                     </p>
                   </div>
-                  <button onClick={fetchLandingPages} className="bg-red-200 hover:bg-red-300 text-red-800 px-3 py-1 rounded-lg text-xs font-bold">إعادة المحاولة</button>
+                  <button onClick={fetchLandingPages} className="bg-red-200 dark:bg-red-900/50 hover:bg-red-300 dark:hover:bg-red-800/50 text-red-800 dark:text-red-300 px-3 py-1 rounded-lg text-xs font-bold">إعادة المحاولة</button>
                 </div>
               )}
 
               {/* Loading */}
               {lpLoading && !lpError && (
-                <div className="bg-white rounded-2xl shadow-md p-12 text-center">
-                  <div className="w-10 h-10 border-4 border-blue-200 border-t-[#102A52] rounded-full animate-spin mx-auto mb-3" />
-                  <p className="text-gray-500 font-bold">جاري تحميل صفحات الهبوط...</p>
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center">
+                  <div className="w-10 h-10 border-4 border-blue-200 dark:border-blue-800 border-t-[#102A52] rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400 font-bold">جاري تحميل صفحات الهبوط...</p>
                 </div>
               )}
 
               {/* Empty State */}
               {!lpLoading && !lpError && landingPages.length === 0 && (
-                <div className="bg-white rounded-2xl shadow-md p-12 text-center">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center">
                   <p className="text-6xl mb-4">🚀</p>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">لا توجد صفحات هبوط بعد</h3>
-                  <p className="text-gray-500 mb-6 text-sm">أنشئ صفحة هبوط مخصصة لكل منتج لاستخدامها في حملاتك الإعلانية على فيسبوك</p>
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-50 mb-2">لا توجد صفحات هبوط بعد</h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">أنشئ صفحة هبوط مخصصة لكل منتج لاستخدامها في حملاتك الإعلانية على فيسبوك</p>
                   <button onClick={openAddLp} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md">
                     ➕ إنشاء أول صفحة هبوط
                   </button>
@@ -2404,7 +2438,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                   {landingPages.map(lp => {
                     const linkedProduct = products.find(p => p.id === lp.product_id);
                     return (
-                      <div key={lp.id} className={`bg-white rounded-2xl shadow-md overflow-hidden transition-all hover:shadow-lg ${!lp.is_active ? 'opacity-60' : ''}`}>
+                      <div key={lp.id} className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden transition-all hover:shadow-lg ${!lp.is_active ? 'opacity-60' : ''}`}>
                         <div className="flex flex-col sm:flex-row">
                           {/* Image Preview */}
                           {lp.image_url && (
@@ -2417,20 +2451,20 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                             <div className="flex items-start justify-between gap-3 mb-2">
                               <div>
                                 <div className="flex items-center gap-2 flex-wrap mb-1">
-                                  <h3 className="font-bold text-gray-800">{lp.title}</h3>
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${lp.is_active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                                  <h3 className="font-bold text-gray-800 dark:text-gray-50">{lp.title}</h3>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${lp.is_active ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                                     {lp.is_active ? '✅ نشط' : '⏸️ معطّل'}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500">
-                                  <span className="bg-blue-100 text-[#102A52] px-2 py-0.5 rounded font-mono font-bold">/l/{lp.slug}</span>
+                                <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500 dark:text-gray-400">
+                                  <span className="bg-blue-100 dark:bg-blue-900/40 text-[#102A52] dark:text-blue-300 px-2 py-0.5 rounded font-mono font-bold">/l/{lp.slug}</span>
                                   {linkedProduct && (
-                                    <span className="bg-blue-50 text-[#102A52] px-2 py-0.5 rounded font-bold">
+                                    <span className="bg-blue-50 dark:bg-blue-950/40 text-[#102A52] dark:text-blue-300 px-2 py-0.5 rounded font-bold">
                                       📦 {linkedProduct.name}
                                     </span>
                                   )}
                                   {!linkedProduct && lp.product_id && (
-                                    <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded font-bold">
+                                    <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded font-bold">
                                       ⚠️ منتج #{lp.product_id} غير موجود
                                     </span>
                                   )}
@@ -2438,31 +2472,31 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                               </div>
                             </div>
 
-                            {lp.headline && <p className="text-gray-600 text-sm mb-2 line-clamp-1">{lp.headline}</p>}
+                            {lp.headline && <p className="text-gray-600 dark:text-gray-300 text-sm mb-2 line-clamp-1">{lp.headline}</p>}
                             {lp.cta_text && (
-                              <span className="inline-block bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded font-bold mb-2">
+                              <span className="inline-block bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs px-2 py-0.5 rounded font-bold mb-2">
                                 CTA: {lp.cta_text}
                               </span>
                             )}
 
                             {/* Actions */}
                             <div className="flex flex-wrap gap-2 mt-2">
-                              <button onClick={() => handleToggleLpActive(lp)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${lp.is_active ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-blue-50 hover:bg-blue-100 text-blue-700'}`}>
+                              <button onClick={() => handleToggleLpActive(lp)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${lp.is_active ? 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300'}`}>
                                 {lp.is_active ? '⏸️ تعطيل' : '▶️ تفعيل'}
                               </button>
-                              <button onClick={() => openEditLp(lp)} className="bg-blue-50 hover:bg-blue-100 text-[#102A52] px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
+                              <button onClick={() => openEditLp(lp)} className="bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-[#102A52] dark:text-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
                                 ✏️ تعديل
                               </button>
-                              <a href={`/l/${lp.slug}`} target="_blank" rel="noopener noreferrer" className="bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1">
+                              <a href={`/l/${lp.slug}`} target="_blank" rel="noopener noreferrer" className="bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1">
                                 👁️ معاينة
                               </a>
                               <button onClick={() => {
                                 const url = `${window.location.origin}/l/${lp.slug}`;
                                 navigator.clipboard.writeText(url).then(() => showToast('✅ تم نسخ رابط الصفحة'));
-                              }} className="bg-gray-50 hover:bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
+                              }} className="bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
                                 🔗 نسخ الرابط
                               </button>
-                              <button onClick={() => setLpDelConfirm(lp.id!)} className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-auto">
+                              <button onClick={() => setLpDelConfirm(lp.id!)} className="bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-auto">
                                 🗑️ حذف
                               </button>
                             </div>
@@ -2476,11 +2510,11 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
               {/* How to use */}
               {!lpLoading && landingPages.length > 0 && (
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
+                <div className="bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-200 dark:border-blue-800 rounded-2xl p-4">
                   <h4 className="font-bold text-[#0B1833] text-sm mb-2">📋 كيف تستخدم صفحات الهبوط في حملاتك:</h4>
-                  <ul className="text-[#102A52] text-xs space-y-1">
+                  <ul className="text-[#102A52] dark:text-blue-300 text-xs space-y-1">
                     <li>1. أنشئ صفحة هبوط وربطها بمنتج</li>
-                    <li>2. انسخ الرابط (مثل: <code className="bg-blue-100 px-1 rounded">/l/your-slug</code>)</li>
+                    <li>2. انسخ الرابط (مثل: <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">/l/your-slug</code>)</li>
                     <li>3. استخدم الرابط كـ <strong>Destination URL</strong> في إعلان فيسبوك</li>
                     <li>4. البيكسل يتتبع ViewContent تلقائياً عند زيارة الصفحة</li>
                   </ul>
@@ -2492,19 +2526,19 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
       </div>
 
       {/* Delete Confirm */}
-      {deleteConfirm !== null && (<div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4"><div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center"><p className="text-5xl mb-4">🗑️</p><h3 className="text-xl font-bold text-gray-800 mb-2">تأكيد الحذف</h3><p className="text-gray-500 mb-6">هل أنت متأكد من حذف هذا المنتج؟</p><div className="flex gap-3"><button onClick={() => { setProducts(prev => prev.filter(p => p.id !== deleteConfirm)); db.deleteProduct(deleteConfirm); setDeleteConfirm(null); showToast('تم حذف المنتج'); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-all">نعم، احذف</button><button onClick={() => setDeleteConfirm(null)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button></div></div></div>)}
+      {deleteConfirm !== null && (<div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4"><div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl p-8 max-w-sm w-full text-center"><p className="text-5xl mb-4">🗑️</p><h3 className="text-xl font-bold text-gray-800 dark:text-gray-50 mb-2">تأكيد الحذف</h3><p className="text-gray-500 dark:text-gray-400 mb-6">هل أنت متأكد من حذف هذا المنتج؟</p><div className="flex gap-3"><button onClick={() => { setProducts(prev => prev.filter(p => p.id !== deleteConfirm)); db.deleteProduct(deleteConfirm); setDeleteConfirm(null); showToast('تم حذف المنتج'); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-all">نعم، احذف</button><button onClick={() => setDeleteConfirm(null)} className="flex-1 border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all">إلغاء</button></div></div></div>)}
 
       {/* Resend-to-delivery Confirm — عملية حساسة قد تُنشئ شحنة مكررة، تحتاج تأكيدًا صريحًا دائمًا */}
       {resendConfirmOrder !== null && (
         <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
             <p className="text-5xl mb-4">🔄</p>
-            <h3 className="text-xl font-bold text-gray-800 mb-3">هل أنت متأكد أنك تريد إعادة إرسال هذا الطلب إلى شركة التوصيل؟</h3>
-            <p className="text-gray-500 text-sm mb-2">استخدم هذه العملية فقط إذا تم حذف الشحنة السابقة من NOEST أو إذا كنت متأكدًا أنها لم تعد موجودة.</p>
-            <p className="text-red-600 text-sm font-bold mb-6">قد يؤدي الإرسال المكرر إلى إنشاء شحنتين لنفس العميل.</p>
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-50 mb-3">هل أنت متأكد أنك تريد إعادة إرسال هذا الطلب إلى شركة التوصيل؟</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">استخدم هذه العملية فقط إذا تم حذف الشحنة السابقة من NOEST أو إذا كنت متأكدًا أنها لم تعد موجودة.</p>
+            <p className="text-red-600 dark:text-red-400 text-sm font-bold mb-6">قد يؤدي الإرسال المكرر إلى إنشاء شحنتين لنفس العميل.</p>
             <div className="flex gap-3">
               <button onClick={() => handleResendToDelivery(resendConfirmOrder)} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold transition-all">نعم، إعادة الإرسال</button>
-              <button onClick={() => setResendConfirmOrder(null)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button>
+              <button onClick={() => setResendConfirmOrder(null)} className="flex-1 border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all">إلغاء</button>
             </div>
           </div>
         </div>
@@ -2513,12 +2547,12 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
       {/* Order Delete Confirm — إجراء نهائي لا رجعة فيه، يحتاج تأكيدًا صريحًا دائمًا */}
       {orderDeleteConfirm !== null && (
         <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
             <p className="text-5xl mb-4">🗑️</p>
-            <h3 className="text-xl font-bold text-gray-800 mb-3">هل أنت متأكد من حذف هذا الطلب؟</h3>
-            <p className="text-gray-500 mb-2">لا يمكن التراجع عن هذه العملية.</p>
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-50 mb-3">هل أنت متأكد من حذف هذا الطلب؟</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-2">لا يمكن التراجع عن هذه العملية.</p>
             {orderDeleteConfirm.noestId && (
-              <p className="text-amber-600 text-sm font-bold mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <p className="text-amber-600 dark:text-amber-400 text-sm font-bold mb-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
                 ⚠️ هذا الطلب لديه شحنة مسجّلة لدى شركة التوصيل (NOEST). حذفه من المعراج لن يحذف الشحنة من NOEST تلقائياً.
               </p>
             )}
@@ -2529,7 +2563,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               >
                 حذف الطلب
               </button>
-              <button onClick={() => setOrderDeleteConfirm(null)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button>
+              <button onClick={() => setOrderDeleteConfirm(null)} className="flex-1 border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all">إلغاء</button>
             </div>
           </div>
         </div>
@@ -2538,22 +2572,22 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
       {/* Product Form Modal */}
       {showProductForm && (
         <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="bg-[#102A52] text-white px-6 py-4 flex justify-between items-center"><h3 className="text-lg font-bold">{editingProduct ? '✏️ تعديل المنتج' : '➕ إضافة منتج جديد'}</h3><button onClick={() => setShowProductForm(false)} className="text-white hover:text-gray-200 text-xl">✕</button></div>
             <div className="p-6 space-y-4">
-              <div><label className="block text-sm font-bold text-gray-700 mb-2">📸 صور المنتج (حتى 6 صور) {isSupabaseConfigured() ? <span className="text-[#183C6B] text-xs font-normal">🔒 رفع آمن عبر الخادم</span> : <span className="text-amber-500 text-xs font-normal">💾 محلي فقط</span>}</label><div className="grid grid-cols-3 gap-3 mb-3">{productImages.map((img, i) => (<div key={i} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-blue-200"><img src={img} alt="" className="w-full h-full object-cover" />{i === 0 && <span className="absolute top-1 right-1 bg-[#183C6B] text-white text-xs px-1.5 py-0.5 rounded-full">رئيسية</span>}{isSupabaseUrl(img) && <span className="absolute bottom-1 right-1 bg-[#183C6B] text-white text-xs px-1 py-0.5 rounded-full">☁️</span>}<button onClick={() => handleRemoveImage(i)} className="absolute top-1 left-1 bg-red-500 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-sm">✕</button></div>))}{Object.entries(uploadProgress).map(([key, percent]) => (<div key={key} className="aspect-square rounded-xl border-2 border-blue-300 bg-blue-50 flex flex-col items-center justify-center gap-2"><div className="w-10 h-10 border-4 border-blue-200 border-t-[#183C6B] rounded-full animate-spin" /><span className="text-xs font-bold text-blue-700">{percent}%</span></div>))}{!uploadingImages && productImages.length < 6 && <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-xl border-2 border-dashed border-blue-300 hover:border-[#183C6B] flex flex-col items-center justify-center gap-2 text-[#183C6B] hover:bg-blue-50 transition-all"><span className="text-2xl">{isSupabaseConfigured() ? '🔒' : '+'}</span><span className="text-xs font-bold">{isSupabaseConfigured() ? 'رفع آمن' : 'رفع صورة'}</span></button>}</div><input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} /></div>
+              <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">📸 صور المنتج (حتى 6 صور) {isSupabaseConfigured() ? <span className="text-[#183C6B] text-xs font-normal">🔒 رفع آمن عبر الخادم</span> : <span className="text-amber-500 text-xs font-normal">💾 محلي فقط</span>}</label><div className="grid grid-cols-3 gap-3 mb-3">{productImages.map((img, i) => (<div key={i} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-blue-200 dark:border-blue-800"><img src={img} alt="" className="w-full h-full object-cover" />{i === 0 && <span className="absolute top-1 right-1 bg-[#183C6B] text-white text-xs px-1.5 py-0.5 rounded-full">رئيسية</span>}{isSupabaseUrl(img) && <span className="absolute bottom-1 right-1 bg-[#183C6B] text-white text-xs px-1 py-0.5 rounded-full">☁️</span>}<button onClick={() => handleRemoveImage(i)} className="absolute top-1 left-1 bg-red-500 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-sm">✕</button></div>))}{Object.entries(uploadProgress).map(([key, percent]) => (<div key={key} className="aspect-square rounded-xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 flex flex-col items-center justify-center gap-2"><div className="w-10 h-10 border-4 border-blue-200 dark:border-blue-800 border-t-[#183C6B] rounded-full animate-spin" /><span className="text-xs font-bold text-blue-700 dark:text-blue-300">{percent}%</span></div>))}{!uploadingImages && productImages.length < 6 && <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-xl border-2 border-dashed border-blue-300 dark:border-blue-700 hover:border-[#183C6B] flex flex-col items-center justify-center gap-2 text-[#183C6B] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all"><span className="text-2xl">{isSupabaseConfigured() ? '🔒' : '+'}</span><span className="text-xs font-bold">{isSupabaseConfigured() ? 'رفع آمن' : 'رفع صورة'}</span></button>}</div><input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">اسم المنتج *</label><input type="text" value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="اسم المنتج" /></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">السعر (دج) *</label><input type="number" value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="1500" /></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">المخزون *</label><input type="number" value={productForm.stock} onChange={e => setProductForm(p => ({ ...p, stock: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="50" /></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">الطور الدراسي</label><select value={productForm.category} onChange={e => { const newCat = e.target.value as Product['category']; setProductForm(p => ({ ...p, category: newCat, level: LEVELS_BY_CATEGORY[newCat].some(l => l.value === p.level) ? p.level : '' })); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="تحضيري">تحضيري</option><option value="ابتدائي">ابتدائي</option><option value="متوسط">متوسط</option></select></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">المستوى الدراسي (اختياري)</label><select value={productForm.level} onChange={e => setProductForm(p => ({ ...p, level: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="">بدون تحديد</option>{LEVELS_BY_CATEGORY[productForm.category].map(l => <option key={l.value} value={l.value}>{l.label}</option>)}</select></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">شارة (اختياري)</label><input type="text" value={productForm.badge} onChange={e => setProductForm(p => ({ ...p, badge: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="الأكثر مبيعاً" /></div>
-                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الوصف</label><textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder="وصف المنتج..." /></div>
-                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">الفوائد التعليمية (كل فائدة في سطر)</label><textarea value={productForm.benefits} onChange={e => setProductForm(p => ({ ...p, benefits: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"فائدة 1\nفائدة 2\nفائدة 3"} /></div>
-                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 mb-1">محتويات المنتج (كل عنصر في سطر — تظهر في صفحة المنتج)</label><textarea value={productForm.contents} onChange={e => setProductForm(p => ({ ...p, contents: e.target.value }))} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"مثال: 20 بطاقة تعليمية ملونة\nدليل استخدام\nعلبة تغليف أنيقة"} /></div>
+                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">اسم المنتج *</label><input type="text" value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="اسم المنتج" /></div>
+                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">السعر (دج) *</label><input type="number" value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="1500" /></div>
+                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">المخزون *</label><input type="number" value={productForm.stock} onChange={e => setProductForm(p => ({ ...p, stock: e.target.value }))} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="50" /></div>
+                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">الطور الدراسي</label><select value={productForm.category} onChange={e => { const newCat = e.target.value as Product['category']; setProductForm(p => ({ ...p, category: newCat, level: LEVELS_BY_CATEGORY[newCat].some(l => l.value === p.level) ? p.level : '' })); }} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="تحضيري">تحضيري</option><option value="ابتدائي">ابتدائي</option><option value="متوسط">متوسط</option></select></div>
+                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">المستوى الدراسي (اختياري)</label><select value={productForm.level} onChange={e => setProductForm(p => ({ ...p, level: e.target.value }))} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="">بدون تحديد</option>{LEVELS_BY_CATEGORY[productForm.category].map(l => <option key={l.value} value={l.value}>{l.label}</option>)}</select></div>
+                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">شارة (اختياري)</label><input type="text" value={productForm.badge} onChange={e => setProductForm(p => ({ ...p, badge: e.target.value }))} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none" placeholder="الأكثر مبيعاً" /></div>
+                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">الوصف</label><textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder="وصف المنتج..." /></div>
+                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">الفوائد التعليمية (كل فائدة في سطر)</label><textarea value={productForm.benefits} onChange={e => setProductForm(p => ({ ...p, benefits: e.target.value }))} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"فائدة 1\nفائدة 2\nفائدة 3"} /></div>
+                <div className="col-span-2"><label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">محتويات المنتج (كل عنصر في سطر — تظهر في صفحة المنتج)</label><textarea value={productForm.contents} onChange={e => setProductForm(p => ({ ...p, contents: e.target.value }))} className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={3} placeholder={"مثال: 20 بطاقة تعليمية ملونة\nدليل استخدام\nعلبة تغليف أنيقة"} /></div>
               </div>
-              <div className="flex gap-3 pt-2"><button onClick={handleSaveProduct} disabled={savingProduct} className="flex-1 bg-[#183C6B] hover:bg-[#102A52] disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold transition-all">{savingProduct ? '⏳ جاري الحفظ...' : `💾 ${editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج'}`}</button><button onClick={() => setShowProductForm(false)} disabled={savingProduct} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed">إلغاء</button></div>
+              <div className="flex gap-3 pt-2"><button onClick={handleSaveProduct} disabled={savingProduct} className="flex-1 bg-[#183C6B] hover:bg-[#102A52] disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold transition-all">{savingProduct ? '⏳ جاري الحفظ...' : `💾 ${editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج'}`}</button><button onClick={() => setShowProductForm(false)} disabled={savingProduct} className="flex-1 border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all disabled:opacity-60 disabled:cursor-not-allowed">إلغاء</button></div>
             </div>
           </div>
         </div>
@@ -2564,7 +2598,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
       {/* ═══════════════════════════════════════════ */}
       {showLpForm && (
         <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="bg-[#102A52] text-white px-6 py-4 flex justify-between items-center">
               <h3 className="text-lg font-bold">{editingLp ? '✏️ تعديل صفحة الهبوط' : '➕ إنشاء صفحة هبوط جديدة'}</h3>
               <button onClick={() => setShowLpForm(false)} className="text-white hover:text-gray-200 text-xl">✕</button>
@@ -2572,36 +2606,36 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
             <div className="p-6 space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">عنوان الصفحة *</label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">عنوان الصفحة *</label>
                 <input
                   type="text"
                   value={lpForm.title}
                   onChange={e => handleLpTitleChange(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
+                  className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none"
                   placeholder="مثال: بطاقات الأبجدية — عرض خاص"
                 />
               </div>
 
               {/* Slug */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">
                   Slug (المعرّف في الرابط) *
-                  <span className="text-xs text-gray-400 font-normal mr-2">— /l/{lpForm.slug || '...'}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 font-normal mr-2">— /l/{lpForm.slug || '...'}</span>
                 </label>
                 <input
                   type="text"
                   value={lpForm.slug}
                   onChange={e => setLpForm(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\u0600-\u06FF-]/g, '') }))}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none font-mono text-sm"
+                  className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none font-mono text-sm"
                   placeholder="alphabet-cards"
                   dir="ltr"
                 />
-                <p className="text-xs text-gray-400 mt-1">يتم توليده تلقائياً من العنوان. يمكنك تعديله يدوياً.</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">يتم توليده تلقائياً من العنوان. يمكنك تعديله يدوياً.</p>
               </div>
 
               {/* Product Select */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">المنتج المرتبط</label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">المنتج المرتبط</label>
                 <select
                   value={lpForm.product_id || ''}
                   onChange={e => {
@@ -2617,7 +2651,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                       cta_url: pid ? `/?checkout=1` : prev.cta_url,
                     }));
                   }}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
+                  className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none"
                 >
                   <option value="">— بدون منتج مرتبط —</option>
                   {products.map(p => (
@@ -2630,23 +2664,23 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
               {/* Headline */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">العنوان الرئيسي (Headline)</label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">العنوان الرئيسي (Headline)</label>
                 <input
                   type="text"
                   value={lpForm.headline}
                   onChange={e => setLpForm(prev => ({ ...prev, headline: e.target.value }))}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
+                  className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none"
                   placeholder="علّم الحروف بطريقة تفاعلية وممتعة!"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">الوصف</label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">الوصف</label>
                 <textarea
                   value={lpForm.description}
                   onChange={e => setLpForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
+                  className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none"
                   rows={3}
                   placeholder="وصف جذاب يظهر في صفحة الهبوط..."
                 />
@@ -2654,11 +2688,11 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
 
               {/* Image */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">صورة الغلاف</label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">صورة الغلاف</label>
                 <div className="flex gap-3 items-start">
                   {/* Preview */}
                   {lpForm.image_url && (
-                    <div className="relative w-32 h-20 rounded-xl overflow-hidden border-2 border-blue-200 flex-shrink-0">
+                    <div className="relative w-32 h-20 rounded-xl overflow-hidden border-2 border-blue-200 dark:border-blue-800 flex-shrink-0">
                       <img src={lpForm.image_url} alt="Preview" className="w-full h-full object-cover" />
                       <button onClick={() => setLpForm(prev => ({ ...prev, image_url: '' }))} className="absolute top-1 left-1 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">✕</button>
                     </div>
@@ -2668,14 +2702,14 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                       type="text"
                       value={lpForm.image_url}
                       onChange={e => setLpForm(prev => ({ ...prev, image_url: e.target.value }))}
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:border-[#183C6B] outline-none text-sm"
+                      className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2 focus:border-[#183C6B] outline-none text-sm"
                       placeholder="رابط الصورة (URL) أو ارفع من جهازك"
                       dir="ltr"
                     />
                     <button
                       onClick={() => lpFileInputRef.current?.click()}
                       disabled={lpImageUploading}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${lpImageUploading ? 'bg-gray-300 text-gray-500' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}`}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${lpImageUploading ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400' : 'bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-800/50 text-blue-700 dark:text-blue-300'}`}
                     >
                       {lpImageUploading ? '⏳ جاري الرفع...' : '📤 رفع صورة'}
                     </button>
@@ -2687,22 +2721,22 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               {/* CTA Text + URL */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">نص الزر (CTA)</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">نص الزر (CTA)</label>
                   <input
                     type="text"
                     value={lpForm.cta_text}
                     onChange={e => setLpForm(prev => ({ ...prev, cta_text: e.target.value }))}
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"
+                    className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none"
                     placeholder="اشتري الآن"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">رابط الزر (اختياري)</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">رابط الزر (اختياري)</label>
                   <input
                     type="text"
                     value={lpForm.cta_url}
                     onChange={e => setLpForm(prev => ({ ...prev, cta_url: e.target.value }))}
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none text-sm"
+                    className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 focus:border-[#183C6B] outline-none text-sm"
                     placeholder="افتراضي: رابط Checkout المنتج"
                     dir="ltr"
                   />
@@ -2710,24 +2744,24 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               </div>
 
               {/* Active Toggle */}
-              <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-4">
+              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4">
                 <button
                   onClick={() => setLpForm(prev => ({ ...prev, is_active: !prev.is_active }))}
-                  className={`w-12 h-7 rounded-full transition-all relative ${lpForm.is_active ? 'bg-[#183C6B]' : 'bg-gray-300'}`}
+                  className={`w-12 h-7 rounded-full transition-all relative ${lpForm.is_active ? 'bg-[#183C6B]' : 'bg-gray-300 dark:bg-gray-600'}`}
                 >
                   <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all ${lpForm.is_active ? 'left-0.5' : 'right-0.5'}`} />
                 </button>
                 <div>
-                  <p className="font-bold text-sm text-gray-700">{lpForm.is_active ? '✅ الصفحة نشطة' : '⏸️ الصفحة معطّلة'}</p>
-                  <p className="text-xs text-gray-500">{lpForm.is_active ? 'الصفحة مرئية للزوار' : 'الصفحة مخفية عن الزوار'}</p>
+                  <p className="font-bold text-sm text-gray-700 dark:text-gray-200">{lpForm.is_active ? '✅ الصفحة نشطة' : '⏸️ الصفحة معطّلة'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{lpForm.is_active ? 'الصفحة مرئية للزوار' : 'الصفحة مخفية عن الزوار'}</p>
                 </div>
               </div>
 
               {/* Preview URL */}
               {lpForm.slug && (
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 flex items-center gap-2">
-                  <span className="text-[#102A52] font-bold text-sm">🔗 الرابط:</span>
-                  <code className="text-[#0B1833] text-xs font-mono bg-blue-100 px-2 py-1 rounded flex-1" dir="ltr">
+                <div className="bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-3 flex items-center gap-2">
+                  <span className="text-[#102A52] dark:text-blue-300 font-bold text-sm">🔗 الرابط:</span>
+                  <code className="text-[#0B1833] text-xs font-mono bg-blue-100 dark:bg-blue-900/40 px-2 py-1 rounded flex-1" dir="ltr">
                     {window.location.origin}/l/{lpForm.slug}
                   </code>
                 </div>
@@ -2738,13 +2772,13 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                 <button
                   onClick={handleSaveLp}
                   disabled={lpSaving}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-all text-white ${lpSaving ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#183C6B] hover:bg-blue-700'}`}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-all text-white ${lpSaving ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-[#183C6B] hover:bg-blue-700'}`}
                 >
                   {lpSaving ? '⏳ جاري الحفظ...' : `💾 ${editingLp ? 'حفظ التعديلات' : 'إنشاء الصفحة'}`}
                 </button>
                 <button
                   onClick={() => setShowLpForm(false)}
-                  className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                  className="flex-1 border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all"
                 >
                   إلغاء
                 </button>
@@ -2757,13 +2791,13 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
       {/* LANDING PAGE DELETE CONFIRM */}
       {lpDelConfirm !== null && (
         <div className="fixed inset-0 bg-black/60 z-[9100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
             <p className="text-5xl mb-4">🗑️</p>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">حذف صفحة الهبوط</h3>
-            <p className="text-gray-500 mb-6">هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.</p>
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-50 mb-2">حذف صفحة الهبوط</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.</p>
             <div className="flex gap-3">
               <button onClick={() => handleDeleteLp(lpDelConfirm)} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-all">نعم، احذف</button>
-              <button onClick={() => setLpDelConfirm(null)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button>
+              <button onClick={() => setLpDelConfirm(null)} className="flex-1 border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all">إلغاء</button>
             </div>
           </div>
         </div>
@@ -2811,38 +2845,38 @@ function OrderCard({
 
   const reminderBadge = (() => {
     if (!order.reminderDate) return null;
-    if (order.reminderDate === todayKey) return <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-bold">🔔 اليوم</span>;
-    if (order.reminderDate < todayKey) return <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-bold">⚠️ متأخر</span>;
-    return <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">📅 {order.reminderDate}</span>;
+    if (order.reminderDate === todayKey) return <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs px-2 py-0.5 rounded-full font-bold">🔔 اليوم</span>;
+    if (order.reminderDate < todayKey) return <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-xs px-2 py-0.5 rounded-full font-bold">⚠️ متأخر</span>;
+    return <span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full font-bold">📅 {order.reminderDate}</span>;
   })();
 
   const canSend = normalizeOrderStatus(order.status) === 'confirmed' && !order.noestId;
   const canResend = !!order.noestId && normalizeOrderStatus(order.status) === 'confirmed';
 
   return (
-    <div className="bg-white rounded-2xl shadow-md p-5">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-5">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-mono text-[#102A52] font-bold">{order.tracking}</span>
+            <span className="font-mono text-[#102A52] dark:text-blue-300 font-bold">{order.tracking}</span>
             {order.noestId ? (
-              <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold">✅ أرسل إلى NOEST</span>
+              <span className="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-xs px-2 py-0.5 rounded-full font-bold">✅ أرسل إلى NOEST</span>
             ) : (
-              <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">🚚 لم يرسل</span>
+              <span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full font-bold">🚚 لم يرسل</span>
             )}
             {reminderBadge}
           </div>
-          <p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p>
-          <p className="text-gray-600 text-sm">📍 {order.wilaya} - {order.address}</p>
-          <p className="text-gray-600 text-sm">🚚 {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${order.selectedOffice || ''}`}</p>
+          <p className="text-gray-600 dark:text-gray-300 text-sm">👤 {order.customer} | 📞 {order.phone}</p>
+          <p className="text-gray-600 dark:text-gray-300 text-sm">📍 {order.wilaya} - {order.address}</p>
+          <p className="text-gray-600 dark:text-gray-300 text-sm">🚚 {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${order.selectedOffice || ''}`}</p>
         </div>
         <div className="text-left">
-          <p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p>
-          <p className="text-gray-400 text-xs">{order.date}</p>
+          <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{order.total.toLocaleString()} دج</p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs">{order.date}</p>
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-3 mb-3">
+      <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3 mb-3">
         {order.items.map(item => (
           <div key={item.id} className="flex justify-between text-sm">
             <span>{item.name} × {item.quantity}</span>
@@ -2856,7 +2890,7 @@ function OrderCard({
           <button
             key={status}
             onClick={() => onStatusChange(status)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${normalizeOrderStatus(order.status) === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${normalizeOrderStatus(order.status) === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300'}`}
           >
             {status === 'pending' ? '🟡 معلق' : status === 'confirmed' ? '🔵 مؤكد' : status === 'waiting_customer' ? '🟣 في انتظار العميل' : '🔴 ملغي'}
           </button>
@@ -2864,20 +2898,20 @@ function OrderCard({
       </div>
 
       {/* ── ملاحظة داخلية — إدارية فقط، تُبرَز بوضوح عند "بانتظار العميل" ── */}
-      <div className={`rounded-xl p-3 mb-3 border-2 ${isWaiting ? 'border-violet-300 bg-violet-50' : 'border-gray-100 bg-gray-50'}`}>
-        <label className={`block text-xs font-bold mb-1.5 ${isWaiting ? 'text-violet-700' : 'text-gray-500'}`}>📝 ملاحظة داخلية (للإدارة فقط){isWaiting && ' — بانتظار العميل'}</label>
+      <div className={`rounded-xl p-3 mb-3 border-2 ${isWaiting ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/40' : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60'}`}>
+        <label className={`block text-xs font-bold mb-1.5 ${isWaiting ? 'text-violet-700 dark:text-violet-300' : 'text-gray-500 dark:text-gray-400'}`}>📝 ملاحظة داخلية (للإدارة فقط){isWaiting && ' — بانتظار العميل'}</label>
         <textarea
           value={noteDraft}
           onChange={e => setNoteDraft(e.target.value)}
           rows={isWaiting ? 3 : 2}
           placeholder="مثال: الزبونة تريد إضافة Flash Cards أخرى. لا يتم إرسال الطلب حتى تتواصل معنا."
-          className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#183C6B] outline-none resize-y"
+          className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:border-[#183C6B] outline-none resize-y"
         />
         <div className="flex items-center gap-2 mt-2">
           <button
             disabled={!noteChanged || savingNote}
             onClick={async () => { setSavingNote(true); await onUpdateNote(noteDraft); setSavingNote(false); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${noteChanged ? 'bg-[#183C6B] text-white hover:bg-[#102A52]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${noteChanged ? 'bg-[#183C6B] text-white hover:bg-[#102A52]' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}
           >
             {savingNote ? '⏳ جارٍ الحفظ...' : '💾 حفظ الملاحظة'}
           </button>
@@ -2885,7 +2919,7 @@ function OrderCard({
             <button
               disabled={savingNote}
               onClick={async () => { setNoteDraft(''); setSavingNote(true); await onUpdateNote(''); setSavingNote(false); }}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 transition-all"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
             >
               🗑️ مسح
             </button>
@@ -2894,18 +2928,18 @@ function OrderCard({
       </div>
 
       {/* ── تذكير المتابعة (اختياري) ── */}
-      <div className="flex flex-wrap items-center gap-2 mb-3 bg-gray-50 rounded-xl p-3">
-        <label className="text-xs font-bold text-gray-500">🔔 تذكير</label>
+      <div className="flex flex-wrap items-center gap-2 mb-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3">
+        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">🔔 تذكير</label>
         <input
           type="date"
           value={reminderDraft}
           onChange={e => setReminderDraft(e.target.value)}
-          className="border-2 border-gray-200 rounded-lg px-2 py-1 text-sm focus:border-[#183C6B] outline-none"
+          className="border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 px-2 py-1 text-sm focus:border-[#183C6B] outline-none"
         />
         <button
           disabled={!reminderChanged || savingReminder || !reminderDraft}
           onClick={async () => { setSavingReminder(true); await onUpdateReminder(reminderDraft); setSavingReminder(false); }}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${reminderChanged && reminderDraft ? 'bg-[#183C6B] text-white hover:bg-[#102A52]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${reminderChanged && reminderDraft ? 'bg-[#183C6B] text-white hover:bg-[#102A52]' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}
         >
           💾 حفظ
         </button>
@@ -2913,7 +2947,7 @@ function OrderCard({
           <button
             disabled={savingReminder}
             onClick={async () => { setReminderDraft(''); setSavingReminder(true); await onUpdateReminder(null); setSavingReminder(false); }}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 transition-all"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
           >
             🗑️ مسح
           </button>
@@ -2922,22 +2956,24 @@ function OrderCard({
 
       {/* ── معلومات الإرسال لشركة التوصيل ── */}
       {(order.sentToDeliveryAt || (order.deliverySendCount ?? 0) > 0) && (
-        <div className="text-xs text-gray-500 bg-blue-50 rounded-xl p-3 mb-3 space-y-1">
-          {order.sentToDeliveryAt && <div>🚚 أرسل أول مرة: <span className="font-bold text-gray-700">{formatAlgiersDateTime(order.sentToDeliveryAt)}</span></div>}
-          {order.deliveryLastSentAt && order.deliveryLastSentAt !== order.sentToDeliveryAt && <div>🔄 آخر إعادة إرسال: <span className="font-bold text-gray-700">{formatAlgiersDateTime(order.deliveryLastSentAt)}</span></div>}
-          <div>عدد مرات الإرسال: <span className="font-bold text-gray-700">{order.deliverySendCount || 1}</span></div>
-          {order.noestId && <div>رقم تتبع NOEST: <span className="font-mono font-bold text-gray-700">{order.noestId}</span></div>}
+        <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700 rounded-xl p-3 mb-3 space-y-1">
+          <p className="font-bold text-gray-600 dark:text-gray-300 mb-1">🚚 معلومات التوصيل</p>
+          <div>حالة الإرسال: <span className="font-bold text-gray-700 dark:text-gray-200">تم الإرسال إلى NOEST</span></div>
+          {order.sentToDeliveryAt && <div>أول إرسال: <span className="font-bold text-gray-700 dark:text-gray-200">{formatAlgiersDateTime(order.sentToDeliveryAt)}</span></div>}
+          {order.deliveryLastSentAt && order.deliveryLastSentAt !== order.sentToDeliveryAt && <div>آخر إرسال: <span className="font-bold text-gray-700 dark:text-gray-200">{formatAlgiersDateTime(order.deliveryLastSentAt)}</span></div>}
+          <div>عدد مرات الإرسال: <span className="font-bold text-gray-700 dark:text-gray-200">{order.deliverySendCount || 1}</span></div>
+          {order.noestId && <div>رقم التتبع: <span className="font-mono font-bold text-gray-700 dark:text-gray-200">{order.noestId}</span></div>}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
-        <button onClick={onArchive} className="text-xs text-gray-500 hover:text-[#183C6B] font-bold transition-all">📦 أرشفة</button>
+      <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <button onClick={onArchive} className="text-xs text-gray-500 dark:text-gray-400 hover:text-[#183C6B] font-bold transition-all">📦 أرشفة</button>
 
         {canSend && (
           <button
             disabled={sending}
             onClick={onSend}
-            className={`mr-auto px-4 py-2 rounded-xl text-sm font-bold transition-all text-white ${sending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#102A52] hover:bg-[#0B1833]'}`}
+            className={`mr-auto px-4 py-2 rounded-xl text-sm font-bold transition-all text-white ${sending ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-[#102A52] hover:bg-[#0B1833]'}`}
           >
             {sending ? '⏳ جارٍ الإرسال...' : '🚚 إرسال إلى شركة التوصيل'}
           </button>
@@ -2945,21 +2981,21 @@ function OrderCard({
 
         {/* ── "⋮ المزيد" — إجراءات ثانوية أقل بروزاً: حذف الطلب (دائماً)، وإعادة الإرسال (عند توفرها) ── */}
         <div className={`relative ${canSend ? '' : 'mr-auto'}`}>
-          <button onClick={() => setMoreOpen(v => !v)} className="text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg text-sm font-bold transition-all">⋮ المزيد</button>
+          <button onClick={() => setMoreOpen(v => !v)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 rounded-lg text-sm font-bold transition-all">⋮ المزيد</button>
           {moreOpen && (
-            <div className="absolute left-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-10 whitespace-nowrap">
+            <div className="absolute left-0 bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-1 z-10 whitespace-nowrap">
               {canResend && (
                 <button
                   disabled={sending}
                   onClick={() => { setMoreOpen(false); onRequestResend(); }}
-                  className="block w-full text-right px-4 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 transition-all"
+                  className="block w-full text-right px-4 py-2 text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-all"
                 >
                   🔄 إعادة الإرسال إلى شركة التوصيل
                 </button>
               )}
               <button
                 onClick={() => { setMoreOpen(false); onDelete(); }}
-                className="block w-full text-right px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 transition-all"
+                className="block w-full text-right px-4 py-2 text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
               >
                 🗑️ حذف الطلب
               </button>

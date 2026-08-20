@@ -35,6 +35,23 @@ function verifyAdminToken(authHeader) {
   } catch { return null; }
 }
 
+// ============================================================
+// Order status vs delivery status
+// ============================================================
+// order_status (this column, `status`) is the ADMIN'S own handling of
+// the order and is limited to exactly 4 values going forward: pending,
+// confirmed, waiting_customer, cancelled. Older rows created before this
+// simplification may still carry 'shipped' or 'delivered' (real shipping
+// progress that used to be conflated with order status) — those are
+// legacy data, never written again, and always treated as 'confirmed'
+// for validation/eligibility purposes here. Real shipping progress now
+// comes from NOEST directly via /api/track-order, kept separate from
+// this column entirely.
+const ORDER_STATUSES = ['pending', 'confirmed', 'waiting_customer', 'cancelled'];
+function normalizeOrderStatus(status) {
+  return (status === 'shipped' || status === 'delivered') ? 'confirmed' : status;
+}
+
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -240,9 +257,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: 'id and status are required' });
     }
 
-    const validStatuses = ['pending', 'confirmed', 'waiting_customer', 'shipped', 'delivered', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ ok: false, error: `Invalid status. Valid: ${validStatuses.join(', ')}` });
+    if (!ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ ok: false, error: `Invalid status. Valid: ${ORDER_STATUSES.join(', ')}` });
     }
 
     try {
@@ -353,11 +369,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, error: e.message });
     }
 
-    // ── Rule: only a CONFIRMED order (or a later stage, for resend) may ever be sent ──
+    // ── Rule: only a CONFIRMED order may ever be sent ──
     // pending / waiting_customer / cancelled are always rejected here, no matter
-    // what the client sent or how the button was reached.
-    const sendableStatuses = isResend ? ['confirmed', 'shipped', 'delivered'] : ['confirmed'];
-    if (!sendableStatuses.includes(order.status)) {
+    // what the client sent or how the button was reached. Legacy rows still
+    // carrying 'shipped'/'delivered' (pre-simplification) normalize to
+    // 'confirmed' so they remain eligible for resend.
+    if (normalizeOrderStatus(order.status) !== 'confirmed') {
       console.warn(`[ORDERS] ❌ Blocked ${isResend ? 'resend' : 'send'} for order ${id} — status=${order.status}`);
       return res.status(200).json({
         ok: false,

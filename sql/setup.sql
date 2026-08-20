@@ -151,6 +151,23 @@ CREATE INDEX IF NOT EXISTS idx_orders_tracking   ON orders(tracking);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_noest_id   ON orders(noest_id);
 
+-- Order workflow: admin-only note/reminder + delivery (NOEST) send metadata.
+-- 'status' has no CHECK/ENUM constraint, so the 'waiting_customer' value
+-- needs no DDL — it's enforced in api/orders.js. wilaya_id/commune are
+-- captured at checkout so an admin can (re)create a NOEST shipment later.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS internal_note          TEXT DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS reminder_date          DATE DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS wilaya_id              INTEGER DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS commune                TEXT DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS sent_to_delivery_at    TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_last_sent_at  TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_send_count    INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived               BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at            TIMESTAMPTZ DEFAULT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_orders_reminder_date ON orders(reminder_date);
+CREATE INDEX IF NOT EXISTS idx_orders_archived      ON orders(archived);
+
 
 -- ═══════════════════════════════════════════════════════════════
 -- 3. LANDING PAGES TABLE

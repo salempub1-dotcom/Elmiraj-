@@ -40,6 +40,8 @@ interface DbOrder {
   customer: string;
   phone: string;
   wilaya: string;
+  wilaya_id?: number | null;
+  commune?: string | null;
   address: string;
   items: unknown[];
   total: number;
@@ -49,10 +51,22 @@ interface DbOrder {
   status: string;
   date: string;
     noest_id?: string | null;
-  archived?: boolean;
-  archived_at?: string | null;
   internal_note?: string | null;
   reminder_date?: string | null;
+  sent_to_delivery_at?: string | null;
+  delivery_last_sent_at?: string | null;
+  delivery_send_count?: number;
+  archived?: boolean;
+  archived_at?: string | null;
+}
+
+/** Result of a successful send/resend to NOEST — see api/orders.js `send_to_delivery` / `resend_to_delivery`. */
+export interface DeliverySendResult {
+  noest_id: string;
+  tracking: string;
+  sent_to_delivery_at: string | null;
+  delivery_last_sent_at: string;
+  delivery_send_count: number;
 }
 
 // ── Helper ───────────────────────────────────────────────────
@@ -391,34 +405,6 @@ export async function updateOrderStatus(id: string, status: string): Promise<DbR
 }
 
 /**
- * Update an order's internal note and/or reminder date — admin only.
- * Pass only the field(s) you want to change; omitted fields are left untouched.
- * Internal-admin data — never surfaced to customer-facing routes.
- */
-export async function updateOrderNote(
-  id: string,
-  fields: { internal_note?: string; reminder_date?: string }
-): Promise<DbResult> {
-  const token = getToken();
-  try {
-    const r = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'update_note', id, ...fields }),
-    });
-    if (notifyIfAdminAuthExpired(r.status)) {
-      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
-    }
-    const result = await r.json();
-    if (result.ok) console.log(`[DB] ✅ Order ${id} note/reminder updated`);
-    else console.warn(`[DB] ⚠️ Order note update failed: ${result.error}`);
-    return result;
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-}
-
-/**
  * Archive / restore an order — admin only. Never deletes data; only
  * flips the `archived` flag (and `archived_at`) so it can be hidden
  * from "آخر الطلبات" / "إدارة الطلبات" while staying in the database.
@@ -461,6 +447,101 @@ export async function deleteOrder(id: string): Promise<DbResult> {
     const result = await r.json();
     if (result.ok) console.log(`[DB] ✅ Order deleted: id=${id}`);
     return result;
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Update the admin-only internal note on an order — admin only. Never
+ * visible to the customer; used to leave context ("العميل يريد إضافة
+ * منتج قبل الإرسال") regardless of the order's status.
+ */
+export async function updateOrderNote(id: string, internalNote: string | null): Promise<DbResult> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'update_note', id, internal_note: internalNote }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    const result = await r.json();
+    if (result.ok) console.log(`[DB] ✅ Order ${id} note updated`);
+    return result;
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Set/clear the optional follow-up reminder date on an order — admin only.
+ * Pass null to clear it. Expects/produces a 'YYYY-MM-DD' string.
+ */
+export async function updateOrderReminder(id: string, reminderDate: string | null): Promise<DbResult> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'update_reminder', id, reminder_date: reminderDate }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    const result = await r.json();
+    if (result.ok) console.log(`[DB] ✅ Order ${id} reminder updated`);
+    return result;
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Send a CONFIRMED order to the delivery company (NOEST) for the first
+ * time — admin only. The server re-reads the order and re-validates its
+ * status before ever calling NOEST; a client-side status check is not
+ * sufficient on its own. Fails with a clear message (no secrets) if the
+ * order isn't confirmed yet or was already sent.
+ */
+export async function sendOrderToDelivery(id: string): Promise<DbResult<DeliverySendResult>> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'send_to_delivery', id }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    return await r.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Re-send an order to NOEST after a previous shipment was created —
+ * admin only. Reserved for cases where the earlier NOEST shipment was
+ * deleted by mistake. The caller is responsible for confirming with the
+ * admin first (this creates a brand-new NOEST shipment; there is no
+ * NOEST endpoint to verify the old one still exists).
+ */
+export async function resendOrderToDelivery(id: string): Promise<DbResult<DeliverySendResult>> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'resend_to_delivery', id }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    return await r.json();
   } catch (e) {
     return { ok: false, error: String(e) };
   }

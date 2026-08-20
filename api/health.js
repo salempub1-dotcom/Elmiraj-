@@ -323,6 +323,20 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT fa
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_archived ON orders(archived);
 
+-- Order workflow: admin note/reminder + delivery (NOEST) send metadata
+-- (adds columns safely — existing rows/orders are unaffected). 'status' has
+-- no CHECK/ENUM constraint, so the 'waiting_customer' value needs no DDL —
+-- it's enforced in api/orders.js. wilaya_id/commune are captured at
+-- checkout so an admin can (re)create a NOEST shipment later.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS internal_note TEXT DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS reminder_date DATE DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS wilaya_id INTEGER DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS commune TEXT DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS sent_to_delivery_at TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_last_sent_at TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_send_count INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_orders_reminder_date ON orders(reminder_date);
+
 -- Fix NULL values
 UPDATE orders SET tracking = '' WHERE tracking IS NULL;
 UPDATE orders SET customer = '' WHERE customer IS NULL;

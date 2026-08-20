@@ -84,6 +84,10 @@ interface Order {
   deliveryType: 'home' | 'office';
   selectedOffice?: string;
   // 'waiting_customer' = بانتظار العميل (لا يُرسل إلى NOEST أبداً)
+  // ملاحظة: 'shipped'/'delivered' حالتان قديمتان (قبل فصل order_status عن
+  // delivery_status) — لا تُكتبان بعد الآن، لكن تبقيان في النوع لقراءة
+  // الطلبات القديمة التي ما زالت تحمل هذه القيمة في القاعدة. استخدم
+  // normalizeOrderStatus() في كل مكان يُعرض/يُقارن فيه status.
   status: 'pending' | 'confirmed' | 'waiting_customer' | 'shipped' | 'delivered' | 'cancelled';
   date: string;
   createdAt?: string;
@@ -318,6 +322,22 @@ const daysBetweenKeys = (aKey: string, bKey: string): number => Math.round((date
 /** ISO weekday (1=Monday..7=Sunday) of a 'YYYY-MM-DD' key, computed safely via UTC. */
 const isoWeekdayOfKey = (key: string): number => { const wd = dateKeyToUTC(key).getUTCDay(); return wd === 0 ? 7 : wd; };
 
+// ============================================================
+// ORDER STATUS vs DELIVERY STATUS
+// ============================================================
+// order_status (Order['status']) is the admin's own handling of the
+// order — exactly 4 values from here on: pending / confirmed /
+// waiting_customer / cancelled. Older orders created before this
+// simplification may still carry 'shipped' or 'delivered' (real
+// shipping progress that used to be conflated with order status);
+// those are legacy-only and never written again. Real shipping
+// progress now lives entirely in NOEST and is fetched on demand via
+// db.trackOrder() — never stored as an order_status value.
+type SimpleOrderStatus = 'pending' | 'confirmed' | 'waiting_customer' | 'cancelled';
+const ORDER_STATUS_VALUES: SimpleOrderStatus[] = ['pending', 'confirmed', 'waiting_customer', 'cancelled'];
+const normalizeOrderStatus = (status: Order['status']): SimpleOrderStatus =>
+  (status === 'shipped' || status === 'delivered') ? 'confirmed' : status;
+
 const playAddSound = () => {
   try {
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -392,7 +412,23 @@ function StoreApp({
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [trackingInput, setTrackingInput] = useState('');
-  const [trackingResult, setTrackingResult] = useState<string | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingData, setTrackingData] = useState<db.TrackOrderData | null>(null);
+  const [trackingErrorMsg, setTrackingErrorMsg] = useState<string | null>(null);
+  const handleTrackOrder = async () => {
+    const q = trackingInput.trim();
+    if (!q) { showToast('يرجى إدخال رقم الطلب', 'error'); return; }
+    setTrackingLoading(true);
+    setTrackingErrorMsg(null);
+    setTrackingData(null);
+    const result = await db.trackOrder(q);
+    setTrackingLoading(false);
+    if (result.ok && result.data) {
+      setTrackingData(result.data);
+    } else {
+      setTrackingErrorMsg(result.message || 'لم نعثر على طلب بهذا الرقم. تأكد من رقم الطلب وحاول مرة أخرى.');
+    }
+  };
   const [copiedTracking, setCopiedTracking] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -810,16 +846,87 @@ function StoreApp({
         </section>
       )}
 
-      {/* TRACK ORDER */}
+      {/* TRACK ORDER — يعتمد فقط على رقم طلب المعراج (لا NOEST ID، لا إعادة توجيه لموقع NOEST) */}
       {activeSection === 'track' && (
         <section className="py-16 px-4 min-h-[60vh]">
           <div className="max-w-xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-8">🔍 تتبع طلبك</h2>
+            <h2 className="text-3xl font-bold text-center text-[#0B1833] mb-2">🔍 تتبع طلبيتك</h2>
+            <p className="text-center text-gray-500 text-sm mb-8">أدخل رقم الطلب الذي حصلت عليه من متجر المعراج</p>
             <div className="bg-white rounded-2xl shadow-xl p-8">
-              <label className="block text-sm font-bold text-gray-700 mb-3">أدخل رقم التتبع</label>
-              <input type="text" value={trackingInput} onChange={e => setTrackingInput(e.target.value)} placeholder="مثال: BX4-16G-14705085" className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none mb-4 text-center font-mono font-bold text-lg" />
-              <button onClick={() => { if (!trackingInput.trim()) { showToast('يرجى إدخال رقم التتبع', 'error'); return; } const found = orders.find(o => o.tracking === trackingInput.trim()); if (found) { setTrackingResult(`الحالة: ${found.status === 'pending' ? '⏳ قيد الانتظار' : found.status === 'confirmed' ? '✅ مؤكد' : found.status === 'waiting_customer' ? '🟣 بانتظار تواصلك معنا' : found.status === 'shipped' ? '🚚 في الطريق' : found.status === 'delivered' ? '📦 تم التوصيل' : '❌ ملغي'}`); } else { window.open(`https://app.noest-dz.com/tracking?code=${trackingInput.trim()}`, '_blank'); setTrackingResult('تم تحويلك لموقع NOEST لمتابعة الشحنة...'); } }} className="w-full bg-[#102A52] hover:bg-[#0B1833] text-white py-3 rounded-xl font-bold text-lg transition-all">🔍 تتبع الطلب</button>
-              {trackingResult && <div className="mt-4 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-[#0B1833] font-bold text-center">{trackingResult}</div>}
+              <label className="block text-sm font-bold text-gray-700 mb-3">رقم الطلب</label>
+              <input
+                type="text"
+                value={trackingInput}
+                onChange={e => setTrackingInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleTrackOrder(); }}
+                placeholder="مثال: BX4-166-19388761"
+                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#183C6B] outline-none mb-4 text-center font-mono font-bold text-lg"
+              />
+              <button
+                onClick={handleTrackOrder}
+                disabled={trackingLoading}
+                className={`w-full py-3 rounded-xl font-bold text-lg transition-all text-white ${trackingLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#102A52] hover:bg-[#0B1833]'}`}
+              >
+                {trackingLoading ? '⏳ جارٍ البحث...' : '🔍 تتبع الطلب'}
+              </button>
+
+              {trackingErrorMsg && (
+                <div className="mt-4 bg-red-50 border-2 border-red-200 rounded-xl p-4 text-red-700 font-bold text-center text-sm">
+                  {trackingErrorMsg}
+                </div>
+              )}
+
+              {trackingData && (
+                <div className="mt-6 space-y-4">
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500 mb-1">رقم الطلب</p>
+                    <p className="font-mono font-bold text-lg text-[#0B1833]">{trackingData.orderNumber}</p>
+                  </div>
+
+                  <div className={`rounded-xl p-4 text-center border-2 ${
+                    trackingData.orderStatus === 'cancelled' ? 'bg-red-50 border-red-200 text-red-700'
+                    : trackingData.deliveryStatus === 'delivered' ? 'bg-green-50 border-green-200 text-green-700'
+                    : trackingData.orderStatus === 'waiting_customer' ? 'bg-violet-50 border-violet-200 text-violet-700'
+                    : trackingData.orderStatus === 'pending' ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                    : 'bg-blue-50 border-blue-200 text-blue-700'
+                  }`}>
+                    <p className="text-xs opacity-70 mb-1">الحالة الحالية</p>
+                    <p className="font-bold text-lg">{trackingData.deliveryLabel || trackingData.message}</p>
+                  </div>
+
+                  {trackingData.deliveryLabel && <p className="text-center text-gray-600 text-sm font-medium">{trackingData.message}</p>}
+
+                  {trackingData.noestUnavailable && (
+                    <p className="text-center text-amber-600 text-xs font-bold bg-amber-50 border border-amber-200 rounded-xl p-3">
+                      تعذر تحديث حالة الشحنة حالياً. يرجى المحاولة لاحقاً.
+                    </p>
+                  )}
+
+                  {trackingData.history.length > 0 && (
+                    <div className="border-t pt-4">
+                      <p className="text-xs font-bold text-gray-500 mb-3">سجل الشحنة</p>
+                      <div className="space-y-3">
+                        {trackingData.history.map((h, i) => (
+                          <div key={i} className="flex items-start gap-3">
+                            <span className="text-lg leading-none mt-0.5">{i === trackingData.history.length - 1 ? '🚚' : '✅'}</span>
+                            <div>
+                              <p className="font-bold text-sm text-gray-800">{h.label}</p>
+                              {h.occurredAt && <p className="text-xs text-gray-400">{formatAlgiersDateTime(h.occurredAt)}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(trackingData.wilaya || trackingData.lastUpdate) && (
+                    <div className="border-t pt-3 text-xs text-gray-400 text-center space-y-1">
+                      {trackingData.wilaya && <p>📍 {trackingData.wilaya}{trackingData.commune ? ` - ${trackingData.commune}` : ''}</p>}
+                      {trackingData.lastUpdate && <p>آخر تحديث: {formatAlgiersDateTime(trackingData.lastUpdate)}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -1259,7 +1366,7 @@ function AdminApp({
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   // ── إدارة الطلبات: بحث + فلاتر (حالة/تاريخ) ──────────────────
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
-  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | Order['status']>('all');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | SimpleOrderStatus>('all');
   type OrderDateFilter = 'all' | 'today' | 'yesterday' | 'last7' | 'last30' | 'thisWeek' | 'thisMonth' | 'custom';
   const [orderDateFilter, setOrderDateFilter] = useState<OrderDateFilter>('all');
   const [orderDateFrom, setOrderDateFrom] = useState(''); // YYYY-MM-DD — تاريخ مخصص: من
@@ -1274,6 +1381,7 @@ function AdminApp({
   // ── إرسال/إعادة إرسال إلى NOEST ──────────────────────────────
   const [sendingOrderId, setSendingOrderId] = useState<string | null>(null);
   const [resendConfirmOrder, setResendConfirmOrder] = useState<Order | null>(null);
+  const [orderDeleteConfirm, setOrderDeleteConfirm] = useState<Order | null>(null);
   const [showNotif, setShowNotif] = useState(false);
   // ── Landing Pages State ──
   const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
@@ -1325,6 +1433,9 @@ function AdminApp({
   const unread = notifications.filter(n => !n.read).length;
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
   const pendingCount = orders.filter(o => o.status === 'pending' && !o.archived).length;
+  // ── اختصارات الشريط الجانبي بالحالة — نفس منطق normalizeOrderStatus المستخدم في الفلاتر ──
+  const confirmedCount = orders.filter(o => normalizeOrderStatus(o.status) === 'confirmed' && !o.archived).length;
+  const waitingCustomerCount = orders.filter(o => normalizeOrderStatus(o.status) === 'waiting_customer' && !o.archived).length;
   // ── الطلبات المؤرشفة تُخفى من "آخر الطلبات" و"إدارة الطلبات" لكنها تبقى محفوظة ──
   const visibleOrders = orders.filter(o => !o.archived);
   const archivedOrders = orders.filter(o => o.archived);
@@ -1340,7 +1451,7 @@ function AdminApp({
   const filteredOrders = useMemo(() => {
     const q = orderSearchQuery.trim().toLowerCase();
     return visibleOrders.filter(o => {
-      if (orderStatusFilter !== 'all' && o.status !== orderStatusFilter) return false;
+      if (orderStatusFilter !== 'all' && normalizeOrderStatus(o.status) !== orderStatusFilter) return false;
 
       if (orderDateFilter !== 'all') {
         const key = o.createdAt ? algiersDateKey(o.createdAt) : '';
@@ -1504,9 +1615,9 @@ function AdminApp({
     showToast(okIds.length === targets.length ? `تم أرشفة ${okIds.length} طلب` : `تم أرشفة ${okIds.length} من ${targets.length} طلب`, okIds.length === targets.length ? 'success' : 'error');
   };
 
-  // ── حذف نهائي — خيار ثانوي فقط، مع تأكيد واضح، ولا يحدث تلقائياً أبداً ──
+  // ── حذف نهائي — خيار ثانوي فقط داخل "⋮ المزيد"، مع تأكيد صريح عبر نافذة
+  // مخصصة (orderDeleteConfirm) قبل استدعاء هذه الدالة أبداً — لا يحدث تلقائياً ──
   const handleDeleteOrder = async (order: Order) => {
-    if (!window.confirm(`هل أنت متأكد من حذف الطلب ${order.tracking} نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
     const result = await db.deleteOrder(order.id);
     if (result.ok) {
       setOrders(prev => prev.filter(o => o.id !== order.id));
@@ -1535,12 +1646,35 @@ setSelectedOrderIds(new Set());
 showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب نهائياً` : `تم حذف ${okIds.length} من ${targets.length} طلب`, okIds.length === targets.length ? 'success' : 'error');
 };
 
-// ── تسميات/ألوان حالة الطلب — مصدر واحد يُستخدم في كل مكان (الجدول، البطاقات، CSV) ──
-  const orderStatusLabel = (status: Order['status']) => status === 'pending' ? '⏳ معلق' : status === 'confirmed' ? '✅ مؤكد' : status === 'waiting_customer' ? '🟣 بانتظار العميل' : status === 'shipped' ? '🚚 مشحون' : status === 'delivered' ? '📦 موصل' : '❌ ملغي';
-  const orderStatusBadgeClasses = (status: Order['status']) => status === 'pending' ? 'bg-yellow-100 text-yellow-700' : status === 'confirmed' ? 'bg-blue-100 text-blue-700' : status === 'waiting_customer' ? 'bg-violet-100 text-violet-700' : status === 'shipped' ? 'bg-purple-100 text-purple-700' : status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700';
+// ── تسميات/ألوان حالة الطلب — 4 حالات فقط، مصدر واحد يُستخدم في كل مكان (الجدول، البطاقات، CSV) ──
+// الطلبات القديمة بحالة shipped/delivered تُطبَّع إلى 'confirmed' هنا أيضاً —
+// حالة الشحن الفعلية تأتي الآن من NOEST بشكل منفصل تماماً (انظر صفحة التتبع).
+  const orderStatusLabel = (status: Order['status']) => {
+    switch (normalizeOrderStatus(status)) {
+      case 'pending': return '🟡 معلق';
+      case 'confirmed': return '🔵 مؤكد';
+      case 'waiting_customer': return '🟣 في انتظار العميل';
+      default: return '🔴 ملغي';
+    }
+  };
+  const orderStatusBadgeClasses = (status: Order['status']) => {
+    switch (normalizeOrderStatus(status)) {
+      case 'pending': return 'bg-yellow-100 text-yellow-700';
+      case 'confirmed': return 'bg-blue-100 text-blue-700';
+      case 'waiting_customer': return 'bg-violet-100 text-violet-700';
+      default: return 'bg-red-100 text-red-700';
+    }
+  };
 
 // ── تحميل CSV — يفتح مباشرة في Excel/Google Sheets (UTF-8 BOM) ──
-  const orderStatusLabelPlain = (status: Order['status']) => status === 'pending' ? 'معلق' : status === 'confirmed' ? 'مؤكد' : status === 'waiting_customer' ? 'بانتظار العميل' : status === 'shipped' ? 'مشحون' : status === 'delivered' ? 'موصل' : 'ملغي';
+  const orderStatusLabelPlain = (status: Order['status']) => {
+    switch (normalizeOrderStatus(status)) {
+      case 'pending': return 'معلق';
+      case 'confirmed': return 'مؤكد';
+      case 'waiting_customer': return 'في انتظار العميل';
+      default: return 'ملغي';
+    }
+  };
   const downloadOrdersCSV = (list: Order[]) => {
     if (list.length === 0) { showToast('لا توجد طلبات للتحميل', 'error'); return; }
     const headers = ['التاريخ', 'رقم التتبع', 'اسم العميل', 'رقم الهاتف', 'الولاية', 'الإجمالي مع التوصيل', 'الحالة'];
@@ -1988,9 +2122,31 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
         {/* Sidebar */}
         <aside className="w-56 bg-white shadow-lg fixed top-16 right-0 bottom-0 overflow-y-auto hidden md:block">
           <nav className="p-4 space-y-2">
-                        {[{ id: 'dashboard' as const, icon: '📊', label: 'لوحة المعلومات' }, { id: 'orders' as const, icon: '📋', label: `الطلبات (${visibleOrders.length})` }, { id: 'archive' as const, icon: '🗄️', label: `الأرشيف (${archivedOrders.length})` }, { id: 'products' as const, icon: '📦', label: `المنتجات (${products.length})` }, { id: 'landing' as const, icon: '🚀', label: `صفحات الهبوط (${landingPages.length})` }].map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === t.id ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-xl">{t.icon}</span><span className="text-sm">{t.label}</span></button>
+            <button onClick={() => setTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === 'dashboard' ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-xl">📊</span><span className="text-sm">لوحة المعلومات</span></button>
+
+            {/* ── اختصارات الطلبات بالحالة — تعيد استخدام نفس تبويب "الطلبات" مع فلتر الحالة ── */}
+            <p className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wide">الطلبات</p>
+            {([
+              { statusFilter: 'all' as const, icon: '📋', label: `جميع الطلبات (${visibleOrders.length})` },
+              { statusFilter: 'confirmed' as const, icon: '🔵', label: `المؤكدة (${confirmedCount})` },
+              { statusFilter: 'pending' as const, icon: '🟡', label: `المعلقة (${pendingCount})` },
+              { statusFilter: 'waiting_customer' as const, icon: '🟣', label: `بانتظار العميل (${waitingCustomerCount})` },
+            ]).map(t => (
+              <button
+                key={t.statusFilter}
+                onClick={() => { setTab('orders'); setOrderStatusFilter(t.statusFilter); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold transition-all text-right ${tab === 'orders' && orderStatusFilter === t.statusFilter ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}
+              >
+                <span className="text-lg">{t.icon}</span><span className="text-sm">{t.label}</span>
+              </button>
             ))}
+            <button onClick={() => setTab('archive')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold transition-all text-right ${tab === 'archive' ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-lg">📦</span><span className="text-sm">الأرشيف ({archivedOrders.length})</span></button>
+
+            <div className="pt-2">
+              {[{ id: 'products' as const, icon: '📦', label: `المنتجات (${products.length})` }, { id: 'landing' as const, icon: '🚀', label: `صفحات الهبوط (${landingPages.length})` }].map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === t.id ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}><span className="text-xl">{t.icon}</span><span className="text-sm">{t.label}</span></button>
+              ))}
+            </div>
           </nav>
           <div className="p-4 space-y-3 border-t mt-4"><div className="bg-blue-50 rounded-xl p-3"><p className="text-xs text-gray-500">الإيرادات الكلية</p><p className="text-lg font-bold text-blue-700">{totalRevenue.toLocaleString()} دج</p></div><div className="bg-yellow-50 rounded-xl p-3"><p className="text-xs text-gray-500">طلبات معلقة</p><p className="text-lg font-bold text-yellow-700">{pendingCount}</p></div></div>
         </aside>
@@ -2111,12 +2267,10 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                   className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:border-[#183C6B] outline-none"
                 >
                   <option value="all">جميع الحالات</option>
-                  <option value="pending">⏳ معلق</option>
-                  <option value="confirmed">✅ مؤكد</option>
-                  <option value="waiting_customer">🟣 بانتظار العميل</option>
-                  <option value="shipped">🚚 مشحون</option>
-                  <option value="delivered">📦 موصل</option>
-                  <option value="cancelled">❌ ملغي</option>
+                  <option value="pending">🟡 معلق</option>
+                  <option value="confirmed">🔵 مؤكد</option>
+                  <option value="waiting_customer">🟣 في انتظار العميل</option>
+                  <option value="cancelled">🔴 ملغي</option>
                 </select>
                 <select
                   value={orderDateFilter}
@@ -2156,7 +2310,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                 onUpdateNote={(note) => handleUpdateNote(order, note)}
                 onUpdateReminder={(reminderDate) => handleUpdateReminder(order, reminderDate)}
                 onArchive={() => handleArchiveOrder(order)}
-                onDelete={() => handleDeleteOrder(order)}
+                onDelete={() => setOrderDeleteConfirm(order)}
                 onSend={() => handleSendToDelivery(order)}
                 onRequestResend={() => setResendConfirmOrder(order)}
                 todayKey={todayKey}
@@ -2173,7 +2327,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-[#102A52] font-bold">{order.tracking}</span><span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">🗄️ مؤرشف</span></div><p className="text-gray-600 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 text-sm">📍 {order.wilaya}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700">{order.total.toLocaleString()} دج</p><p className="text-gray-400 text-xs">{order.date}</p></div></div>
                 <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
                   <button onClick={() => handleRestoreOrder(order)} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">↩️ استرجاع من الأرشيف</button>
-                  <button onClick={() => handleDeleteOrder(order)} className="text-xs text-red-400 hover:text-red-600 transition-all mr-auto">🗑️ حذف نهائي</button>
+                  <button onClick={() => setOrderDeleteConfirm(order)} className="text-xs text-red-400 hover:text-red-600 transition-all mr-auto">🗑️ حذف نهائي</button>
                 </div>
               </div>
             ))}
@@ -2351,6 +2505,31 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
             <div className="flex gap-3">
               <button onClick={() => handleResendToDelivery(resendConfirmOrder)} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold transition-all">نعم، إعادة الإرسال</button>
               <button onClick={() => setResendConfirmOrder(null)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order Delete Confirm — إجراء نهائي لا رجعة فيه، يحتاج تأكيدًا صريحًا دائمًا */}
+      {orderDeleteConfirm !== null && (
+        <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+            <p className="text-5xl mb-4">🗑️</p>
+            <h3 className="text-xl font-bold text-gray-800 mb-3">هل أنت متأكد من حذف هذا الطلب؟</h3>
+            <p className="text-gray-500 mb-2">لا يمكن التراجع عن هذه العملية.</p>
+            {orderDeleteConfirm.noestId && (
+              <p className="text-amber-600 text-sm font-bold mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                ⚠️ هذا الطلب لديه شحنة مسجّلة لدى شركة التوصيل (NOEST). حذفه من المعراج لن يحذف الشحنة من NOEST تلقائياً.
+              </p>
+            )}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { const o = orderDeleteConfirm; setOrderDeleteConfirm(null); if (o) handleDeleteOrder(o); }}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-all"
+              >
+                حذف الطلب
+              </button>
+              <button onClick={() => setOrderDeleteConfirm(null)} className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">إلغاء</button>
             </div>
           </div>
         </div>
@@ -2637,8 +2816,8 @@ function OrderCard({
     return <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">📅 {order.reminderDate}</span>;
   })();
 
-  const canSend = order.status === 'confirmed' && !order.noestId;
-  const canResend = !!order.noestId && ['confirmed', 'shipped', 'delivered'].includes(order.status);
+  const canSend = normalizeOrderStatus(order.status) === 'confirmed' && !order.noestId;
+  const canResend = !!order.noestId && normalizeOrderStatus(order.status) === 'confirmed';
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-5">
@@ -2673,13 +2852,13 @@ function OrderCard({
       </div>
 
       <div className="flex flex-wrap gap-2 mb-3">
-        {(['pending', 'confirmed', 'waiting_customer', 'shipped', 'delivered', 'cancelled'] as Order['status'][]).map(status => (
+        {ORDER_STATUS_VALUES.map(status => (
           <button
             key={status}
             onClick={() => onStatusChange(status)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${order.status === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${normalizeOrderStatus(order.status) === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}
           >
-            {status === 'pending' ? '⏳ معلق' : status === 'confirmed' ? '✅ مؤكد' : status === 'waiting_customer' ? '🟣 بانتظار العميل' : status === 'shipped' ? '🚚 مشحون' : status === 'delivered' ? '📦 موصل' : '❌ ملغي'}
+            {status === 'pending' ? '🟡 معلق' : status === 'confirmed' ? '🔵 مؤكد' : status === 'waiting_customer' ? '🟣 في انتظار العميل' : '🔴 ملغي'}
           </button>
         ))}
       </div>
@@ -2753,7 +2932,6 @@ function OrderCard({
 
       <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
         <button onClick={onArchive} className="text-xs text-gray-500 hover:text-[#183C6B] font-bold transition-all">📦 أرشفة</button>
-        <button onClick={onDelete} className="text-xs text-red-400 hover:text-red-600 transition-all">🗑️ حذف</button>
 
         {canSend && (
           <button
@@ -2765,11 +2943,12 @@ function OrderCard({
           </button>
         )}
 
-        {canResend && (
-          <div className="relative mr-auto">
-            <button onClick={() => setMoreOpen(v => !v)} className="text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg text-sm font-bold transition-all">⋮ المزيد</button>
-            {moreOpen && (
-              <div className="absolute left-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-10 whitespace-nowrap">
+        {/* ── "⋮ المزيد" — إجراءات ثانوية أقل بروزاً: حذف الطلب (دائماً)، وإعادة الإرسال (عند توفرها) ── */}
+        <div className={`relative ${canSend ? '' : 'mr-auto'}`}>
+          <button onClick={() => setMoreOpen(v => !v)} className="text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg text-sm font-bold transition-all">⋮ المزيد</button>
+          {moreOpen && (
+            <div className="absolute left-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-10 whitespace-nowrap">
+              {canResend && (
                 <button
                   disabled={sending}
                   onClick={() => { setMoreOpen(false); onRequestResend(); }}
@@ -2777,10 +2956,16 @@ function OrderCard({
                 >
                   🔄 إعادة الإرسال إلى شركة التوصيل
                 </button>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+              <button
+                onClick={() => { setMoreOpen(false); onDelete(); }}
+                className="block w-full text-right px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 transition-all"
+              >
+                🗑️ حذف الطلب
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

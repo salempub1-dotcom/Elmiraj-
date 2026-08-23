@@ -3,25 +3,44 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>المعراج - متجر تعليمي للأساتذة</title>
-<meta name="description" content="أدوات تعليمية مبتكرة لأساتذة المستقبل - بطاقات تعليمية تفاعلية للطور التحضيري والابتدائي والمتوسط" />
-<link rel="icon" href="https://i.ibb.co/jkq94GGC/logo.jpg" />
+<title>المعراج للوسائل التعليمية | Al Miraj Education</title>
+<meta name="description" content="وسائل تعليمية وموارد احترافية تساعد الأستاذ على تحضير دروسه وتقديم حصص أكثر تنظيماً وتفاعلاً." />
+<link rel="canonical" href="https://elm3raj.com/" />
+
+<!-- Favicon / Site Icon — روابط مطلقة عمداً (وليست /favicon.ico) لأن
+     vite-plugin-singlefile يحوّل base إلى "./"، وبما أن نفس index.html
+     يُخدَّم أيضاً لكل مسارات الـSPA الأخرى (/lp/:id، /l/:slug، …) عبر
+     rewrite في vercel.json، فإن أي رابط نسبي هنا يُحل خطأً بالنسبة لعنوان
+     الصفحة الفعلي في المتصفح (مثلاً /lp/favicon.ico) ويُسبّب 404 — راجع
+     التقرير النهائي لتفاصيل الأحجام -->
+<link rel="icon" href="https://elm3raj.com/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="https://elm3raj.com/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="https://elm3raj.com/favicon-16x16.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="https://elm3raj.com/icon-192x192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="https://elm3raj.com/icon-512x512.png" />
+<link rel="apple-touch-icon" href="https://elm3raj.com/apple-touch-icon.png" />
+
 <!-- Cairo font — الخط الأساسي للموقع -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-<!-- Open Graph / Facebook Catalog Meta -->
-<meta property="og:type" content="product.group" />
-<meta property="og:title" content="المعراج - متجر تعليمي للأساتذة" />
-<meta property="og:description" content="أدوات تعليمية مبتكرة لأساتذة المستقبل - بطاقات تعليمية تفاعلية" />
-<meta property="og:image" content="https://i.ibb.co/jkq94GGC/logo.jpg" />
-<meta property="og:url" content="https://elm3raj.com" />
-<meta property="og:site_name" content="المعراج" />
-<meta property="product:brand" content="المعراج" />
-<meta property="product:availability" content="in stock" />
-<meta property="product:condition" content="new" />
-<meta property="product:price:currency" content="DZD" />
+<!-- Open Graph / Facebook — بطاقة المشاركة للصفحة الرئيسية -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="المعراج للوسائل التعليمية | Al Miraj Education" />
+<meta property="og:description" content="وسائل تعليمية وموارد احترافية تساعد الأستاذ على تحضير دروسه وتقديم حصص أكثر تنظيماً وتفاعلاً." />
+<meta property="og:url" content="https://elm3raj.com/" />
+<meta property="og:image" content="https://elm3raj.com/og-image.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:site_name" content="Al Miraj Education" />
+<meta property="og:locale" content="ar_DZ" />
+
+<!-- Twitter / X Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="المعراج للوسائل التعليمية | Al Miraj Education" />
+<meta name="twitter:description" content="وسائل تعليمية وموارد احترافية للأساتذة." />
+<meta name="twitter:image" content="https://elm3raj.com/og-image.jpg" />
 
 <!-- ============================================================ -->
 <!-- Facebook Pixel — Full E-Commerce + Catalog Integration -->
@@ -51,4 +70,3 @@ src="https://www.facebook.com/tr?id=1334972781253779&ev=PageView&noscript=1"/>
 <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
-

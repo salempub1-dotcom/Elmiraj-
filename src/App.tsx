@@ -1760,13 +1760,20 @@ function AdminApp({
     }
   }, [syncingDelivery, setOrders, showToast]);
 
-  // مزامنة تلقائية صامتة مرة واحدة فقط عند فتح تبويب الأرشيف لأول مرة في الجلسة
+  // ── مزامنة تلقائية صامتة مرة واحدة فقط لكل جلسة إدارة ───────────────────
+  // سابقاً: كانت تُشغَّل فقط عند فتح تبويب الأرشيف — ما يعني عملياً أن
+  // الأرشفة التلقائية (عند دخول الطرد شبكة التوصيل / Vers Hub فما بعد) لا
+  // تُكتشف إطلاقاً إن لم يزر الأدمن تبويب الأرشيف بنفسه، فيضطر لأرشفة
+  // الطلبات يدوياً. الآن: تُشغَّل مرة واحدة فقط عند فتح لوحة التحكم نفسها
+  // (أي تبويب)، فور تحميلها — بنفس الطلب المُجمَّع الخفيف الموجود أصلاً
+  // (لا Browser polling، لا طلب لكل Order)، وبشكل غير Blocking تماماً
+  // (fire-and-forget بعد أول Render) حتى لا تُبطئ فتح اللوحة.
   useEffect(() => {
-    if (tab !== 'archive' || deliverySyncedRef.current) return;
+    if (deliverySyncedRef.current) return;
     deliverySyncedRef.current = true;
     handleSyncDeliveryStatus(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, []);
   const handleArchiveSelected = async () => {
     const targets = selectedRecentOrders.length > 0 ? selectedRecentOrders : [];
     if (targets.length === 0) return;

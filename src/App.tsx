@@ -113,6 +113,10 @@ export interface Order {
   // null = لم تُفحص بعد أو NOEST لا يملك بيانات كافية.
   deliveryStatus?: DeliveryStatusGroup | null;
   deliveryStatusUpdatedAt?: string | null;
+  // آخر تعديل على صف الطلب في القاعدة (عمود updated_at الموجود أصلاً) — يُحدَّث
+  // تلقائياً مع كل تعديل (الحالة/الملاحظة/التذكير/المنتجات...)، يُعرض في
+  // "✏️ تعديل الطلب" كـ"آخر تعديل".
+  updatedAt?: string | null;
 }
 
 // ── حالة الشحنة عند NOEST (delivery_status) — منفصلة عن order_status ──
@@ -385,6 +389,18 @@ function deliveryStatusMeta(deliveryStatus: DeliveryStatusGroup | null | undefin
 }
 // المجموعة "لا تزال قيد التوصيل" المبسّطة (3 بطاقات في أعلى الأرشيف) — كل ما ليس delivered/returned بعد
 const isStillInTransitGroup = (o: Order) => !!o.noestId && o.deliveryStatus !== 'delivered' && o.deliveryStatus !== 'returned';
+
+// ── "✏️ تعديل الطلب" — من يُسمح له بتعديل منتجات الطلب؟ (عرض فقط — القرار
+// الحقيقي والملزم دائمًا من الخادم، انظر action='update_items' في
+// api/orders.js). مطابقة تمامًا لـ isParcelInDeliveryNetwork هناك: null/غير
+// مُزامَن لا يُعتبر "دخل شبكة التوصيل" أبداً. ──────────────────────────
+const isParcelInDeliveryNetworkClient = (group: DeliveryStatusGroup | null | undefined): boolean =>
+  !!group && group !== 'in_preparation' && group !== 'unknown';
+const ITEMS_EDITABLE_STATUSES: SimpleOrderStatus[] = ['pending', 'confirmed', 'waiting_customer'];
+const canEditOrderItems = (order: Order): boolean =>
+  ITEMS_EDITABLE_STATUSES.includes(normalizeOrderStatus(order.status)) &&
+  !order.archived &&
+  !isParcelInDeliveryNetworkClient(order.deliveryStatus);
 
 const playAddSound = () => {
   try {
@@ -1446,6 +1462,7 @@ function AdminApp({
   const [sendingOrderId, setSendingOrderId] = useState<string | null>(null);
   const [resendConfirmOrder, setResendConfirmOrder] = useState<Order | null>(null);
   const [orderDeleteConfirm, setOrderDeleteConfirm] = useState<Order | null>(null);
+  const [editingItemsOrder, setEditingItemsOrder] = useState<Order | null>(null); // "✏️ تعديل الطلب"
   const [showNotif, setShowNotif] = useState(false);
   // ── مزامنة حالة الشحنة مع NOEST (مجمّعة، عند الطلب فقط) + أرشفة تلقائية ──
   const [syncingDelivery, setSyncingDelivery] = useState(false);
@@ -1610,6 +1627,31 @@ function AdminApp({
     }
     if (result.error !== db.AUTH_EXPIRED) showToast(result.error || 'فشل حفظ التذكير', 'error');
     return false;
+  };
+
+  // ── "✏️ تعديل الطلب" — إضافة/حذف منتجات أو تغيير الكمية على نفس الطلب.
+  // Server-side (api/orders.js action='update_items') يعيد حساب الأسعار
+  // والمجموع من مصدر موثوق دائمًا — هذه فقط تستدعي الـAPI وتُحدّث الواجهة
+  // بنتيجته الفعلية (لا تعتمد على حساب العميل). ──────────────────────
+  const handleSaveOrderItems = async (
+    order: Order,
+    lines: { productId: number; quantity: number }[]
+  ): Promise<{ ok: boolean; message?: string }> => {
+    const result = await db.updateOrderItems(order.id, lines);
+    if (result.ok && result.data) {
+      const d = result.data;
+      setOrders(prev => prev.map(o => o.id === order.id ? {
+        ...o,
+        items: d.items as CartItem[],
+        total: d.total,
+        updatedAt: d.updatedAt,
+      } : o));
+      showToast('✅ تم حفظ تعديلات الطلب');
+      return { ok: true };
+    }
+    const message = result.message || result.error || 'تعذر حفظ تعديلات الطلب';
+    if (result.error !== db.AUTH_EXPIRED) showToast(message, 'error');
+    return { ok: false, message };
   };
 
   // ── إرسال/إعادة إرسال الطلب إلى شركة التوصيل (NOEST) ──────────
@@ -2469,6 +2511,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
                 onDelete={() => setOrderDeleteConfirm(order)}
                 onSend={() => handleSendToDelivery(order)}
                 onRequestResend={() => setResendConfirmOrder(order)}
+                onEditItems={() => setEditingItemsOrder(order)}
                 todayKey={todayKey}
               />
             ))}
@@ -2769,6 +2812,16 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
         </div>
       )}
 
+      {/* Edit Order Items Modal — "✏️ تعديل الطلب" */}
+      {editingItemsOrder !== null && (
+        <EditOrderItemsModal
+          order={editingItemsOrder}
+          products={products}
+          onClose={() => setEditingItemsOrder(null)}
+          onSave={(lines) => handleSaveOrderItems(editingItemsOrder, lines)}
+        />
+      )}
+
       {/* Product Form Modal */}
       {showProductForm && (
         <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-4">
@@ -3018,9 +3071,162 @@ const formatAlgiersDateTime = (iso?: string | null): string => {
   return d.toLocaleString('ar-DZ', { timeZone: ALGIERS_TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
+// ============================================================
+// EDIT ORDER ITEMS MODAL — "✏️ تعديل الطلب" — إضافة/حذف منتجات أو تغيير
+// الكمية على طلب موجود، بدون إنشاء Order جديد ودون تغيير رقم الطلب. كل
+// حساب Subtotal/Total هنا للعرض الفوري فقط — القرار الملزم والحساب
+// النهائي الموثوق دائماً من الخادم (api/orders.js action='update_items').
+// ============================================================
+interface EditOrderLine {
+  productId: number;
+  quantity: number;
+  name: string;
+  price: number;
+  image: string;
+}
+
+function EditOrderItemsModal({
+  order, products, onClose, onSave,
+}: {
+  order: Order;
+  products: Product[];
+  onClose: () => void;
+  onSave: (lines: { productId: number; quantity: number }[]) => Promise<{ ok: boolean; message?: string }>;
+}) {
+  const [lines, setLines] = useState<EditOrderLine[]>(() =>
+    order.items.map(it => ({ productId: it.id, quantity: it.quantity, name: it.name, price: it.price, image: safeImage(it.images) }))
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // القرار هنا للعرض فقط — إن تغيّرت حالة الطلب في الخلفية أثناء فتح
+  // النافذة (نادر)، سيرفض الخادم الحفظ بنفس الرسالة على أي حال.
+  const editable = canEditOrderItems(order);
+  const shipsUnsynced = !!order.noestId && !isParcelInDeliveryNetworkClient(order.deliveryStatus);
+
+  const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0);
+  const shipping = order.shipping || 0; // ── التوصيل لا يتغيّر أبداً هنا — نفس منطق الحساب الحالي ──
+  const total = subtotal + shipping;
+
+  const addProduct = (p: Product) => {
+    setLines(prev => {
+      const existing = prev.find(l => l.productId === p.id);
+      if (existing) return prev.map(l => l.productId === p.id ? { ...l, quantity: l.quantity + 1 } : l);
+      return [...prev, { productId: p.id, quantity: 1, name: p.name, price: p.price, image: safeImage(p.images) }];
+    });
+    setErrorMsg(null);
+  };
+  const removeLine = (productId: number) => setLines(prev => prev.filter(l => l.productId !== productId));
+  const changeQty = (productId: number, delta: number) =>
+    setLines(prev => prev.map(l => l.productId === productId ? { ...l, quantity: Math.max(1, l.quantity + delta) } : l));
+
+  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(search.trim().toLowerCase()));
+
+  const handleSave = async () => {
+    if (lines.length === 0) { setErrorMsg('يجب أن يحتوي الطلب على منتج واحد على الأقل.'); return; }
+    setSaving(true);
+    setErrorMsg(null);
+    const result = await onSave(lines.map(l => ({ productId: l.productId, quantity: l.quantity })));
+    setSaving(false);
+    if (result.ok) onClose();
+    else if (result.message) setErrorMsg(result.message);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[9000] flex items-center justify-center p-0 sm:p-4">
+      <div className="bg-white dark:bg-gray-800 w-full sm:max-w-2xl sm:rounded-xl shadow-2xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col">
+        <div className="bg-[#102A52] text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
+          <div>
+            <h3 className="text-lg font-bold">✏️ تعديل الطلب <span className="font-mono text-sm opacity-80">{order.tracking}</span></h3>
+            {order.updatedAt && <p className="text-xs opacity-70 mt-0.5">آخر تعديل: {formatAlgiersDateTime(order.updatedAt)}</p>}
+          </div>
+          <button onClick={onClose} className="text-white hover:text-gray-200 text-xl">✕</button>
+        </div>
+
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {!editable && (
+            <div className="bg-red-50 dark:bg-red-950/40 border-2 border-red-200 dark:border-red-800 rounded-xl p-3 text-sm font-bold text-red-700 dark:text-red-300">
+              ❌ لا يمكن تعديل المنتجات بعد دخول الطلب في مرحلة الشحن.
+            </div>
+          )}
+          {editable && shipsUnsynced && (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-200 dark:border-amber-800 rounded-xl p-3 text-sm text-amber-700 dark:text-amber-300">
+              <p className="font-bold mb-1">⚠️ تم إرسال هذه الطلبية إلى شركة التوصيل.</p>
+              <p>تعديل المنتجات قد يجعل بيانات المتجر مختلفة عن بيانات الشحنة.</p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {lines.map(l => (
+              <div key={l.productId} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+                <img src={l.image} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-gray-200 dark:bg-gray-700" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-gray-800 dark:text-gray-50 truncate">{l.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">السعر: {l.price.toLocaleString()} دج</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button type="button" disabled={!editable || l.quantity <= 1} onClick={() => changeQty(l.productId, -1)} className="w-7 h-7 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-40 font-bold text-gray-700 dark:text-gray-200">-</button>
+                  <span className="w-6 text-center font-bold text-sm text-gray-800 dark:text-gray-50">{l.quantity}</span>
+                  <button type="button" disabled={!editable} onClick={() => changeQty(l.productId, 1)} className="w-7 h-7 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-40 font-bold text-gray-700 dark:text-gray-200">+</button>
+                </div>
+                <p className="w-20 text-left font-bold text-sm text-blue-700 dark:text-blue-300">{(l.price * l.quantity).toLocaleString()} دج</p>
+                <button type="button" disabled={!editable} onClick={() => removeLine(l.productId)} className="text-red-500 dark:text-red-400 disabled:opacity-40 text-xs font-bold">🗑️ حذف</button>
+              </div>
+            ))}
+          </div>
+
+          {editable && (
+            <div>
+              {!pickerOpen ? (
+                <button type="button" onClick={() => setPickerOpen(true)} className="w-full border-2 border-dashed border-blue-300 dark:border-blue-700 text-[#183C6B] dark:text-blue-300 rounded-xl py-2.5 font-bold text-sm hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all">+ إضافة منتج</button>
+              ) : (
+                <div className="border-2 border-blue-200 dark:border-blue-800 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث باسم المنتج..." className="flex-1 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-sm outline-none focus:border-[#183C6B]" />
+                    <button type="button" onClick={() => { setPickerOpen(false); setSearch(''); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm whitespace-nowrap">إغلاق</button>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1">
+                    {filteredProducts.length === 0 ? (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">لا توجد منتجات مطابقة</p>
+                    ) : filteredProducts.map(p => (
+                      <button key={p.id} type="button" onClick={() => addProduct(p)} className="w-full flex items-center gap-2 text-right hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg p-1.5 transition-all">
+                        <img src={safeImage(p.images)} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0 bg-gray-200 dark:bg-gray-700" />
+                        <span className="flex-1 min-w-0 text-sm font-bold text-gray-800 dark:text-gray-50 truncate">{p.name}</span>
+                        <span className="text-xs text-blue-700 dark:text-blue-300 font-bold whitespace-nowrap">{p.price.toLocaleString()} دج</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {lines.length === 0 && (
+            <p className="text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded-xl p-3">يجب أن يحتوي الطلب على منتج واحد على الأقل.</p>
+          )}
+          {errorMsg && <p className="text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded-xl p-3">{errorMsg}</p>}
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-1">
+            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300"><span>المجموع الفرعي:</span><span>{subtotal.toLocaleString()} دج</span></div>
+            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300"><span>التوصيل:</span><span>{shipping.toLocaleString()} دج</span></div>
+            <div className="flex justify-between font-bold text-lg text-[#183C6B] dark:text-blue-300"><span>الإجمالي:</span><span>{total.toLocaleString()} دج</span></div>
+          </div>
+        </div>
+
+        <div className="p-5 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 flex gap-3">
+          <button type="button" onClick={handleSave} disabled={!editable || saving || lines.length === 0} className="flex-1 bg-[#183C6B] hover:bg-[#102A52] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold transition-all">{saving ? '⏳ جارٍ الحفظ...' : '💾 حفظ التعديلات'}</button>
+          <button type="button" onClick={onClose} disabled={saving} className="flex-1 border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-all disabled:opacity-50">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OrderCard({
   order, sending, todayKey,
-  onStatusChange, onUpdateNote, onUpdateReminder, onArchive, onDelete, onSend, onRequestResend,
+  onStatusChange, onUpdateNote, onUpdateReminder, onArchive, onDelete, onSend, onRequestResend, onEditItems,
 }: {
   order: Order;
   sending: boolean;
@@ -3032,6 +3238,7 @@ function OrderCard({
   onDelete: () => void;
   onSend: () => void;
   onRequestResend: () => void;
+  onEditItems: () => void;
 }) {
   const [noteDraft, setNoteDraft] = useState(order.internalNote || '');
   const [savingNote, setSavingNote] = useState(false);
@@ -3168,6 +3375,9 @@ function OrderCard({
 
       <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
         <button onClick={onArchive} className="text-xs text-gray-500 dark:text-gray-400 hover:text-[#183C6B] font-bold transition-all">📦 أرشفة</button>
+        {canEditOrderItems(order) && (
+          <button onClick={onEditItems} className="text-xs text-gray-500 dark:text-gray-400 hover:text-[#183C6B] dark:hover:text-blue-300 font-bold transition-all">✏️ تعديل الطلب</button>
+        )}
 
         {canSend && (
           <button
@@ -3405,6 +3615,7 @@ export function App() {
             archivedAt: (o.archived_at || o.archivedAt || null) as string | null,
             deliveryStatus: (o.delivery_status ?? null) as DeliveryStatusGroup | null,
             deliveryStatusUpdatedAt: (o.delivery_status_updated_at ?? null) as string | null,
+            updatedAt: (o.updated_at ?? null) as string | null,
           }));
           console.log(`[DB] ✅ Loaded ${mapped.length} orders from Supabase`);
           setOrders(mapped);

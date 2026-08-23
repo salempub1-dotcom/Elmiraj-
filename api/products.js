@@ -11,6 +11,7 @@
 
 import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { SITE_URL, SITE_NAME, FALLBACK_IMAGE, FALLBACK_TITLE, FALLBACK_DESC, toPreviewText, renderSocialPreviewHtml } from '../lib/socialPreviewHtml.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
@@ -56,6 +57,51 @@ export default async function handler(req, res) {
       error: 'SUPABASE_NOT_CONFIGURED',
       message: 'أضف SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY في Vercel',
     });
+  }
+
+  // ── GET (social_preview=1): bot-only HTML for one product ──
+  // Reached ONLY via the crawler-User-Agent-gated rewrite for /lp/:id in
+  // vercel.json (Facebook/WhatsApp/Telegram/etc. previews). Kept inside
+  // this same file — instead of a separate api/social-preview.js — because
+  // this project is on Vercel's Hobby plan, which caps a deployment at 12
+  // Serverless Functions; the project was already at that limit, and a
+  // dedicated extra function silently failed every production deployment.
+  // Real visitors never send this query param and are unaffected.
+  if (req.method === 'GET' && req.query?.social_preview === '1') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600');
+    const id = Number(req.query?.id);
+    const url = `${SITE_URL}/lp/${req.query?.id ?? ''}`;
+
+    if (!Number.isFinite(id)) {
+      return res.status(200).send(renderSocialPreviewHtml({ title: FALLBACK_TITLE, description: FALLBACK_DESC, image: FALLBACK_IMAGE, url, type: 'website' }));
+    }
+
+    try {
+      const { data: product } = await supabase
+        .from('products')
+        .select('id, name, description, price, images')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!product) {
+        res.status(404);
+        return res.send(renderSocialPreviewHtml({ title: FALLBACK_TITLE, description: FALLBACK_DESC, image: FALLBACK_IMAGE, url, type: 'website' }));
+      }
+
+      const image = (Array.isArray(product.images) && product.images[0]) || FALLBACK_IMAGE;
+      return res.status(200).send(renderSocialPreviewHtml({
+        title: `${product.name} | ${SITE_NAME}`,
+        description: toPreviewText(product.description) || FALLBACK_DESC,
+        image,
+        url,
+        type: 'product',
+        priceAmount: product.price,
+        priceCurrency: 'DZD',
+      }));
+    } catch {
+      return res.status(200).send(renderSocialPreviewHtml({ title: FALLBACK_TITLE, description: FALLBACK_DESC, image: FALLBACK_IMAGE, url, type: 'website' }));
+    }
   }
 
   // ── GET: List all products (public) ────────────────────────

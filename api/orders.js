@@ -153,6 +153,112 @@ async function createNoestShipment(payload) {
   }
 }
 
+// ============================================================
+// Delivery-status sync — batched NOEST lookup + auto-archive
+// ============================================================
+// order_status (`status`, above) stays limited to exactly 4 values.
+// delivery_status is a completely separate concept: NOEST's real
+// shipment progress, written ONLY here, never guessed/inferred from
+// order_status. The groups below are built from NOEST's real event_key
+// vocabulary — same source already proven in production at
+// GET /api/track-order (fetchNoestTrackingInfo) — grouped more finely
+// here for admin/archive display (delivered vs returned vs in-transit
+// vs a failed delivery attempt, instead of one lumped "delivery_issue").
+const NOEST_ADMIN_STATUS_GROUPS = {
+  // النقل لم يبدأ بعد — الطرد لم يُستلم فعليًا من المعراج بعد. هذه المجموعة
+  // فقط هي التي لا تُشغّل الأرشفة التلقائية.
+  in_preparation: ['upload', 'customer_validation'],
+  // الطرد استُلم فعليًا (validation_collect_colis) ودخل شبكة NOEST — أول
+  // حدث هنا هو المُحفّز الآمن للأرشفة التلقائية.
+  in_transit: [
+    'validation_collect_colis', 'validation_reception_admin', 'validation_reception',
+    'fdr_activated', 'sent_to_redispatch', 'return_redispatched_to_livraison',
+    'nouvel_tentative_asked_by_customer',
+  ],
+  delivery_attempt_failed: ['colis_suspendu', 'livraison_echoue_recu'],
+  returned: [
+    'return_asked_by_customer', 'return_asked_by_hub', 'retour_dispatched_to_partenaires',
+    'return_dispatched_to_partenaire', 'colis_retour_transmit_to_partner',
+    'return_validated_by_partener', 'return_dispatched_to_warehouse',
+  ],
+  delivered: ['livre', 'livred'],
+};
+function mapNoestDeliveryStatus(providerStatus) {
+  for (const [group, keys] of Object.entries(NOEST_ADMIN_STATUS_GROUPS)) {
+    if (keys.includes(providerStatus)) return group;
+  }
+  return 'unknown';
+}
+// المُحفّز الوحيد للأرشفة التلقائية: أي مجموعة غير "in_preparation" (لم
+// يُستلم بعد) وغير "unknown" (لا بيانات كافية) تعني أن الطرد فعلًا دخل
+// دورة التوصيل — وليس مجرد "تم إنشاء الشحنة" (send_to_delivery وحده لا يكفي).
+function isParcelInDeliveryNetwork(group) {
+  return group !== 'in_preparation' && group !== 'unknown';
+}
+
+/** استخراج آخر حدث زمنيًا من قائمة أحداث NOEST — نفس منطق api/track-order.js تمامًا. */
+function pickLatestNoestEvent(rawEvents) {
+  const events = (Array.isArray(rawEvents) ? rawEvents : []).map((e) => {
+    const providerStatus = e.event_key || e.key || e.status || 'unknown';
+    const dateStr = e.date || e.created_at || e.updated_at || null;
+    let occurredAt = null;
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!Number.isNaN(d.getTime())) occurredAt = d.toISOString();
+    }
+    return { providerStatus, occurredAt };
+  }).sort((a, b) => {
+    if (!a.occurredAt) return 1;
+    if (!b.occurredAt) return -1;
+    return a.occurredAt.localeCompare(b.occurredAt);
+  });
+  return [...events].reverse().find((e) => e.occurredAt) || events[events.length - 1] || null;
+}
+
+/**
+ * Batched NOEST tracking lookup — ONE HTTP call covers up to `trackingCodes.length`
+ * shipments (NOEST's endpoint accepts an array natively). Never throws; returns
+ * a map of trackingCode → { group, occurredAt } for whatever NOEST actually
+ * had data for — codes it couldn't resolve are simply absent from the result,
+ * so callers can leave their last-known status untouched instead of guessing.
+ */
+async function fetchNoestTrackingsBatch(trackingCodes) {
+  const API_TOKEN = process.env.NOEST_API_TOKEN;
+  const USER_GUID = process.env.NOEST_USER_GUID;
+  const BASE = (process.env.NOEST_API_BASE || 'https://app.noest-dz.com').replace(/\/+$/, '');
+  if (!API_TOKEN || !USER_GUID || trackingCodes.length === 0) return {};
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    const r = await fetch(`${BASE}/api/public/get/trackings/info`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID, trackings: trackingCodes }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!r.ok) return {};
+
+    const text = await r.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch { return {}; }
+    if (!data || typeof data !== 'object') return {};
+
+    const out = {};
+    for (const code of trackingCodes) {
+      const entry = data[code];
+      if (!entry || typeof entry !== 'object') continue;
+      const rawEvents = Array.isArray(entry.activity) ? entry.activity : (Array.isArray(entry.events) ? entry.events : []);
+      const latest = pickLatestNoestEvent(rawEvents);
+      if (latest) out[code] = { group: mapNoestDeliveryStatus(latest.providerStatus), occurredAt: latest.occurredAt };
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -512,9 +618,92 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── SYNC DELIVERY STATUS: batched NOEST lookup + auto-archive (admin only) ──
+  // Called ONLY on an explicit admin action (opening the Archive tab once
+  // per session, or pressing "sync now") — never on render/page-load/timer.
+  // One NOEST request covers up to SYNC_BATCH_SIZE orders at a time, never
+  // one request per order.
+  if (action === 'sync_delivery_status') {
+    const admin = verifyAdminToken(req.headers.authorization);
+    if (!admin) {
+      return res.status(401).json({ ok: false, error: 'Admin authentication required' });
+    }
+
+    const SYNC_BATCH_SIZE = 60;      // trackings per NOEST HTTP call
+    const SYNC_MAX_CANDIDATES = 200; // hard cap per sync call — keeps this lightweight
+
+    let candidatesRaw;
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, noest_id, archived, delivery_status')
+        .not('noest_id', 'is', null)
+        .order('updated_at', { ascending: true })
+        .limit(500);
+      if (error) {
+        console.error('[ORDERS] Sync candidates query error:', error.message);
+        return res.status(200).json({ ok: false, error: error.message });
+      }
+      candidatesRaw = data || [];
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: e.message });
+    }
+
+    // طلبات وصلت لحالة نهائية (تم التسليم/مرتجع) لا تحتاج فحصًا متكررًا
+    const candidates = candidatesRaw
+      .filter((o) => o.delivery_status !== 'delivered' && o.delivery_status !== 'returned')
+      .slice(0, SYNC_MAX_CANDIDATES);
+
+    if (candidates.length === 0) {
+      return res.status(200).json({ ok: true, data: { checked: 0, updated: [], unavailable: 0 } });
+    }
+
+    const byTracking = new Map();
+    for (const o of candidates) byTracking.set(o.noest_id, o);
+    const trackingCodes = [...byTracking.keys()];
+
+    const results = {};
+    for (let i = 0; i < trackingCodes.length; i += SYNC_BATCH_SIZE) {
+      const chunk = trackingCodes.slice(i, i + SYNC_BATCH_SIZE);
+      Object.assign(results, await fetchNoestTrackingsBatch(chunk));
+    }
+
+    const nowIso = new Date().toISOString();
+    const updated = [];
+    let unavailable = 0;
+    for (const [tracking, order] of byTracking.entries()) {
+      const info = results[tracking];
+      if (!info) { unavailable++; continue; } // NOEST unavailable/no data — keep last known status, never guess
+      if (info.group === order.delivery_status) continue; // لا تغيير فعلي
+
+      // المُحفّز الوحيد للأرشفة التلقائية: تأكيد NOEST أن الطرد دخل شبكة
+      // التوصيل فعليًا — وليس مجرد إنشاء شحنة (send_to_delivery وحده لا يكفي).
+      const shouldArchive = !order.archived && isParcelInDeliveryNetwork(info.group);
+      const update = { delivery_status: info.group, delivery_status_updated_at: nowIso, updated_at: nowIso };
+      if (shouldArchive) { update.archived = true; update.archived_at = nowIso; }
+
+      try {
+        const { error: updateError } = await supabase.from('orders').update(update).eq('id', order.id);
+        if (updateError) { console.error(`[ORDERS] Sync update failed for ${order.id}:`, updateError.message); continue; }
+        updated.push({
+          id: order.id,
+          deliveryStatus: info.group,
+          deliveryStatusUpdatedAt: nowIso,
+          archived: shouldArchive ? true : !!order.archived,
+          archivedAt: shouldArchive ? nowIso : undefined,
+        });
+      } catch (e) {
+        console.error(`[ORDERS] Sync update exception for ${order.id}:`, e.message);
+      }
+    }
+
+    console.log(`[ORDERS] 🔄 Delivery-status sync: checked ${candidates.length}, updated ${updated.length}, archived ${updated.filter(u => u.archived).length}`);
+    return res.status(200).json({ ok: true, data: { checked: candidates.length, updated, unavailable } });
+  }
+
   return res.status(400).json({
     ok: false,
     error: `Unknown action: ${action}`,
-    available: ['list', 'save', 'update_status', 'update_note', 'update_reminder', 'send_to_delivery', 'resend_to_delivery', 'archive', 'unarchive', 'delete'],
+    available: ['list', 'save', 'update_status', 'update_note', 'update_reminder', 'send_to_delivery', 'resend_to_delivery', 'archive', 'unarchive', 'delete', 'sync_delivery_status'],
   });
 }

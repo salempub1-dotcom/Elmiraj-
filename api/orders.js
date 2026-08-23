@@ -189,9 +189,33 @@ function mapNoestDeliveryStatus(providerStatus) {
   }
   return 'unknown';
 }
+
+// ── ARCHIVE_ELIGIBLE_STATUSES — "Vers Hub" وما بعدها ────────────────────
+// Set صريح من قيم event_key الحقيقية (نفس المفردات المُثبَتة عملياً في
+// الإنتاج — انظر NOEST_ADMIN_STATUS_GROUPS أعلاه، وهي نفس القائمة المُستخدمة
+// في GET /api/track-order منذ Task 3) التي تعني أن الطرد غادر "قيد
+// التحضير" فعلياً ودخل شبكة NOEST — يقابلها في واجهة NOEST البصرية مسار
+// "Vers Hub" (noest.dz/vers/hub) وما بعده من مراحل (استلام في المركز/الفرز،
+// خروج للتسليم، تسليم، مرتجع...). البداية الحقيقية لهذه المجموعة هي أول
+// حدث بعد إنشاء الشحنة: validation_collect_colis ("تم استلام الطرد من
+// المعراج") — أي لحظة استلام الطرد فعلياً من المتجر وبدء نقله نحو الـHub،
+// وليس مجرد "تم إنشاء الشحنة في NOEST" (upload/customer_validation، وهما
+// فقط ما يبقى في مجموعة in_preparation ولا يُشغّلان الأرشفة). أي حالة
+// مؤكدة أنها لاحقة لـ"Vers Hub" (وصول لمركز الفرز/التوزيع، خروج للتسليم،
+// تسليم، مرتجع بكل مساراته) مؤهلة للأرشفة أيضاً — مُشتقة هنا برمجياً من
+// نفس NOEST_ADMIN_STATUS_GROUPS بدل تكرارها يدوياً، لتبقى مصدر الحقيقة
+// واحداً ولا تنحرف القائمتان عن بعضهما مستقبلاً.
+const ARCHIVE_ELIGIBLE_STATUSES = new Set(
+  Object.entries(NOEST_ADMIN_STATUS_GROUPS)
+    .filter(([group]) => group !== 'in_preparation')
+    .flatMap(([, keys]) => keys)
+);
+
 // المُحفّز الوحيد للأرشفة التلقائية: أي مجموعة غير "in_preparation" (لم
 // يُستلم بعد) وغير "unknown" (لا بيانات كافية) تعني أن الطرد فعلًا دخل
 // دورة التوصيل — وليس مجرد "تم إنشاء الشحنة" (send_to_delivery وحده لا يكفي).
+// (مكافئ رياضياً لفحص "هل آخر event_key ضمن ARCHIVE_ELIGIBLE_STATUSES؟" —
+// المجموعة group هنا هي أصلاً نتيجة تصنيف آخر event_key الحقيقي.)
 function isParcelInDeliveryNetwork(group) {
   return group !== 'in_preparation' && group !== 'unknown';
 }
@@ -797,7 +821,7 @@ export default async function handler(req, res) {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, noest_id, archived, delivery_status')
+        .select('id, status, noest_id, archived, delivery_status, delivery_status_updated_at')
         .not('noest_id', 'is', null)
         .order('updated_at', { ascending: true })
         .limit(500);
@@ -810,9 +834,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, error: e.message });
     }
 
-    // طلبات وصلت لحالة نهائية (تم التسليم/مرتجع) لا تحتاج فحصًا متكررًا
+    // ── من يحتاج فحصًا؟ (نقطة 14 — إصلاح Bug قديم) ──────────────────────
+    // سابقًا: كان أي طلب delivery_status IN (delivered, returned) يُستبعد
+    // نهائياً من الفحص القادم — حتى لو كان archived لا يزال false (خطأ
+    // قديم/تعارض/استرجاع يدوي من الأرشيف). هذا يعني أن هذه الطلبات لم تكن
+    // لتُصحَّح تلقائياً أبداً. الآن: نستبعد فقط الطلبات التي لا يوجد فيها
+    // أي عمل متبقٍ فعلاً — أي archived=true بالفعل ووصلت لحالة نهائية —
+    // وهذا يحقق Idempotency (نقطة 6) دون التضحية بالتصحيح الذاتي (نقطة 14).
     const candidates = candidatesRaw
-      .filter((o) => o.delivery_status !== 'delivered' && o.delivery_status !== 'returned')
+      .filter((o) => !(o.archived && (o.delivery_status === 'delivered' || o.delivery_status === 'returned')))
       .slice(0, SYNC_MAX_CANDIDATES);
 
     if (candidates.length === 0) {
@@ -835,12 +865,28 @@ export default async function handler(req, res) {
     for (const [tracking, order] of byTracking.entries()) {
       const info = results[tracking];
       if (!info) { unavailable++; continue; } // NOEST unavailable/no data — keep last known status, never guess
-      if (info.group === order.delivery_status) continue; // لا تغيير فعلي
 
+      // ── نقطة 7 (حرجة): لا تُؤرشف تلقائياً إلا status='confirmed' — حتى
+      // لو كان لدى pending/waiting_customer/cancelled معرّف noest_id (بيانات
+      // قديمة/خطأ سابق). delivery_status لا يزال يُحدَّث للجميع (عرض فقط،
+      // غير ضار)، لكن الأرشفة الفعلية مشروطة بالحالة دائماً. ──────────────
+      const isConfirmed = normalizeOrderStatus(order.status) === 'confirmed';
       // المُحفّز الوحيد للأرشفة التلقائية: تأكيد NOEST أن الطرد دخل شبكة
-      // التوصيل فعليًا — وليس مجرد إنشاء شحنة (send_to_delivery وحده لا يكفي).
-      const shouldArchive = !order.archived && isParcelInDeliveryNetwork(info.group);
-      const update = { delivery_status: info.group, delivery_status_updated_at: nowIso, updated_at: nowIso };
+      // التوصيل فعليًا (Vers Hub فما بعد) — وليس مجرد إنشاء شحنة
+      // (send_to_delivery وحده لا يكفي، انظر ARCHIVE_ELIGIBLE_STATUSES أعلاه).
+      const shouldArchive = isConfirmed && !order.archived && isParcelInDeliveryNetwork(info.group);
+      const groupChanged = info.group !== order.delivery_status;
+
+      // ── Idempotency (نقطة 6): لا كتابة إطلاقاً إن لم يتغيّر شيء فعلياً —
+      // لا حالة التوصيل تغيّرت ولا هناك أرشفة مستحقة الآن. لكن مهم: فحص
+      // shouldArchive منفصل تماماً عن groupChanged — حتى لو ظلت المجموعة
+      // كما هي بين مزامنتين، إن كان archived لا يزال false رغم أنها مؤهلة
+      // (نقطة 14: طلب قديم فاتته الأرشفة أو أُعيد من الأرشيف يدوياً)، يجب
+      // تصحيحه الآن، لا تجاهله بسبب "لا تغيير في delivery_status". ────────
+      if (!groupChanged && !shouldArchive) continue;
+
+      const update = { updated_at: nowIso };
+      if (groupChanged) { update.delivery_status = info.group; update.delivery_status_updated_at = nowIso; }
       if (shouldArchive) { update.archived = true; update.archived_at = nowIso; }
 
       try {
@@ -849,7 +895,7 @@ export default async function handler(req, res) {
         updated.push({
           id: order.id,
           deliveryStatus: info.group,
-          deliveryStatusUpdatedAt: nowIso,
+          deliveryStatusUpdatedAt: groupChanged ? nowIso : (order.delivery_status_updated_at ?? nowIso),
           archived: shouldArchive ? true : !!order.archived,
           archivedAt: shouldArchive ? nowIso : undefined,
         });

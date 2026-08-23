@@ -58,6 +58,8 @@ interface DbOrder {
   delivery_send_count?: number;
   archived?: boolean;
   archived_at?: string | null;
+  delivery_status?: string | null;
+  delivery_status_updated_at?: string | null;
 }
 
 /** Result of a successful send/resend to NOEST — see api/orders.js `send_to_delivery` / `resend_to_delivery`. */
@@ -439,6 +441,47 @@ export async function setOrderArchived(id: string, archived: boolean): Promise<D
     if (result.ok) console.log(`[DB] ✅ Order ${id} ${archived ? 'archived' : 'restored'}`);
     else console.warn(`[DB] ⚠️ Archive toggle failed: ${result.error}`);
     return result;
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/** One order whose delivery_status (and possibly archived flag) changed during a sync — see syncDeliveryStatus. */
+export interface DeliverySyncUpdate {
+  id: string;
+  deliveryStatus: string;
+  deliveryStatusUpdatedAt: string;
+  archived: boolean;
+  archivedAt?: string;
+}
+export interface DeliverySyncResult {
+  checked: number;
+  updated: DeliverySyncUpdate[];
+  unavailable: number;
+}
+
+/**
+ * Batched, on-demand NOEST delivery-status sync — admin only. ONE NOEST
+ * request covers every order that has a shipment and isn't already in a
+ * terminal state (delivered/returned) — never one request per order.
+ * Auto-archives any order NOEST confirms has actually entered its delivery
+ * network (never just "shipment created"); see api/orders.js for the exact
+ * NOEST status mapping. Call this on an explicit admin action only (opening
+ * the Archive tab once per session, or a manual "sync now" button) — never
+ * on render or a timer.
+ */
+export async function syncDeliveryStatus(): Promise<DbResult<DeliverySyncResult>> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'sync_delivery_status' }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    return await r.json();
   } catch (e) {
     return { ok: false, error: String(e) };
   }

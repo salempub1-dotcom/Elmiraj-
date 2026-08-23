@@ -102,7 +102,20 @@ interface Order {
   deliverySendCount?: number;
   archived?: boolean;
   archivedAt?: string | null;
+  // حالة الشحنة الحقيقية عند NOEST — مفهوم منفصل تمامًا عن order_status
+  // (الحقل status أعلاه)، تُملأ فقط عبر مزامنة خلفية مجمّعة (انظر
+  // db.syncDeliveryStatus) ولا تُخمَّن أو تُشتق من status أبداً.
+  // null = لم تُفحص بعد أو NOEST لا يملك بيانات كافية.
+  deliveryStatus?: DeliveryStatusGroup | null;
+  deliveryStatusUpdatedAt?: string | null;
 }
+
+// ── حالة الشحنة عند NOEST (delivery_status) — منفصلة عن order_status ──
+// القيم مبنية على مفردات event_key الحقيقية لدى NOEST (نفس المصدر
+// المستخدم في api/track-order.js وapi/orders.js action=sync_delivery_status)،
+// وليست أسماء مخترعة. 'in_transit' هو أول مجموعة تعني أن الطرد فعلاً
+// استُلم/مُسح ودخل شبكة NOEST — وهي المُحفّز الوحيد للأرشفة التلقائية.
+type DeliveryStatusGroup = 'in_preparation' | 'in_transit' | 'delivery_attempt_failed' | 'returned' | 'delivered' | 'unknown';
 
 interface Notif {
   id: number;
@@ -337,6 +350,36 @@ type SimpleOrderStatus = 'pending' | 'confirmed' | 'waiting_customer' | 'cancell
 const ORDER_STATUS_VALUES: SimpleOrderStatus[] = ['pending', 'confirmed', 'waiting_customer', 'cancelled'];
 const normalizeOrderStatus = (status: Order['status']): SimpleOrderStatus =>
   (status === 'shipped' || status === 'delivered') ? 'confirmed' : status;
+
+// ── تصنيف بصري لحالة الشحنة (delivery_status) — للأرشيف فقط ──────────
+// order.deliveryStatus يُملأ فقط عبر مزامنة خلفية مع NOEST (لا تخمين هنا).
+// order = null/undefined لطلب لم يُرسل إلى NOEST إطلاقًا (noestId فارغ).
+function deliveryStatusMeta(deliveryStatus: DeliveryStatusGroup | null | undefined, hasShipment: boolean): {
+  key: 'delivered' | 'returned' | 'in_transit' | 'attempt_failed' | 'in_preparation' | 'not_sent' | 'unknown';
+  label: string;
+  badgeClasses: string;
+  rowClasses: string;
+} {
+  if (!hasShipment) {
+    return { key: 'not_sent', label: '🚚 لم يُرسل', badgeClasses: 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400', rowClasses: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' };
+  }
+  switch (deliveryStatus) {
+    case 'delivered':
+      return { key: 'delivered', label: '🟢 تم التسليم', badgeClasses: 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300', rowClasses: 'bg-green-50/60 dark:bg-green-950/20 border-green-200 dark:border-green-900' };
+    case 'returned':
+      return { key: 'returned', label: '🔴 مرتجع', badgeClasses: 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300', rowClasses: 'bg-red-50/60 dark:bg-red-950/20 border-red-200 dark:border-red-900' };
+    case 'in_transit':
+      return { key: 'in_transit', label: '🔵 قيد التوصيل', badgeClasses: 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300', rowClasses: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' };
+    case 'delivery_attempt_failed':
+      return { key: 'attempt_failed', label: '🟠 محاولة تسليم', badgeClasses: 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300', rowClasses: 'bg-orange-50/60 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900' };
+    case 'in_preparation':
+      return { key: 'in_preparation', label: '⚪ قيد التسجيل لدى الشحن', badgeClasses: 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400', rowClasses: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' };
+    default:
+      return { key: 'unknown', label: '⚪ في انتظار تحديث', badgeClasses: 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400', rowClasses: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' };
+  }
+}
+// المجموعة "لا تزال قيد التوصيل" المبسّطة (3 بطاقات في أعلى الأرشيف) — كل ما ليس delivered/returned بعد
+const isStillInTransitGroup = (o: Order) => !!o.noestId && o.deliveryStatus !== 'delivered' && o.deliveryStatus !== 'returned';
 
 const playAddSound = () => {
   try {
@@ -1399,6 +1442,10 @@ function AdminApp({
   const [resendConfirmOrder, setResendConfirmOrder] = useState<Order | null>(null);
   const [orderDeleteConfirm, setOrderDeleteConfirm] = useState<Order | null>(null);
   const [showNotif, setShowNotif] = useState(false);
+  // ── مزامنة حالة الشحنة مع NOEST (مجمّعة، عند الطلب فقط) + أرشفة تلقائية ──
+  const [syncingDelivery, setSyncingDelivery] = useState(false);
+  const deliverySyncedRef = useRef(false); // مرة واحدة فقط لكل جلسة إدارة، تلقائيًا
+  const [archiveStatusFilter, setArchiveStatusFilter] = useState<'all' | 'delivered' | 'returned' | 'in_transit'>('all');
   // ── Landing Pages State ──
   const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
   const [lpLoading, setLpLoading] = useState(false);
@@ -1611,6 +1658,8 @@ function AdminApp({
     }
   };
   const handleRestoreOrder = async (order: Order) => {
+    // ── استرجاع من الأرشيف يغيّر فقط archived في المعراج — لا يلمس الشحنة
+    // في NOEST إطلاقًا (لا استدعاء NOEST هنا) ──
     const result = await db.setOrderArchived(order.id, false);
     if (result.ok) {
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, archived: false, archivedAt: null } : o));
@@ -1619,6 +1668,53 @@ function AdminApp({
       showToast(result.hint || result.error || 'فشل استرجاع الطلب', 'error');
     }
   };
+
+  // ── مزامنة حالة الشحنة مع NOEST — طلب واحد مجمّع لكل الطلبات المرسلة
+  // وغير المكتملة بعد (وليس طلب لكل Order)، تُستدعى فقط عند فتح تبويب
+  // الأرشيف لأول مرة في الجلسة أو عند ضغط "مزامنة الآن" يدويًا — أبدًا
+  // عند كل Render أو تحميل تلقائي متكرر. الأرشفة التلقائية تحدث فقط إذا
+  // أكّدت NOEST فعليًا أن الطرد دخل شبكة التوصيل (انظر api/orders.js).
+  const handleSyncDeliveryStatus = useCallback(async (silent = false) => {
+    if (syncingDelivery) return;
+    setSyncingDelivery(true);
+    const result = await db.syncDeliveryStatus();
+    setSyncingDelivery(false);
+    if (result.ok && result.data) {
+      const { updated, checked, unavailable } = result.data;
+      if (updated.length > 0) {
+        setOrders(prev => prev.map(o => {
+          const u = updated.find(x => x.id === o.id);
+          if (!u) return o;
+          return {
+            ...o,
+            deliveryStatus: u.deliveryStatus as DeliveryStatusGroup,
+            deliveryStatusUpdatedAt: u.deliveryStatusUpdatedAt,
+            archived: u.archived,
+            archivedAt: u.archivedAt ?? o.archivedAt,
+          };
+        }));
+      }
+      if (!silent) {
+        const archivedNow = updated.filter(u => u.archived).length;
+        showToast(
+          checked === 0
+            ? 'لا توجد شحنات بحاجة لمزامنة الآن'
+            : `تمت مزامنة ${checked} شحنة${archivedNow > 0 ? ` — أُرشف ${archivedNow} تلقائيًا` : ''}${unavailable > 0 ? ` (تعذر تحديث ${unavailable})` : ''}`,
+          'success'
+        );
+      }
+    } else if (!silent && result.error !== db.AUTH_EXPIRED) {
+      showToast(result.error || 'تعذر تحديث حالة الشحنات حاليًا', 'error');
+    }
+  }, [syncingDelivery, setOrders, showToast]);
+
+  // مزامنة تلقائية صامتة مرة واحدة فقط عند فتح تبويب الأرشيف لأول مرة في الجلسة
+  useEffect(() => {
+    if (tab !== 'archive' || deliverySyncedRef.current) return;
+    deliverySyncedRef.current = true;
+    handleSyncDeliveryStatus(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
   const handleArchiveSelected = async () => {
     const targets = selectedRecentOrders.length > 0 ? selectedRecentOrders : [];
     if (targets.length === 0) return;
@@ -2121,24 +2217,34 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200" dir="rtl" data-theme={theme}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Header */}
-      <header className="bg-[#0B1833] text-white px-4 py-3 flex items-center justify-between shadow-lg fixed top-0 left-0 right-0 z-50">
-        <div className="flex items-center gap-3"><Logo size="sm" /><div><h1 className="font-bold text-base">لوحة تحكم المعراج</h1><p className="text-blue-200 text-xs">مرحباً بك أيها المسؤول</p></div></div>
-        <div className="flex items-center gap-2">
+      {/* Header — ارتفاع ثابت h-16 (64px) بدون التفاف مطلقًا، ليطابق دائمًا
+          الإزاحة (pt-16/top-16) المستخدمة أسفله؛ هذا هو سبب تغطية الـHeader
+          سابقًا لشريط حالات الطلب على الموبايل: النص كان يلتف لسطرين فيكبر
+          الارتفاع الفعلي عن الإزاحة الثابتة. الحل: منع الالتفاف نهائيًا
+          (truncate + إخفاء نص العنوان الفرعي والأزرار على الشاشات الضيقة) ── */}
+      <header className="bg-[#0B1833] text-white px-3 sm:px-4 h-16 flex items-center justify-between gap-2 shadow-lg fixed top-0 left-0 right-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <Logo size="sm" />
+          <div className="min-w-0">
+            <h1 className="font-bold text-sm sm:text-base truncate">لوحة تحكم المعراج</h1>
+            <p className="hidden sm:block text-blue-200 text-xs truncate">مرحباً بك أيها المسؤول</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <div className="relative">
-            <button onClick={() => setShowNotif(!showNotif)} className="relative bg-[#102A52] hover:bg-[#183C6B] p-2 rounded-xl transition-all">🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{unread}</span>}</button>
-            {showNotif && (<div className="absolute left-0 top-12 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50"><div className="bg-[#0B1833] text-white px-4 py-3 font-bold flex justify-between rounded-t-xl"><span>الإشعارات</span><button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))} className="text-xs text-blue-200 hover:text-white">تعيين الكل كمقروء</button></div><div className="max-h-64 overflow-y-auto">{notifications.length === 0 ? <p className="text-center text-gray-400 dark:text-gray-500 py-6 text-sm">لا توجد إشعارات</p> : notifications.map(n => (<div key={n.id} className={`px-4 py-3 border-b text-sm ${n.read ? 'bg-white text-gray-500 dark:text-gray-400' : 'bg-blue-50 dark:bg-blue-950/40 text-[#0B1833] font-bold'}`}>{n.message}</div>))}</div></div>)}
+            <button onClick={() => setShowNotif(!showNotif)} aria-label="الإشعارات" className="relative bg-[#102A52] hover:bg-[#183C6B] p-2 rounded-xl transition-all whitespace-nowrap">🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{unread}</span>}</button>
+            {showNotif && (<div className="absolute left-0 top-12 w-72 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50"><div className="bg-[#0B1833] text-white px-4 py-3 font-bold flex justify-between rounded-t-xl"><span>الإشعارات</span><button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))} className="text-xs text-blue-200 hover:text-white">تعيين الكل كمقروء</button></div><div className="max-h-64 overflow-y-auto">{notifications.length === 0 ? <p className="text-center text-gray-400 dark:text-gray-500 py-6 text-sm">لا توجد إشعارات</p> : notifications.map(n => (<div key={n.id} className={`px-4 py-3 border-b text-sm ${n.read ? 'bg-white text-gray-500 dark:text-gray-400' : 'bg-blue-50 dark:bg-blue-950/40 text-[#0B1833] font-bold'}`}>{n.message}</div>))}</div></div>)}
           </div>
           <button
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الليلي'}
             title={theme === 'dark' ? '☀️ الوضع الفاتح' : '🌙 الوضع الليلي'}
-            className="bg-[#102A52] hover:bg-[#183C6B] p-2 rounded-xl transition-all text-base leading-none"
+            className="bg-[#102A52] hover:bg-[#183C6B] p-2 rounded-xl transition-all text-base leading-none whitespace-nowrap"
           >
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
-          <button onClick={onBackToStore} className="bg-[#102A52] hover:bg-[#183C6B] px-3 py-2 rounded-xl text-sm transition-all font-bold">🏪 المتجر</button>
-          <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-xl text-sm transition-all font-bold">🚪 خروج</button>
+          <button onClick={onBackToStore} aria-label="المتجر" title="المتجر" className="bg-[#102A52] hover:bg-[#183C6B] px-2 sm:px-3 py-2 rounded-xl text-sm transition-all font-bold whitespace-nowrap"><span aria-hidden="true">🏪</span><span className="hidden sm:inline"> المتجر</span></button>
+          <button onClick={handleLogout} aria-label="خروج" title="خروج" className="bg-red-600 hover:bg-red-700 px-2 sm:px-3 py-2 rounded-xl text-sm transition-all font-bold whitespace-nowrap"><span aria-hidden="true">🚪</span><span className="hidden sm:inline"> خروج</span></button>
         </div>
       </header>
 
@@ -2352,20 +2458,98 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
             ))}
           </div>)}
 
-          {/* ARCHIVE TAB */}
-          {tab === 'archive' && (<div className="space-y-4">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">🗄️ أرشيف الطلبات</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">الطلبات هنا محفوظة بالكامل ولا تظهر في "آخر الطلبات" أو "إدارة الطلبات". يمكن استرجاعها في أي وقت.</p>
-            {archivedOrders.length === 0 ? <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center"><p className="text-6xl mb-4">🗄️</p><p className="text-gray-400 dark:text-gray-500 text-lg">لا توجد طلبات مؤرشفة</p></div> : archivedOrders.map(order => (
-              <div key={order.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-5 opacity-90">
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-3"><div><div className="flex items-center gap-2 mb-1 flex-wrap"><span className="font-mono text-[#102A52] dark:text-blue-300 font-bold">{order.tracking}</span><span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full font-bold">🗄️ مؤرشف</span></div><p className="text-gray-600 dark:text-gray-300 text-sm">👤 {order.customer} | 📞 {order.phone}</p><p className="text-gray-600 dark:text-gray-300 text-sm">📍 {order.wilaya}</p></div><div className="text-left"><p className="text-xl font-bold text-blue-700 dark:text-blue-300">{order.total.toLocaleString()} دج</p><p className="text-gray-400 dark:text-gray-500 text-xs">{order.date}</p></div></div>
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
-                  <button onClick={() => handleRestoreOrder(order)} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">↩️ استرجاع من الأرشيف</button>
-                  <button onClick={() => setOrderDeleteConfirm(order)} className="text-xs text-red-400 hover:text-red-600 dark:hover:text-red-400 transition-all mr-auto">🗑️ حذف نهائي</button>
+          {/* ARCHIVE TAB — بعد أن يدخل الطرد فعليًا شبكة NOEST (أُرشف تلقائيًا)
+              أو أُرشف يدويًا، يصبح الأرشيف مكان متابعة نتيجة التوصيل نفسها
+              (تم التسليم/مرتجع/قيد التوصيل) وليس مجرد قائمة قديمة ── */}
+          {tab === 'archive' && (() => {
+            const archDelivered = archivedOrders.filter(o => o.deliveryStatus === 'delivered');
+            const archReturned = archivedOrders.filter(o => o.deliveryStatus === 'returned');
+            const archInTransit = archivedOrders.filter(isStillInTransitGroup);
+            const shownOrders = archiveStatusFilter === 'all' ? archivedOrders
+              : archiveStatusFilter === 'delivered' ? archDelivered
+              : archiveStatusFilter === 'returned' ? archReturned
+              : archInTransit;
+            return (<div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">🗄️ أرشيف الطلبات</h2>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">تُؤرشف الطلبات تلقائيًا بمجرد تأكيد NOEST استلام الطرد فعليًا، بالإضافة للأرشفة اليدوية. يمكن استرجاعها في أي وقت.</p>
                 </div>
+                <button
+                  onClick={() => handleSyncDeliveryStatus(false)}
+                  disabled={syncingDelivery}
+                  className={`px-3 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${syncingDelivery ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60'}`}
+                >
+                  {syncingDelivery ? '⏳ جارٍ المزامنة...' : '🔄 مزامنة حالة الشحنات الآن'}
+                </button>
               </div>
-            ))}
-          </div>)}
+
+              {/* بطاقات سريعة — نتيجة الشحنات الحقيقية دون أي استعلام إضافي (حساب محلي فقط) */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { key: 'delivered' as const, icon: '🟢', label: 'تم التسليم', value: archDelivered.length, accent: 'text-green-600 dark:text-green-300' },
+                  { key: 'returned' as const, icon: '🔴', label: 'مرتجع', value: archReturned.length, accent: 'text-red-600 dark:text-red-300' },
+                  { key: 'in_transit' as const, icon: '🔵', label: 'ما زال قيد التوصيل', value: archInTransit.length, accent: 'text-blue-600 dark:text-blue-300' },
+                ].map(c => (
+                  <button
+                    key={c.key}
+                    onClick={() => setArchiveStatusFilter(f => f === c.key ? 'all' : c.key)}
+                    className={`text-right bg-white dark:bg-gray-800 border rounded-xl shadow-sm p-3 sm:p-4 transition-all ${archiveStatusFilter === c.key ? 'border-[#183C6B] dark:border-blue-500 ring-1 ring-[#183C6B] dark:ring-blue-500' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                  >
+                    <div className="flex items-center justify-between mb-1"><span>{c.icon}</span><span className={`text-xl font-bold ${c.accent}`}>{c.value}</span></div>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">{c.label}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* فلتر حسب نتيجة التوصيل */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'all' as const, label: `كل الحالات (${archivedOrders.length})` },
+                  { key: 'delivered' as const, label: `🟢 تم التسليم (${archDelivered.length})` },
+                  { key: 'returned' as const, label: `🔴 مرتجع (${archReturned.length})` },
+                  { key: 'in_transit' as const, label: `🔵 قيد التوصيل (${archInTransit.length})` },
+                ].map(f => (
+                  <button
+                    key={f.key}
+                    onClick={() => setArchiveStatusFilter(f.key)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${archiveStatusFilter === f.key ? 'bg-[#183C6B] text-white' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60'}`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {shownOrders.length === 0 ? (
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center"><p className="text-6xl mb-4">🗄️</p><p className="text-gray-400 dark:text-gray-500 text-lg">{archivedOrders.length === 0 ? 'لا توجد طلبات مؤرشفة' : 'لا توجد طلبات مطابقة لهذا الفلتر'}</p></div>
+              ) : shownOrders.map(order => {
+                const meta = deliveryStatusMeta(order.deliveryStatus, !!order.noestId);
+                return (
+                  <div key={order.id} className={`border rounded-xl shadow-sm p-4 sm:p-5 transition-colors ${meta.rowClasses}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-mono text-[#102A52] dark:text-blue-300 font-bold">{order.tracking}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${meta.badgeClasses}`}>{meta.label}</span>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-300 text-sm">👤 {order.customer} | 📞 {order.phone}</p>
+                        <p className="text-gray-600 dark:text-gray-300 text-sm">📍 {order.wilaya}</p>
+                        {order.deliveryStatusUpdatedAt && <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">آخر تحديث: {formatAlgiersDateTime(order.deliveryStatusUpdatedAt)}</p>}
+                      </div>
+                      <div className="text-left flex-shrink-0">
+                        <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{order.total.toLocaleString()} دج</p>
+                        <p className="text-gray-400 dark:text-gray-500 text-xs">{order.archivedAt ? formatAlgiersDateTime(order.archivedAt) : order.date}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                      <button onClick={() => handleRestoreOrder(order)} className="bg-[#183C6B] hover:bg-[#102A52] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">↩️ استرجاع من الأرشيف</button>
+                      <button onClick={() => setOrderDeleteConfirm(order)} className="text-xs text-red-400 hover:text-red-600 dark:hover:text-red-400 transition-all mr-auto">🗑️ حذف نهائي</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>);
+          })()}
 
           {/* PRODUCTS TAB */}
           {tab === 'products' && (<div className="space-y-6">
@@ -3192,6 +3376,8 @@ export function App() {
             deliverySendCount: (o.delivery_send_count ?? 0) as number,
             archived: Boolean(o.archived),
             archivedAt: (o.archived_at || o.archivedAt || null) as string | null,
+            deliveryStatus: (o.delivery_status ?? null) as DeliveryStatusGroup | null,
+            deliveryStatusUpdatedAt: (o.delivery_status_updated_at ?? null) as string | null,
           }));
           console.log(`[DB] ✅ Loaded ${mapped.length} orders from Supabase`);
           setOrders(mapped);

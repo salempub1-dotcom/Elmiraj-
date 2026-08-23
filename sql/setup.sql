@@ -165,8 +165,17 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_send_count    INTEGER NOT N
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived               BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at            TIMESTAMPTZ DEFAULT NULL;
 
+-- delivery_status: NOEST's real shipment progress — a concept fully
+-- separate from `status` (order_status, admin-only, 4 values). Written
+-- ONLY by api/orders.js action=sync_delivery_status (batched, on-demand),
+-- never guessed/derived from `status`. Values: in_preparation, in_transit,
+-- delivery_attempt_failed, returned, delivered, unknown/NULL (not synced yet).
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_status             TEXT DEFAULT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_status_updated_at  TIMESTAMPTZ DEFAULT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_orders_reminder_date ON orders(reminder_date);
 CREATE INDEX IF NOT EXISTS idx_orders_archived      ON orders(archived);
+CREATE INDEX IF NOT EXISTS idx_orders_delivery_status ON orders(delivery_status);
 
 
 -- ═══════════════════════════════════════════════════════════════

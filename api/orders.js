@@ -449,6 +449,167 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── UPDATE ITEMS: edit an order's products in place (admin only) ───────
+  // "✏️ تعديل الطلب" — add/remove products or change quantities on an
+  // EXISTING order without creating a new Order (same id/tracking/history).
+  //
+  // Trust model (critical): the client sends ONLY { productId, quantity }
+  // pairs — never a price, subtotal, or total. This endpoint never reads
+  // body.price / body.total / body.subtotal for anything, so there is no
+  // field a tampered request could set to override the computed total —
+  // it is recomputed fresh, every time, from trusted server-side data:
+  //   - an item already on the order keeps its EXACT existing price
+  //     snapshot (order.items, re-read fresh from the DB) — editing the
+  //     Catalog price of a product never silently changes an existing
+  //     order, exactly like at checkout time.
+  //   - an item newly added to the order gets a fresh snapshot of that
+  //     product's CURRENT price, read from the `products` table here,
+  //     server-side (never the price the browser happened to have
+  //     rendered).
+  // Delivery (`shipping`) is left completely untouched — this project's
+  // delivery price depends only on wilaya/delivery type, never on cart
+  // contents (see the checkout `shippingCost` calculation), so changing
+  // products can never change the delivery price.
+  if (action === 'update_items') {
+    const admin = verifyAdminToken(req.headers.authorization);
+    if (!admin) {
+      return res.status(401).json({ ok: false, error: 'Admin authentication required' });
+    }
+
+    const { id, lines } = body;
+    if (!id) return res.status(400).json({ ok: false, error: 'id is required' });
+    if (!Array.isArray(lines) || lines.length === 0) {
+      return res.status(400).json({ ok: false, error: 'EMPTY_ITEMS', message: 'يجب أن يحتوي الطلب على منتج واحد على الأقل.' });
+    }
+
+    // ── Validate + de-duplicate the requested lines (merge repeated productId, like the storefront cart does) ──
+    const mergedQty = new Map();
+    for (const line of lines) {
+      const productId = Number(line?.productId);
+      const quantity = Number(line?.quantity);
+      if (!Number.isFinite(productId) || productId <= 0) {
+        return res.status(400).json({ ok: false, error: 'INVALID_LINE', message: 'أحد عناصر الطلب يشير إلى منتج غير صالح.' });
+      }
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        return res.status(400).json({ ok: false, error: 'INVALID_QUANTITY', message: 'الكمية يجب أن تكون رقمًا صحيحًا أكبر من صفر لكل منتج.' });
+      }
+      mergedQty.set(productId, (mergedQty.get(productId) || 0) + quantity);
+    }
+
+    // ── Fresh server-side read — never trust the client's idea of the order's current state ──
+    let order;
+    try {
+      const { data, error } = await supabase.from('orders').select('*').eq('id', id).single();
+      if (error || !data) {
+        return res.status(200).json({ ok: false, error: 'ORDER_NOT_FOUND', message: 'تعذر العثور على الطلب.' });
+      }
+      order = data;
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: e.message });
+    }
+
+    // ── Rule §14: only pending / confirmed / waiting_customer may be edited (never cancelled, unless requested explicitly later) ──
+    const ITEMS_EDITABLE_STATUSES = ['pending', 'confirmed', 'waiting_customer'];
+    if (!ITEMS_EDITABLE_STATUSES.includes(normalizeOrderStatus(order.status))) {
+      return res.status(200).json({
+        ok: false,
+        error: 'STATUS_NOT_ALLOWED',
+        message: 'لا يمكن تعديل منتجات هذا الطلب في حالته الحالية.',
+      });
+    }
+
+    // ── Rule §17: an archived order is closed — never editable ──
+    if (order.archived) {
+      return res.status(200).json({
+        ok: false,
+        error: 'ORDER_ARCHIVED',
+        message: 'هذا الطلب مؤرشف — لا يمكن تعديل منتجاته.',
+      });
+    }
+
+    // ── Rule §16: once NOEST confirms the parcel actually entered its delivery
+    // network (Expédié/Scanned — same trigger as auto-archive, see
+    // isParcelInDeliveryNetwork above), item editing is permanently blocked.
+    // A null/unsynced delivery_status must NOT be treated as "in network". ──
+    if (order.delivery_status && isParcelInDeliveryNetwork(order.delivery_status)) {
+      return res.status(200).json({
+        ok: false,
+        error: 'ALREADY_SHIPPED',
+        message: 'لا يمكن تعديل المنتجات بعد دخول الطلب في مرحلة الشحن.',
+      });
+    }
+
+    // ── Resolve each line's price: existing snapshot for items already on the order, live Catalog price for newly-added ones ──
+    const existingItems = Array.isArray(order.items) ? order.items : [];
+    const existingById = new Map(existingItems.map((it) => [Number(it.id), it]));
+    const newProductIds = [...mergedQty.keys()].filter((pid) => !existingById.has(pid));
+
+    let liveProductsById = new Map();
+    if (newProductIds.length > 0) {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id,name,description,price,category,images,stock,sales,benefits,contents,level,badge')
+          .in('id', newProductIds);
+        if (error) {
+          return res.status(200).json({ ok: false, error: error.message });
+        }
+        liveProductsById = new Map((data || []).map((p) => [Number(p.id), p]));
+      } catch (e) {
+        return res.status(200).json({ ok: false, error: e.message });
+      }
+      const notFound = newProductIds.filter((pid) => !liveProductsById.has(pid));
+      if (notFound.length > 0) {
+        return res.status(200).json({
+          ok: false,
+          error: 'PRODUCT_NOT_FOUND',
+          message: 'أحد المنتجات المحددة لم يعد موجودًا في الكتالوج.',
+        });
+      }
+    }
+
+    const finalItems = [];
+    for (const [productId, quantity] of mergedQty.entries()) {
+      const existing = existingById.get(productId);
+      if (existing) {
+        finalItems.push({ ...existing, quantity });
+      } else {
+        const p = liveProductsById.get(productId);
+        finalItems.push({
+          id: p.id, name: p.name, description: p.description, price: p.price,
+          category: p.category, images: p.images, stock: p.stock, sales: p.sales,
+          benefits: p.benefits, contents: p.contents, level: p.level, badge: p.badge,
+          quantity,
+        });
+      }
+    }
+
+    const subtotal = finalItems.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 0), 0);
+    const shipping = Number(order.shipping) || 0; // ── delivery price untouched — never re-derived here ──
+    const total = subtotal + shipping;
+    const nowIso = new Date().toISOString();
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ items: finalItems, total, updated_at: nowIso })
+        .eq('id', id);
+
+      if (error) {
+        console.error('[ORDERS] Update items error:', error.message, error.code);
+        return res.status(200).json({ ok: false, error: error.message, code: error.code });
+      }
+
+      console.log(`[ORDERS] ✅ Updated items for order ${id} — ${finalItems.length} line(s), total=${total}`);
+      return res.status(200).json({
+        ok: true,
+        data: { items: finalItems, subtotal, shipping, total, updatedAt: nowIso },
+      });
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: e.message });
+    }
+  }
+
   // ── SEND / RESEND TO DELIVERY: create a real NOEST shipment (admin only) ──
   // Critical rule: NEVER trust the client's idea of the order's status or
   // whether it was already sent. Always re-read the order fresh from the
@@ -704,6 +865,6 @@ export default async function handler(req, res) {
   return res.status(400).json({
     ok: false,
     error: `Unknown action: ${action}`,
-    available: ['list', 'save', 'update_status', 'update_note', 'update_reminder', 'send_to_delivery', 'resend_to_delivery', 'archive', 'unarchive', 'delete', 'sync_delivery_status'],
+    available: ['list', 'save', 'update_status', 'update_note', 'update_reminder', 'update_items', 'send_to_delivery', 'resend_to_delivery', 'archive', 'unarchive', 'delete', 'sync_delivery_status'],
   });
 }

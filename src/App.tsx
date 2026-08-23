@@ -1,5 +1,10 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
+import { Routes, Route, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+
+// ── تبويب "📊 الإحصائيات" — Lazy/code-split حتى لا يدخل كود الخريطة/الرسم
+// البياني إلى حزمة المتجر أو صفحات الهبوط أبدًا؛ يُحمَّل فقط عند فتح هذا
+// التبويب من لوحة الإدارة.
+const StatisticsPage = lazy(() => import('./components/admin/StatisticsPage'));
 import { getWilayas, getCommunes, getDesks, getWilayaCodeFromDeskCode, pingProxy, diagnoseNoest, type NoestWilaya, type NoestCommune, type NoestDesk } from './services/noestApi';
 import { uploadProductImage, deleteProductImage, isSupabaseConfigured, isSupabaseUrl, testSupabaseConnection, getSupabaseInfo, compressImage } from './services/supabase';
 import ProductLanding from './pages/landing/ProductLanding';
@@ -60,14 +65,14 @@ interface CartItem extends Product {
   quantity: number;
 }
 
-interface WilayaShipping {
+export interface WilayaShipping {
   code: number;
   name: string;
   home: number;
   office: number;
 }
 
-interface Order {
+export interface Order {
   id: string;
   tracking: string;
   customer: string;
@@ -141,7 +146,7 @@ interface LandingPage {
 // ============================================================
 // DATA
 // ============================================================
-const wilayaShipping: WilayaShipping[] = [
+export const wilayaShipping: WilayaShipping[] = [
   { code: 16, name: 'الجزائر', home: 500, office: 300 },
   { code: 35, name: 'بومرداس', home: 600, office: 400 },
   { code: 9, name: 'البليدة', home: 600, office: 400 },
@@ -320,7 +325,7 @@ const safeArr = <T,>(arr?: T[] | null): T[] => {
 const ALGIERS_TZ = 'Africa/Algiers';
 const algiersDateKeyFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: ALGIERS_TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
 /** 'YYYY-MM-DD' key for a given instant, in Algeria's local calendar day. */
-const algiersDateKey = (d: Date | string | number): string => {
+export const algiersDateKey = (d: Date | string | number): string => {
   const date = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(date.getTime())) return '';
   return algiersDateKeyFormatter.format(date);
@@ -331,9 +336,9 @@ const dateKeyToUTC = (key: string): Date => {
   return new Date(Date.UTC(y || 1970, (m || 1) - 1, d || 1));
 };
 /** Whole calendar days between two 'YYYY-MM-DD' keys (b - a). */
-const daysBetweenKeys = (aKey: string, bKey: string): number => Math.round((dateKeyToUTC(bKey).getTime() - dateKeyToUTC(aKey).getTime()) / 86400000);
+export const daysBetweenKeys = (aKey: string, bKey: string): number => Math.round((dateKeyToUTC(bKey).getTime() - dateKeyToUTC(aKey).getTime()) / 86400000);
 /** ISO weekday (1=Monday..7=Sunday) of a 'YYYY-MM-DD' key, computed safely via UTC. */
-const isoWeekdayOfKey = (key: string): number => { const wd = dateKeyToUTC(key).getUTCDay(); return wd === 0 ? 7 : wd; };
+export const isoWeekdayOfKey = (key: string): number => { const wd = dateKeyToUTC(key).getUTCDay(); return wd === 0 ? 7 : wd; };
 
 // ============================================================
 // ORDER STATUS vs DELIVERY STATUS
@@ -348,7 +353,7 @@ const isoWeekdayOfKey = (key: string): number => { const wd = dateKeyToUTC(key).
 // db.trackOrder() — never stored as an order_status value.
 type SimpleOrderStatus = 'pending' | 'confirmed' | 'waiting_customer' | 'cancelled';
 const ORDER_STATUS_VALUES: SimpleOrderStatus[] = ['pending', 'confirmed', 'waiting_customer', 'cancelled'];
-const normalizeOrderStatus = (status: Order['status']): SimpleOrderStatus =>
+export const normalizeOrderStatus = (status: Order['status']): SimpleOrderStatus =>
   (status === 'shipped' || status === 'delivered') ? 'confirmed' : status;
 
 // ── تصنيف بصري لحالة الشحنة (delivery_status) — للأرشيف فقط ──────────
@@ -1421,7 +1426,7 @@ function AdminApp({
   });
   useEffect(() => { try { localStorage.setItem('admin-theme', theme); } catch { /* */ } }, [theme]);
   const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
-  const [tab, setTab] = useState<'dashboard' | 'orders' | 'archive' | 'products' | 'landing' | 'system'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'statistics' | 'orders' | 'archive' | 'products' | 'landing' | 'system'>('dashboard');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   // ── إدارة الطلبات: بحث + فلاتر (حالة/تاريخ) ──────────────────
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -1469,14 +1474,17 @@ function AdminApp({
 
   useEffect(() => { try { localStorage.setItem('almiraj_admin', isAdmin ? 'true' : 'false'); } catch { /* */ } }, [isAdmin]);
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.pathname.includes('/admin/system')) {
+    if (typeof window === 'undefined') return;
+    if (window.location.pathname.includes('/admin/system')) {
       setTab('system');
+    } else if (window.location.pathname.includes('/admin/statistics')) {
+      setTab('statistics');
     }
   }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const basePath = tab === 'system' ? '/admin/system' : '/admin';
+    const basePath = tab === 'system' ? '/admin/system' : tab === 'statistics' ? '/admin/statistics' : '/admin';
     if (window.location.pathname !== basePath) {
       window.history.pushState(null, '', basePath);
     }
@@ -1494,7 +1502,9 @@ function AdminApp({
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => { setToast({ message, type }); }, []);
   const unread = notifications.filter(n => !n.read).length;
-  const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
+  // ملاحظة: تم نقل حساب "الإيرادات" بالكامل إلى تبويب 📊 الإحصائيات (StatisticsPage) —
+  // هناك فقط يُحسب من الطلبات المؤكدة (confirmed) بصرف النظر عن الأرشفة، وفق طلب
+  // المستخدم الصريح. لا يوجد بعد الآن أي "إجمالي إيرادات" في لوحة المعلومات الرئيسية.
   const pendingCount = orders.filter(o => o.status === 'pending' && !o.archived).length;
   // ── اختصارات الشريط الجانبي بالحالة — نفس منطق normalizeOrderStatus المستخدم في الفلاتر ──
   const confirmedCount = orders.filter(o => normalizeOrderStatus(o.status) === 'confirmed' && !o.archived).length;
@@ -2253,6 +2263,7 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
         <aside className="w-56 bg-slate-50 dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 fixed top-16 right-0 bottom-0 overflow-y-auto hidden md:block transition-colors duration-200">
           <nav className="p-4 space-y-2">
             <button onClick={() => setTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === 'dashboard' ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300'}`}><span className="text-xl">📊</span><span className="text-sm">لوحة المعلومات</span></button>
+            <button onClick={() => setTab('statistics')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-right ${tab === 'statistics' ? 'bg-[#183C6B] text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300'}`}><span className="text-xl">📊</span><span className="text-sm">الإحصائيات</span></button>
 
             {/* ── اختصارات الطلبات بالحالة — تعيد استخدام نفس تبويب "الطلبات" مع فلتر الحالة ── */}
             <p className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">الطلبات</p>
@@ -2278,14 +2289,14 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               ))}
             </div>
           </nav>
-          <div className="p-4 space-y-3 border-t border-gray-200 dark:border-gray-700 mt-4"><div className="bg-blue-50 dark:bg-blue-950/40 rounded-xl p-3"><p className="text-xs text-gray-500 dark:text-gray-400">الإيرادات الكلية</p><p className="text-lg font-bold text-blue-700 dark:text-blue-300">{totalRevenue.toLocaleString()} دج</p></div><div className="bg-yellow-50 dark:bg-amber-950/40 rounded-xl p-3"><p className="text-xs text-gray-500 dark:text-gray-400">طلبات معلقة</p><p className="text-lg font-bold text-yellow-700 dark:text-amber-300">{pendingCount}</p></div></div>
+          <div className="p-4 space-y-3 border-t border-gray-200 dark:border-gray-700 mt-4"><div className="bg-yellow-50 dark:bg-amber-950/40 rounded-xl p-3"><p className="text-xs text-gray-500 dark:text-gray-400">طلبات معلقة</p><p className="text-lg font-bold text-yellow-700 dark:text-amber-300">{pendingCount}</p></div></div>
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 min-w-0 md:mr-56 p-4 md:p-6">
           {/* Mobile Tabs */}
           <div className="flex md:hidden gap-2 mb-4 overflow-x-auto">
-                        {[{ id: 'dashboard' as const, label: '📊 لوحة' }, { id: 'orders' as const, label: '📋 الطلبات' }, { id: 'archive' as const, label: '🗄️ الأرشيف' }, { id: 'products' as const, label: '📦 المنتجات' }, { id: 'landing' as const, label: '🚀 هبوط' }].map(t => (
+                        {[{ id: 'dashboard' as const, label: '📊 لوحة' }, { id: 'statistics' as const, label: '📊 الإحصائيات' }, { id: 'orders' as const, label: '📋 الطلبات' }, { id: 'archive' as const, label: '🗄️ الأرشيف' }, { id: 'products' as const, label: '📦 المنتجات' }, { id: 'landing' as const, label: '🚀 هبوط' }].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${tab === t.id ? 'bg-[#183C6B] text-white' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>{t.label}</button>
             ))}
           </div>
@@ -2308,13 +2319,12 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
             </button>
           </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { label: 'إجمالي الطلبات', value: orders.length, icon: '📋', accent: 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700' },
                 { label: 'الطلبات المؤكدة', value: confirmedCount, icon: '🔵', accent: 'text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40' },
                 { label: 'الطلبات المعلقة', value: pendingCount, icon: '🟡', accent: 'text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40' },
                 { label: 'في انتظار العميل', value: waitingCustomerCount, icon: '🟣', accent: 'text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40' },
-                { label: 'إجمالي الإيرادات', value: `${totalRevenue.toLocaleString()} دج`, icon: '💰', accent: 'text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40' },
               ].map((s, i) => (
                 <div key={i} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-4">
                   <span className={`inline-flex w-9 h-9 rounded-lg items-center justify-center text-base mb-3 ${s.accent}`}>{s.icon}</span>
@@ -2349,6 +2359,12 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               )}
             </div>
           </div>)}
+          {/* STATISTICS TAB — lazy-loaded so its map/chart code never ships to the storefront */}
+          {tab === 'statistics' && (
+            <Suspense fallback={<div className="flex items-center justify-center py-24 gap-3 text-gray-400 dark:text-gray-500"><div className="w-6 h-6 border-4 border-blue-200 border-t-[#183C6B] rounded-full animate-spin" /><span className="font-bold text-sm">جاري تحميل الإحصائيات...</span></div>}>
+              <StatisticsPage orders={orders} />
+            </Suspense>
+          )}
           {/* SYSTEM TAB - separated diagnostics page (/admin/system) */}
           {tab === 'system' && (
             <div className="space-y-6">
@@ -3247,6 +3263,17 @@ export function App() {
   const [dbLoading, setDbLoading] = useState(true);
   const [dbSource, setDbSource] = useState<'supabase' | 'fallback' | 'loading'>('loading');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ── تتبّع زيارات خفيف وداخلي لصفحات المتجر فقط (📊 الإحصائيات) ─────────
+  // "Page Views" بسيطة (وليست "Visits" فريدة/deduplicated) — تُرسل غير-حاجزة
+  // (non-blocking, fire-and-forget) عند كل تغيّر مسار طالما لسنا في لوحة
+  // الإدارة، ولا تُستثنى صفحات الهبوط. لا تعتمد أبدًا على Facebook Pixel.
+  useEffect(() => {
+    if (view === 'admin') return;
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) return;
+    db.trackPageView(location.pathname || '/');
+  }, [location.pathname, view]);
 
   // ── Fetch products from Supabase on mount ──────────────────
   useEffect(() => {

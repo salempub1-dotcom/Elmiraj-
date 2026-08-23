@@ -487,6 +487,63 @@ export async function syncDeliveryStatus(): Promise<DbResult<DeliverySyncResult>
   }
 }
 
+// ═════════════════════════════════════════════════════════════
+// ANALYTICS (📊 الإحصائيات) — lightweight internal page-view tracking
+// ═════════════════════════════════════════════════════════════
+
+/**
+ * Fire-and-forget page-view tracking for the storefront/landing pages only
+ * (never called for /admin — the caller in App.tsx already guards that).
+ * Deliberately non-blocking and silent on failure: never awaited by the
+ * caller, never throws, never delays Hero/images/checkout/CTA rendering.
+ * Counts simple "Page Views" (not deduplicated unique "Visits") — see
+ * StatisticsPage.tsx for how this is surfaced to the admin.
+ */
+export function trackPageView(page: string): void {
+  try {
+    void fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'track', page }),
+      keepalive: true,
+    }).catch(() => { /* never surfaced — tracking must never affect the UI */ });
+  } catch {
+    /* never surfaced */
+  }
+}
+
+export interface AnalyticsDailyPoint {
+  date: string; // 'YYYY-MM-DD' (Africa/Algiers)
+  views: number;
+}
+export interface AnalyticsStatsResult {
+  totalViews: number;
+  byDate: AnalyticsDailyPoint[];
+}
+
+/**
+ * Admin-only aggregated page-view totals for a date range (inclusive,
+ * 'YYYY-MM-DD' Algiers-local keys) — a single grouped query, used to
+ * drive the 👥 زيارات الموقع KPI and the "أداء المتجر" chart in
+ * StatisticsPage.tsx. Never returns per-visitor data — only daily totals.
+ */
+export async function fetchAnalyticsStats(from: string, to: string): Promise<DbResult<AnalyticsStatsResult>> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stats', from, to }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    return await r.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
 /**
  * Permanently delete an order — admin only. Reserved for test/incorrect
  * orders; the caller is responsible for confirming with the user first.

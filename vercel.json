@@ -13,6 +13,15 @@
     { "source": "/api/admin/landing-pages/:id", "destination": "/api/admin/landing-pages/[id]" },
     { "source": "/api/admin/landing-pages", "destination": "/api/admin/landing-pages" },
     { "source": "/api/landing-page/:slug", "destination": "/api/landing-page/[slug]" },
+    { "source": "/api/social-preview", "destination": "/api/social-preview" },
+
+    { "source": "/lp/:id",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*([Ff]acebook[Ee]xternal[Hh]it|[Ff]acebot|[Ww]hats[Aa]pp|[Tt]elegram[Bb]ot|[Tt]witter[Bb]ot|[Ll]inked[Ii]n[Bb]ot|[Ss]lackbot|[Dd]iscordbot|[Ss]kype[Uu]ri[Pp]review|[Pp]interest|[Rr]eddit[Bb]ot|[Vv][Kk][Ss]hare).*" }],
+      "destination": "/api/social-preview?type=product&id=:id" },
+    { "source": "/l/:slug",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*([Ff]acebook[Ee]xternal[Hh]it|[Ff]acebot|[Ww]hats[Aa]pp|[Tt]elegram[Bb]ot|[Tt]witter[Bb]ot|[Ll]inked[Ii]n[Bb]ot|[Ss]lackbot|[Dd]iscordbot|[Ss]kype[Uu]ri[Pp]review|[Pp]interest|[Rr]eddit[Bb]ot|[Vv][Kk][Ss]hare).*" }],
+      "destination": "/api/social-preview?type=landing&slug=:slug" },
+
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

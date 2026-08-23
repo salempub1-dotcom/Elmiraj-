@@ -73,6 +73,37 @@ const safeImages = (images?: string[] | null): string[] => (!images || !Array.is
 const safeStr = (str?: string | null, fallback = ''): string => str || fallback;
 const safeArr = <T,>(arr?: T[] | null): T[] => (!arr || !Array.isArray(arr)) ? [] : arr;
 
+// ── SEO helper — نفس نمط setSEO() الموجود أصلاً في DynamicLanding.tsx،
+// يحدّث Meta Tags من جهة العميل (React) بعد التحميل. هذا يفيد المتصفح
+// الحقيقي وأي Crawler يُنفّذ JavaScript (مثل Google)، لكنه وحده لا يكفي
+// لمعاينات Facebook/WhatsApp/Telegram (راجع التقرير النهائي) — لذلك تم
+// أيضاً إضافة api/social-preview.js كحل خادمي لتلك الـCrawlers تحديداً. ──
+function setSEO(title: string, description: string, image: string, canonicalUrl: string) {
+  document.title = title;
+
+  let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+  if (!metaDesc) { metaDesc = document.createElement('meta'); metaDesc.name = 'description'; document.head.appendChild(metaDesc); }
+  metaDesc.content = description;
+
+  let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+  if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.appendChild(canonical); }
+  canonical.href = canonicalUrl;
+
+  const ogTags: Record<string, string> = { 'og:type': 'product', 'og:title': title, 'og:description': description, 'og:url': canonicalUrl, 'og:image': image };
+  Object.entries(ogTags).forEach(([property, content]) => {
+    let tag = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
+    if (!tag) { tag = document.createElement('meta'); tag.setAttribute('property', property); document.head.appendChild(tag); }
+    tag.content = content;
+  });
+
+  const twitterTags: Record<string, string> = { 'twitter:card': 'summary_large_image', 'twitter:title': title, 'twitter:description': description, 'twitter:image': image };
+  Object.entries(twitterTags).forEach(([name, content]) => {
+    let tag = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+    if (!tag) { tag = document.createElement('meta'); tag.name = name; document.head.appendChild(tag); }
+    tag.content = content;
+  });
+}
+
 // ── Slugify helper ───────────────────────────────────────────
 function slugify(text: string): string {
   return text
@@ -169,8 +200,13 @@ export default function ProductLanding({
       pixelFired.current = true;
       fbTrack('ViewContent', buildCatalogData(product));
 
-      // Update page title
-      document.title = `${product.name} | المعراج`;
+      // تحديث Meta Tags (العنوان/الوصف/og:*/twitter:*/canonical) — انظر setSEO أعلاه
+      setSEO(
+        `${product.name} | المعراج`,
+        (product.description || '').replace(/\s+/g, ' ').trim().slice(0, 200) || 'وسائل تعليمية وموارد احترافية للأساتذة.',
+        safeImage(product.images),
+        `https://elm3raj.com/lp/${product.id}`
+      );
     }
   }, [product]);
 

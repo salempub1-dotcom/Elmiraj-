@@ -8,6 +8,7 @@
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { SITE_URL, SITE_NAME, FALLBACK_IMAGE, FALLBACK_TITLE, FALLBACK_DESC, toPreviewText, renderSocialPreviewHtml } from '../../lib/socialPreviewHtml.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -50,6 +51,56 @@ export default async function handler(req, res) {
   }
 
   const slug = extractSlug(req);
+
+  // ── social_preview=1: bot-only HTML for this landing page ─────
+  // Reached ONLY via the crawler-User-Agent-gated rewrite for /l/:slug in
+  // vercel.json (Facebook/WhatsApp/Telegram/etc. previews). Kept inside
+  // this same file — instead of a separate api/social-preview.js — because
+  // this project is on Vercel's Hobby plan, which caps a deployment at 12
+  // Serverless Functions; the project was already at that limit, and a
+  // dedicated extra function silently failed every production deployment.
+  // Real visitors never send this query param and are unaffected.
+  if (req.query?.social_preview === '1') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600');
+    const url = `${SITE_URL}/l/${slug || ''}`;
+
+    if (!supabase || !slug) {
+      return res.status(200).send(renderSocialPreviewHtml({ title: FALLBACK_TITLE, description: FALLBACK_DESC, image: FALLBACK_IMAGE, url, type: 'website' }));
+    }
+
+    try {
+      const { data: page } = await supabase
+        .from('landing_pages')
+        .select('title, headline, description, image_url, product_id, is_active')
+        .eq('slug', slug.toLowerCase())
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!page) {
+        res.status(404);
+        return res.send(renderSocialPreviewHtml({ title: FALLBACK_TITLE, description: FALLBACK_DESC, image: FALLBACK_IMAGE, url, type: 'website' }));
+      }
+
+      let productImage = null;
+      if (!page.image_url && page.product_id) {
+        const { data: prod } = await supabase.from('products').select('images').eq('id', page.product_id).maybeSingle();
+        productImage = (prod && Array.isArray(prod.images) && prod.images[0]) || null;
+      }
+
+      const title = page.headline || page.title || FALLBACK_TITLE;
+      return res.status(200).send(renderSocialPreviewHtml({
+        title: `${title} | ${SITE_NAME}`,
+        description: toPreviewText(page.description || page.headline || page.title) || FALLBACK_DESC,
+        image: page.image_url || productImage || FALLBACK_IMAGE,
+        url,
+        type: 'website',
+      }));
+    } catch {
+      return res.status(200).send(renderSocialPreviewHtml({ title: FALLBACK_TITLE, description: FALLBACK_DESC, image: FALLBACK_IMAGE, url, type: 'website' }));
+    }
+  }
+
   if (!slug) {
     return res.status(400).json({
       ok: false,

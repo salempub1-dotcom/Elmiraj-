@@ -236,6 +236,40 @@ ALTER TABLE landing_pages
 
 
 -- ═══════════════════════════════════════════════════════════════
+-- 3.5. ANALYTICS TABLE (📊 الإحصائيات — lightweight internal page views)
+-- ═══════════════════════════════════════════════════════════════
+-- Minimal, pre-aggregated table: ONE row per (date, page_id), incremented
+-- on every page view via increment_pageview() below. This is deliberately
+-- simple "Page Views" (not deduplicated unique "Visits" — no per-visitor
+-- identity, no cookies, no fingerprinting, nothing beyond a daily counter
+-- per page path). Written only by api/analytics.js (action='track', public
+-- but server-side/SERVICE_ROLE-only) and read only by api/analytics.js
+-- (action='stats', admin-only). /admin* paths are never stored here.
+
+CREATE TABLE IF NOT EXISTS analytics_pageviews (
+  date        DATE         NOT NULL,
+  page_id     TEXT         NOT NULL,
+  views       INTEGER      NOT NULL DEFAULT 0,
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (date, page_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_pageviews_date ON analytics_pageviews(date);
+
+-- Atomic increment (INSERT ... ON CONFLICT DO UPDATE) so concurrent visits
+-- from many simultaneous visitors never race/undercount each other.
+CREATE OR REPLACE FUNCTION increment_pageview(p_date DATE, p_page TEXT)
+RETURNS void AS $fn$
+BEGIN
+  INSERT INTO analytics_pageviews (date, page_id, views, updated_at)
+  VALUES (p_date, p_page, 1, NOW())
+  ON CONFLICT (date, page_id)
+  DO UPDATE SET views = analytics_pageviews.views + 1, updated_at = NOW();
+END;
+$fn$ LANGUAGE plpgsql;
+
+
+-- ═══════════════════════════════════════════════════════════════
 -- 4. AUTO-UPDATE TRIGGER (updated_at)
 -- ═══════════════════════════════════════════════════════════════
 -- Uses $fn$ delimiter (not $$) to avoid Supabase Dashboard breakage
@@ -271,16 +305,21 @@ CREATE TRIGGER trg_landing_pages_updated_at
 -- 5. ROW LEVEL SECURITY (RLS)
 -- ═══════════════════════════════════════════════════════════════
 -- Strategy:
---   products:      PUBLIC read (anon SELECT) — write via SERVICE_ROLE only
---   orders:        NO public access — all via SERVICE_ROLE
---   landing_pages: PUBLIC read active pages (anon SELECT WHERE is_active)
---                  — write via SERVICE_ROLE only
+--   products:            PUBLIC read (anon SELECT) — write via SERVICE_ROLE only
+--   orders:               NO public access — all via SERVICE_ROLE
+--   landing_pages:        PUBLIC read active pages (anon SELECT WHERE is_active)
+--                         — write via SERVICE_ROLE only
+--   analytics_pageviews:  NO public access at all (not even read) — the public
+--                         /api/analytics 'track' action writes via SERVICE_ROLE
+--                         server-side only; the browser never talks to Supabase
+--                         directly for this table.
 -- ═══════════════════════════════════════════════════════════════
 
 -- Enable RLS on all tables
-ALTER TABLE products      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE landing_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE landing_pages        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE analytics_pageviews  ENABLE ROW LEVEL SECURITY;
 
 -- ── Products policies ─────────────────────────────────────────
 DROP POLICY IF EXISTS "Public read products"        ON products;
@@ -458,4 +497,8 @@ SELECT
 UNION ALL
 SELECT
   'landing_pages',
-  (SELECT COUNT(*) FROM landing_pages);
+  (SELECT COUNT(*) FROM landing_pages)
+UNION ALL
+SELECT
+  'analytics_pageviews',
+  (SELECT COUNT(*) FROM analytics_pageviews);

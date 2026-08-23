@@ -58,6 +58,15 @@ function setSEO(title: string, description: string, image?: string) {
   }
   metaDesc.content = description;
 
+  // Canonical — كل صفحة Landing لها رابطها الخاص، وليس رابط الصفحة الرئيسية
+  let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    document.head.appendChild(canonical);
+  }
+  canonical.href = window.location.href;
+
   // Open Graph tags for Facebook/social sharing
   const ogTags: Record<string, string> = {
     'og:title': title,

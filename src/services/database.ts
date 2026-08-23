@@ -614,6 +614,45 @@ export async function updateOrderReminder(id: string, reminderDate: string | nul
   }
 }
 
+export interface OrderItemLine {
+  productId: number;
+  quantity: number;
+}
+export interface UpdateOrderItemsResult {
+  items: unknown[]; // shape matches Order['items'] (CartItem[]) — cast at the call site, which already knows that type
+  subtotal: number;
+  shipping: number;
+  total: number;
+  updatedAt: string;
+}
+
+/**
+ * "✏️ تعديل الطلب" — add/remove products or change quantities on an
+ * EXISTING order (admin only) — never creates a new order. Sends ONLY
+ * { productId, quantity } per line — deliberately no price/subtotal/total
+ * field exists to send, because the server recomputes all of that itself
+ * from trusted data (see api/orders.js action='update_items') and never
+ * reads a client-submitted money value for this action.
+ */
+export async function updateOrderItems(id: string, lines: OrderItemLine[]): Promise<DbResult<UpdateOrderItemsResult>> {
+  const token = getToken();
+  try {
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'update_items', id, lines }),
+    });
+    if (notifyIfAdminAuthExpired(r.status)) {
+      return { ok: false, error: AUTH_EXPIRED, message: SESSION_EXPIRED_MESSAGE };
+    }
+    const result = await r.json();
+    if (result.ok) console.log(`[DB] ✅ Order ${id} items updated (${lines.length} line(s))`);
+    return result;
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
 /**
  * Send a CONFIRMED order to the delivery company (NOEST) for the first
  * time — admin only. The server re-reads the order and re-validates its

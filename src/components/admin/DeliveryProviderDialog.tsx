@@ -45,7 +45,7 @@ export default function DeliveryProviderDialog() {
     setPreferredProvider(null);
   };
 
-  const finish = (selection: { provider: 'noest' | 'zrexpress'; source_hub_id?: string; pickup_hub_id?: string } | null) => {
+  const finish = (selection: { provider: 'noest' | 'zrexpress'; pickup_hub_id?: string } | null) => {
     const current = request;
     reset();
     current?.resolve(selection);
@@ -81,7 +81,6 @@ export default function DeliveryProviderDialog() {
 
     if (data.delivery_type === 'office' && data.preferred_pickup_hub_id && data.pickup_hubs.some((h) => h.id === data.preferred_pickup_hub_id)) {
       setPickupHubId(data.preferred_pickup_hub_id);
-    } catch { /* ignore */ }
     }
 
     setStage('zr');

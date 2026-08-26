@@ -22,6 +22,7 @@ export type DeliverySelectionRequest = {
 };
 
 export const DELIVERY_SELECTION_EVENT = 'almiraj:delivery-selection';
+export const DELIVERY_PROVIDER_UPDATED_EVENT = 'almiraj:delivery-provider-updated';
 
 function requestSelection(orderId: string, mode: 'send' | 'resend', authorization: string): Promise<DeliverySelection | null> {
   return new Promise((resolve) => {
@@ -59,6 +60,22 @@ function isOrdersPost(input: RequestInfo | URL, init?: RequestInit): boolean {
     return url.origin === window.location.origin && url.pathname === '/api/orders' && method === 'POST';
   } catch {
     return false;
+  }
+}
+
+async function dispatchProviderRefreshFromResponse(response: Response, orderId: string): Promise<void> {
+  try {
+    const payload = await response.clone().json();
+    if (!payload?.ok) return;
+    window.dispatchEvent(new CustomEvent(DELIVERY_PROVIDER_UPDATED_EVENT, {
+      detail: {
+        orderId,
+        provider: payload?.data?.delivery_provider || null,
+        deliveryRef: payload?.data?.delivery_ref || payload?.data?.noest_id || null,
+      },
+    }));
+  } catch {
+    // UI refresh is best-effort only; never interfere with the real response.
   }
 }
 
@@ -106,7 +123,7 @@ export function installDeliveryFetchBridge(): void {
       return jsonResponse({ ok: false, error: 'USER_CANCELLED', message: 'تم إلغاء الإرسال.' });
     }
 
-    return nativeFetch('/api/noest', {
+    const response = await nativeFetch('/api/noest', {
       ...init,
       body: JSON.stringify({
         action: mode === 'resend' ? 'delivery_resend' : 'delivery_send',
@@ -116,5 +133,8 @@ export function installDeliveryFetchBridge(): void {
         ...(selection.pickup_hub_id ? { pickup_hub_id: selection.pickup_hub_id } : {}),
       }),
     });
+
+    void dispatchProviderRefreshFromResponse(response, orderId);
+    return response;
   };
 }

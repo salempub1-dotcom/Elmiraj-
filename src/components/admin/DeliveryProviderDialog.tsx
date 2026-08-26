@@ -33,7 +33,6 @@ export default function DeliveryProviderDialog() {
   const [stage, setStage] = useState<'provider' | 'loading' | 'zr'>('provider');
   const [error, setError] = useState('');
   const [prepared, setPrepared] = useState<ZrPreparation | null>(null);
-  const [sourceHubId, setSourceHubId] = useState('');
   const [pickupHubId, setPickupHubId] = useState('');
   const [preferredProvider, setPreferredProvider] = useState<'noest' | 'zrexpress' | null>(null);
 
@@ -42,7 +41,6 @@ export default function DeliveryProviderDialog() {
     setStage('provider');
     setError('');
     setPrepared(null);
-    setSourceHubId('');
     setPickupHubId('');
     setPreferredProvider(null);
   };
@@ -83,13 +81,7 @@ export default function DeliveryProviderDialog() {
 
     if (data.delivery_type === 'office' && data.preferred_pickup_hub_id && data.pickup_hubs.some((h) => h.id === data.preferred_pickup_hub_id)) {
       setPickupHubId(data.preferred_pickup_hub_id);
-    }
-
-    if (data.delivery_type === 'home') {
-      try {
-        const saved = localStorage.getItem('almiraj_zr_source_hub_id') || '';
-        if (saved && data.source_hubs.some((h) => h.id === saved)) setSourceHubId(saved);
-      } catch { /* ignore */ }
+    } catch { /* ignore */ }
     }
 
     setStage('zr');
@@ -102,7 +94,6 @@ export default function DeliveryProviderDialog() {
       setRequest(detail);
       setError('');
       setPrepared(null);
-      setSourceHubId('');
       setPickupHubId('');
 
       if (detail.mode === 'resend') {
@@ -136,7 +127,6 @@ export default function DeliveryProviderDialog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const sourceHubs = useMemo(() => prepared?.source_hubs || [], [prepared]);
   const pickupHubs = useMemo(() => prepared?.pickup_hubs || [], [prepared]);
 
   if (!request) return null;
@@ -204,17 +194,8 @@ export default function DeliveryProviderDialog() {
               </div>
 
               {prepared.delivery_type === 'home' ? (
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">مركز ZR المصدر *</label>
-                  <select
-                    value={sourceHubId}
-                    onChange={(e) => setSourceHubId(e.target.value)}
-                    className="w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl p-3"
-                  >
-                    <option value="">— اختر المركز الذي تُسلّم منه طرود المعراج —</option>
-                    {sourceHubs.map((h) => <option key={h.id} value={h.id}>{hubLabel(h)}</option>)}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-2">سيُحفظ اختيارك محليًا على هذا الجهاز لتسهيل الطلبات القادمة، ويمكن تغييره قبل كل إرسال.</p>
+                <div className="rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 p-3 text-sm text-blue-800 dark:text-blue-300">
+                  🏠 توصيل إلى المنزل — لا يحتاج اختيار مركز ZR يدويًا.
                 </div>
               ) : (
                 <div>
@@ -240,9 +221,7 @@ export default function DeliveryProviderDialog() {
                   type="button"
                   onClick={() => {
                     if (prepared.delivery_type === 'home') {
-                      if (!sourceHubId) { setError('اختر مركز ZR المصدر أولاً.'); return; }
-                      try { localStorage.setItem('almiraj_zr_source_hub_id', sourceHubId); } catch { /* ignore */ }
-                      finish({ provider: 'zrexpress', source_hub_id: sourceHubId });
+                      finish({ provider: 'zrexpress' });
                     } else {
                       if (!pickupHubId) { setError('اختر مكتب ZR للاستلام أولاً.'); return; }
                       finish({ provider: 'zrexpress', pickup_hub_id: pickupHubId });

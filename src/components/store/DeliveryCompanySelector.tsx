@@ -144,29 +144,36 @@ export default function DeliveryCompanySelector({
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <label className="block text-sm font-bold text-gray-700">شركة التوصيل *</label>
-          {loadingSettings && <span className="text-xs text-gray-400">جاري تحميل الشركات...</span>}
+      {enabledProviders.length > 1 ? (
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <label className="block text-sm font-bold text-gray-700">شركة التوصيل *</label>
+            {loadingSettings && <span className="text-xs text-gray-400">جاري تحميل الشركات...</span>}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {enabledProviders.includes('noest') && (
+              <button type="button" onClick={() => chooseProvider('noest')} className={providerButtonClasses(provider === 'noest')}>
+                <div className="font-extrabold text-[#0B1833]">NOEST</div>
+                <div className="text-xs text-gray-500 mt-1">نوسات</div>
+              </button>
+            )}
+            {enabledProviders.includes('zrexpress') && (
+              <button type="button" onClick={() => chooseProvider('zrexpress')} className={providerButtonClasses(provider === 'zrexpress')}>
+                <div className="font-extrabold text-[#0B1833]">ZR Express</div>
+                <div className="text-xs text-gray-500 mt-1">زد آر إكسبرس</div>
+              </button>
+            )}
+          </div>
         </div>
-        <div className={`grid gap-3 ${enabledProviders.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {enabledProviders.includes('noest') && (
-            <button type="button" onClick={() => chooseProvider('noest')} className={providerButtonClasses(provider === 'noest')}>
-              <div className="font-extrabold text-[#0B1833]">NOEST</div>
-              <div className="text-xs text-gray-500 mt-1">نوسات</div>
-            </button>
-          )}
-          {enabledProviders.includes('zrexpress') && (
-            <button type="button" onClick={() => chooseProvider('zrexpress')} className={providerButtonClasses(provider === 'zrexpress')}>
-              <div className="font-extrabold text-[#0B1833]">ZR Express</div>
-              <div className="text-xs text-gray-500 mt-1">زد آر إكسبرس</div>
-            </button>
-          )}
+      ) : (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+          <div>
+            <div className="text-xs font-bold text-gray-400">شركة التوصيل</div>
+            <div className="text-sm font-extrabold text-[#0B1833] mt-0.5">{deliveryProviderLabel(provider)}</div>
+          </div>
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">متاحة</span>
         </div>
-        {enabledProviders.length === 1 && (
-          <p className="text-xs text-gray-400 mt-2">شركة التوصيل المتاحة حاليًا: {deliveryProviderLabel(provider)}</p>
-        )}
-      </div>
+      )}
 
       <div>
         <label className="block text-sm font-bold text-gray-700 mb-2">نوع التوصيل *</label>

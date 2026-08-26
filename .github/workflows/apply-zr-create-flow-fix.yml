@@ -1,0 +1,39 @@
+name: Apply ZR Create Flow Fix
+
+on:
+  push:
+    branches: [feature/zrexpress-integration]
+    paths:
+      - scripts/apply-zr-create-flow-fix.mjs
+      - .github/workflows/apply-zr-create-flow-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/zrexpress-integration
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply ZR create flow patch
+        run: node scripts/apply-zr-create-flow-fix.mjs
+      - name: Commit ZR create flow fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git add lib/deliveryProviders.js src/components/admin/DeliveryProviderDialog.tsx scripts/verify-delivery-integration.mjs
+          git commit -m "fix: align ZR parcel creation with v1 optional state semantics"
+          git push origin HEAD:feature/zrexpress-integration

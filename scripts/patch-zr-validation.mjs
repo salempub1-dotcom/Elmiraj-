@@ -62,3 +62,4 @@ s = s.replace(
 
 fs.writeFileSync(file, s);
 console.log('Patched ZR validation diagnostics + phone/product payload');
+// trigger patch workflow

@@ -115,7 +115,12 @@ assert.match(checkoutUiSource, /NOEST/);
 assert.match(checkoutUiSource, /ZR Express/);
 assert.match(checkoutUiSource, /fetchZrCheckoutOptions/);
 assert.match(adminSettingsSource, /saveDeliveryProviderSettings/);
-assert.match(adminSettingsSource, /شركة توصيل واحدة على الأقل/);
+assert.match(adminSettingsSource, /type DeliveryVisibilityMode = 'noest' \| 'zrexpress' \| 'both'/);
+assert.match(adminSettingsSource, /NOEST فقط/);
+assert.match(adminSettingsSource, /ZR Express فقط/);
+assert.match(adminSettingsSource, /الشركتان/);
+assert.match(adminSettingsSource, /return \{ noest: true, zrexpress: true \}/);
+assert.doesNotMatch(adminSettingsSource, /return \{ noest: false, zrexpress: false \}/);
 assert.match(appSource, /<DeliveryCompanySelector/);
 assert.match(appSource, /<DeliveryCompaniesSettingsCard/);
 

@@ -1,0 +1,44 @@
+name: Apply ZR Pricing Fix
+
+on:
+  push:
+    branches: [feature/zrexpress-integration]
+    paths:
+      - scripts/apply-zr-pricing-fix.mjs
+      - .github/workflows/apply-zr-pricing-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/zrexpress-integration
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply pricing isolation patch
+        run: node scripts/apply-zr-pricing-fix.mjs
+      - name: Commit pricing fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git add \
+            lib/deliveryProviders.js \
+            api/noest.js \
+            src/services/deliveryCheckout.ts \
+            src/App.tsx \
+            scripts/verify-delivery-integration.mjs
+          git commit -m "fix: isolate ZR Express live delivery pricing from NOEST"
+          git push origin HEAD:feature/zrexpress-integration

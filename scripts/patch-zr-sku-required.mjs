@@ -27,6 +27,9 @@ if (s.includes('productSku: null')) throw new Error('A null ZR productSku remain
 fs.writeFileSync(providerFile, s);
 
 let v = fs.readFileSync(verifyFile, 'utf8');
+// Remove the obsolete assertion from the previous nullable-SKU assumption.
+v = v.replace(/\n?assert\.match\(providerSource, \/productSku: null\/\);/g, '');
+
 const verifyMarker = `assert.match(providerSource, /weight: \\{ weight: 1, dimensionalWeight: null \\}/);`;
 const verifyInsert = `${verifyMarker}\nassert.match(providerSource, /function sanitizeZrProductSku/);\nassert.match(providerSource, /productSku: sanitizeZrProductSku/);\nassert.doesNotMatch(providerSource, /productSku: null/);`;
 if (!v.includes('assert.match(providerSource, /function sanitizeZrProductSku/);')) {

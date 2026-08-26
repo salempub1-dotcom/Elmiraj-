@@ -58,6 +58,15 @@ const providerSource = read('lib/deliveryProviders.js');
 const orchestratorSource = read('lib/deliveryOrchestrator.js');
 const proxySource = read('api/noest.js');
 const trackingSource = read('api/track-order.js');
+const appSource = read('src/App.tsx');
+const checkoutSource = read('src/services/deliveryCheckout.ts');
+
+// ZR live tariffs must never fall back to NOEST's static table.
+assert.match(providerSource, /delivery-pricing\/rates/);
+assert.match(proxySource, /checkout_zr_quote/);
+assert.match(checkoutSource, /fetchZrShippingQuote/);
+assert.match(appSource, /const shippingCost = selectedDeliveryProvider === 'zrexpress' ? (zrShippingPrice ?? 0) : noestShippingCost/);
+assert.match(appSource, /checkoutSelection.provider === 'zrexpress' && (zrShippingLoading || zrShippingPrice === null)/);
 const settingsSource = read('lib/deliverySettings.js');
 const checkoutServiceSource = read('src/services/deliveryCheckout.ts');
 const checkoutUiSource = read('src/components/store/DeliveryCompanySelector.tsx');

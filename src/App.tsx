@@ -16,7 +16,7 @@ import TopProductsSection from './components/home/TopProductsSection';
 import ClassroomShowcaseSection from './components/home/ClassroomShowcaseSection';
 import DeliveryCompanySelector from './components/store/DeliveryCompanySelector';
 import DeliveryCompaniesSettingsCard from './components/admin/DeliveryCompaniesSettingsCard';
-import { checkoutOfficeLabel, decodeCheckoutDeliverySelection, deliveryProviderLabel, encodeCheckoutDeliverySelection } from './services/deliveryCheckout';
+import { fetchZrShippingQuote, checkoutOfficeLabel, decodeCheckoutDeliverySelection, deliveryProviderLabel, encodeCheckoutDeliverySelection } from './services/deliveryCheckout';
 
 // ============================================================
 // TYPES
@@ -508,6 +508,9 @@ function StoreApp({
   const [customerAddress, setCustomerAddress] = useState('');
   const [deliveryType, setDeliveryType] = useState<'home' | 'office'>('home');
   const [selectedOffice, setSelectedOffice] = useState('');
+  const [zrShippingPrice, setZrShippingPrice] = useState<number | null>(null);
+  const [zrShippingLoading, setZrShippingLoading] = useState(false);
+  const [zrShippingError, setZrShippingError] = useState('');
   const [commune, setCommune] = useState('');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
@@ -608,8 +611,39 @@ function StoreApp({
     return () => { cancelled = true; };
   }, [checkoutOpen, customerWilayaId]);
 
+  const selectedDeliveryProvider = decodeCheckoutDeliverySelection(selectedOffice)?.provider || null;
+
+  useEffect(() => {
+    if (selectedDeliveryProvider !== 'zrexpress' || !customerWilayaId || !commune) {
+      setZrShippingPrice(null);
+      setZrShippingLoading(false);
+      setZrShippingError('');
+      return;
+    }
+
+    let cancelled = false;
+    setZrShippingLoading(true);
+    setZrShippingError('');
+    setZrShippingPrice(null);
+    void fetchZrShippingQuote(Number(customerWilayaId), commune).then((result) => {
+      if (cancelled) return;
+      const price = deliveryType === 'home' ? result.data?.home : result.data?.office;
+      if (result.ok && typeof price === 'number' && Number.isFinite(price) && price > 0) {
+        setZrShippingPrice(price);
+      } else {
+        setZrShippingPrice(null);
+        setZrShippingError(result.message || `لا توجد تسعيرة ZR Express صالحة للتوصيل ${deliveryType === 'home' ? 'للمنزل' : 'للمكتب'} في هذه الوجهة.`);
+      }
+      setZrShippingLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [selectedDeliveryProvider, customerWilayaId, commune, deliveryType]);
+
   const selectedWilayaObj = customerWilayaId ? wilayaShipping.find(w => w.code === customerWilayaId) : undefined;
-  const shippingCost = selectedWilayaObj ? (deliveryType === 'home' ? selectedWilayaObj.home : selectedWilayaObj.office) : 0;
+  // NOEST price table is intentionally used ONLY for NOEST. ZR Express always
+  // uses its own live API tariff and is never allowed to inherit a NOEST price.
+  const noestShippingCost = selectedWilayaObj ? (deliveryType === 'home' ? selectedWilayaObj.home : selectedWilayaObj.office) : 0;
+  const shippingCost = selectedDeliveryProvider === 'zrexpress' ? (zrShippingPrice ?? 0) : noestShippingCost;
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const orderTotal = cartTotal + shippingCost;
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -696,6 +730,10 @@ function StoreApp({
     }
     if (deliveryType === 'office' && !checkoutSelection.officeId) {
       showToast('يرجى اختيار مكتب الاستلام', 'error');
+      return;
+    }
+    if (checkoutSelection.provider === 'zrexpress' && (zrShippingLoading || zrShippingPrice === null)) {
+      showToast(zrShippingLoading ? 'جاري جلب سعر ZR Express، انتظر لحظة' : (zrShippingError || 'تعذر التحقق من سعر ZR Express لهذه الوجهة'), 'error');
       return;
     }
 
@@ -1131,7 +1169,7 @@ function StoreApp({
                   <div className="bg-gray-50 rounded-xl p-4 space-y-2">
                     <h4 className="font-bold text-gray-700 mb-3">ملخص الطلب</h4>
                     {cart.map(item => (<div key={item.id} className="flex justify-between text-sm"><span>{item.name} × {item.quantity}</span><span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span></div>))}
-                    <div className="border-t pt-2 space-y-1"><div className="flex justify-between text-sm"><span>المجموع الفرعي:</span><span>{cartTotal.toLocaleString()} دج</span></div>{shippingCost > 0 && <div className="flex justify-between text-sm"><span>تكلفة الشحن:</span><span>{shippingCost.toLocaleString()} دج</span></div>}<div className="flex justify-between font-bold text-lg border-t pt-1"><span>المجموع الكلي:</span><span className="text-blue-700">{orderTotal.toLocaleString()} دج</span></div></div>
+                    <div className="border-t pt-2 space-y-1"><div className="flex justify-between text-sm"><span>المجموع الفرعي:</span><span>{cartTotal.toLocaleString()} دج</span></div>{selectedDeliveryProvider === 'zrexpress' && zrShippingLoading && <div className="text-xs text-amber-600 font-bold">⏳ جاري جلب تسعيرة ZR Express من API...</div>}{selectedDeliveryProvider === 'zrexpress' && zrShippingError && !zrShippingLoading && <div className="text-xs text-red-600 font-bold">⚠️ {zrShippingError}</div>}{shippingCost > 0 && <div className="flex justify-between text-sm"><span>تكلفة الشحن:</span><span>{shippingCost.toLocaleString()} دج</span></div>}<div className="flex justify-between font-bold text-lg border-t pt-1"><span>المجموع الكلي:</span><span className="text-blue-700">{orderTotal.toLocaleString()} دج</span></div></div>
                     <div className="flex items-center gap-2 bg-blue-50 rounded-xl p-3 mt-2"><span>💵</span><span className="text-[#102A52] font-bold text-sm">الدفع عند الاستلام</span></div>
                   </div>
                   {orderError && (

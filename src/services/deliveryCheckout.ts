@@ -22,6 +22,15 @@ export interface ZrCheckoutOptions {
   pickup_hubs: ZrPickupHub[];
 }
 
+export interface ZrShippingQuote {
+  home: number | null;
+  office: number | null;
+  returnPrice?: number | null;
+  territoryId?: string | null;
+  territoryLevel?: string | null;
+  territoryName?: string | null;
+}
+
 export interface CheckoutDeliverySelection {
   provider: DeliveryProvider;
   officeId?: string;
@@ -82,6 +91,19 @@ export async function fetchZrCheckoutOptions(wilayaId: number, commune: string):
     return result;
   } catch {
     return { ok: false, message: 'تعذر تحميل مكاتب ZR Express.' };
+  }
+}
+
+export async function fetchZrShippingQuote(wilayaId: number, commune: string): Promise<{ ok: boolean; data?: ZrShippingQuote; message?: string }> {
+  try {
+    const { result } = await jsonPost({
+      action: 'checkout_zr_quote',
+      wilaya_id: wilayaId,
+      commune,
+    });
+    return result;
+  } catch {
+    return { ok: false, message: 'تعذر تحميل تسعيرة ZR Express.' };
   }
 }
 

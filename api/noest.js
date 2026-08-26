@@ -9,7 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { handleDeliveryAction } from '../lib/deliveryOrchestrator.js';
-import { getZrSafeConfig, prepareZrOrder } from '../lib/deliveryProviders.js';
+import { getZrDeliveryQuote, getZrSafeConfig, prepareZrOrder } from '../lib/deliveryProviders.js';
 import { readDeliverySettings } from '../lib/deliverySettings.js';
 
 export const config = { api: { bodyParser: true } };
@@ -171,6 +171,20 @@ export default async function handler(req, res) {
         pickup_hubs: prepared.data.pickupHubs,
       },
     });
+  }
+
+  if (action === 'checkout_zr_quote') {
+    const wilayaId = Number(body.wilaya_id);
+    const commune = String(body.commune || '').trim();
+    if (!wilayaId || !commune) return res.status(400).json({ ok: false, error: 'wilaya_id and commune are required' });
+
+    const settings = await readDeliverySettings(getSupabaseForDeliverySettings());
+    if (!settings.data.zrexpress) {
+      return res.status(200).json({ ok: false, error: 'PROVIDER_DISABLED', message: 'ZR Express غير متاحة في المتجر حاليًا.' });
+    }
+
+    const quote = await getZrDeliveryQuote({ wilaya_id: wilayaId, commune, wilaya: String(wilayaId) });
+    return res.status(quote.ok ? 200 : 200).json(quote);
   }
 
   // Provider-aware admin actions are handled BEFORE the legacy NOEST env check,

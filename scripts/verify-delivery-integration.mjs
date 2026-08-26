@@ -78,12 +78,17 @@ assert.match(providerSource, /'X-Tenant': cfg\.tenant/);
 assert.match(providerSource, /'X-Api-Key': cfg\.apiKey/);
 assert.doesNotMatch(checkoutServiceSource, /ZREXPRESS_TENANT_ID|ZREXPRESS_API_KEY|X-Tenant|X-Api-Key/);
 
-// ── ZR creation safety: explicit ReadyToDispatch + Al Miraj external ref. ──
+// ── ZR creation safety + provider validation compatibility. ────────────────
 assert.ok(providerSource.includes("...(readyState.ok && readyState.data ? { stateId: readyState.data } : {})"));
 assert.match(providerSource, /externalId: String\(order\.tracking \|\| order\.id\)/);
 assert.match(providerSource, /ZR_READY_STATE_NOT_FOUND/);
-assert.match(providerSource, /weight: \{ weight: 1 \}/);
+assert.match(providerSource, /weight: \{ weight: 1, dimensionalWeight: null \}/);
 assert.match(providerSource, /length: 1/);
+assert.match(providerSource, /sanitizeZrProductName/);
+assert.match(providerSource, /stockType: 'local'/);
+assert.match(providerSource, /productSku: null/);
+assert.match(providerSource, /\^\\\+213\[5-7\]\\d\{8\}\$/);
+assert.match(providerSource, /number2: null, number3: null/);
 assert.match(providerSource, /extractZrParcel/);
 assert.match(providerSource, /deepFindReadyToDispatchState/);
 assert.match(providerSource, /collectZrWorkflowDiagnostics/);

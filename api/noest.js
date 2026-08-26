@@ -1,61 +1,37 @@
 // ============================================================
-// NOEST Delivery API Proxy — Vercel Serverless Function
+// Delivery API Proxy — NOEST legacy endpoints + provider orchestration
 // ============================================================
-// Environment variables required in Vercel:
-//   NOEST_API_TOKEN  — your NOEST API token
-//   NOEST_USER_GUID  — your NOEST user GUID
-//   NOEST_API_BASE   — (optional) default: https://app.noest-dz.com
-//
-// OPTIONAL — for cross-instance idempotency:
-//   UPSTASH_REDIS_REST_URL   — Upstash Redis REST URL
-//   UPSTASH_REDIS_REST_TOKEN — Upstash Redis REST token
-//
-// Without Upstash: uses in-memory Map (same-instance only)
-// With Upstash: full cross-instance deduplication (recommended)
+// This remains ONE Vercel Function so the Hobby deployment stays within the
+// 12-function limit. Provider orchestration lives under /lib and is delegated
+// through delivery_* actions. Existing NOEST actions and response shapes are
+// preserved for backward compatibility.
 // ============================================================
+
+import { createClient } from '@supabase/supabase-js';
+import { handleDeliveryAction } from '../lib/deliveryOrchestrator.js';
+import { getZrDeliveryQuote, getZrSafeConfig, prepareZrOrder } from '../lib/deliveryProviders.js';
+import { readDeliverySettings } from '../lib/deliverySettings.js';
 
 export const config = { api: { bodyParser: true } };
 
-// ═════════════════════════════════════════════════════════════
-// IDEMPOTENCY STORE — Hybrid: Upstash Redis → In-Memory Map
-// ═════════════════════════════════════════════════════════════
-//
-// ⚠️  WHY Map ALONE IS UNSAFE ON VERCEL SERVERLESS:
-//     1. Cold start        → new instance → empty Map
-//     2. Auto-scaling      → multiple instances → each has own Map
-//     3. Instance recycle  → Map is lost without warning
-//     4. Region failover   → completely separate memory
-//
-// ✅  SOLUTION (3 layers, strongest to weakest):
-//     Layer 1: Frontend   — isSubmittingRef (sync) + disabled button
-//     Layer 2: Upstash    — cross-instance, persistent, TTL-based (if configured)
-//     Layer 3: Map        — covers same-instance rapid retries (always active)
-//
-// 🆓  Upstash Redis FREE TIER: 10K commands/day — more than enough
-//     Setup: upstash.com → Create DB → Copy REST URL + Token → Add to Vercel Env
-// ═════════════════════════════════════════════════════════════
-
-const RECENT = new Map();            // Layer 3: in-memory fallback
-const TTL_SUCCESS_S  = 60;           // 60s  — cache successful orders
-const TTL_FAILURE_S  = 10;           // 10s  — cache failures (anti-spam)
+const RECENT = new Map();
+const TTL_SUCCESS_S = 60;
+const TTL_FAILURE_S = 10;
 const CLEANUP_INTERVAL_MS = 30_000;
-
 let lastCleanup = Date.now();
+
 function cleanupRecent() {
   const now = Date.now();
   if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
   lastCleanup = now;
   for (const [key, entry] of RECENT.entries()) {
-    if (now - entry.timestamp > entry.ttl * 1000) {
-      RECENT.delete(key);
-    }
+    if (now - entry.timestamp > entry.ttl * 1000) RECENT.delete(key);
   }
 }
 
-// ── Upstash Redis REST helpers (zero npm dependencies) ───────
-const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const hasUpstash     = !!(UPSTASH_URL && UPSTASH_TOKEN);
+const hasUpstash = !!(UPSTASH_URL && UPSTASH_TOKEN);
 
 async function redisGet(key) {
   if (!hasUpstash) return null;
@@ -65,11 +41,10 @@ async function redisGet(key) {
     });
     if (!r.ok) return null;
     const body = await r.json();
-    // Upstash returns { result: "..." } or { result: null }
     if (!body.result) return null;
     return JSON.parse(body.result);
   } catch (e) {
-    console.warn('[IDEMPOTENCY] Upstash GET failed:', e.message);
+    console.warn('[IDEMPOTENCY] Upstash GET failed:', e?.message || String(e));
     return null;
   }
 }
@@ -82,47 +57,36 @@ async function redisSet(key, value, ttlSeconds) {
     });
     return r.ok;
   } catch (e) {
-    console.warn('[IDEMPOTENCY] Upstash SET failed:', e.message);
+    console.warn('[IDEMPOTENCY] Upstash SET failed:', e?.message || String(e));
     return false;
   }
 }
 
-// ── Dedup check: Upstash first, then Map ─────────────────────
 async function dedupGet(requestId) {
-  // Layer 2: Upstash (cross-instance)
   const upstashResult = await redisGet(`dedup:${requestId}`);
-  if (upstashResult) {
-    return { ...upstashResult, source: 'upstash' };
-  }
-
-  // Layer 3: Map (same-instance)
+  if (upstashResult) return { ...upstashResult, source: 'upstash' };
   const mapEntry = RECENT.get(requestId);
-  if (mapEntry) {
-    const age = Date.now() - mapEntry.timestamp;
-    if (age < mapEntry.ttl * 1000) {
-      return { ...mapEntry.response, source: 'memory', age_ms: age };
-    } else {
-      RECENT.delete(requestId);
-    }
+  if (!mapEntry) return null;
+  const age = Date.now() - mapEntry.timestamp;
+  if (age >= mapEntry.ttl * 1000) {
+    RECENT.delete(requestId);
+    return null;
   }
-
-  return null; // Not found — first time seeing this request_id
+  return { ...mapEntry.response, source: 'memory', age_ms: age };
 }
 
-// ── Dedup store: write to BOTH Upstash and Map ───────────────
 async function dedupSet(requestId, response, ttlSeconds) {
-  // Layer 2: Upstash (fire-and-forget, don't block response)
   redisSet(`dedup:${requestId}`, response, ttlSeconds).catch(() => {});
-
-  // Layer 3: Map (immediate)
-  RECENT.set(requestId, {
-    response,
-    timestamp: Date.now(),
-    ttl: ttlSeconds,
-  });
+  RECENT.set(requestId, { response, timestamp: Date.now(), ttl: ttlSeconds });
 }
 
-// ── Utilities ────────────────────────────────────────────────
+function getSupabaseForDeliverySettings() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+}
+
 function safeJson(v) {
   try { return JSON.stringify(v); } catch { return String(v); }
 }
@@ -134,27 +98,27 @@ function toObj(maybeJson) {
   try { return JSON.parse(maybeJson); } catch { return null; }
 }
 
-// ═════════════════════════════════════════════════════════════
-// HANDLER
-// ═════════════════════════════════════════════════════════════
 export default async function handler(req, res) {
   cleanupRecent();
 
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Health check
   if (req.method === 'GET') {
+    const zr = getZrSafeConfig();
     return res.status(200).json({
       ok: true,
-      message: '✅ NOEST proxy is deployed and running',
+      message: '✅ Delivery proxy is deployed and running',
       env: {
         NOEST_API_TOKEN: process.env.NOEST_API_TOKEN ? '✅ Set' : '❌ MISSING',
         NOEST_USER_GUID: process.env.NOEST_USER_GUID ? '✅ Set' : '❌ MISSING',
         NOEST_API_BASE: process.env.NOEST_API_BASE || 'https://app.noest-dz.com',
+        ZREXPRESS_TENANT_ID: zr.tenant === 'set' ? '✅ Set' : '❌ MISSING',
+        ZREXPRESS_API_KEY: zr.apiKey === 'set' ? '✅ Set' : '❌ MISSING',
+        ZREXPRESS_API_BASE: zr.base,
+        ZREXPRESS_API_VERSION: zr.version,
         UPSTASH_REDIS: hasUpstash ? '✅ Connected (cross-instance dedup)' : '⚠️ Not configured (using in-memory Map only)',
       },
       idempotency: {
@@ -162,31 +126,84 @@ export default async function handler(req, res) {
         memory_cache_size: RECENT.size,
         ttl_success: `${TTL_SUCCESS_S}s`,
         ttl_failure: `${TTL_FAILURE_S}s`,
-        warning: hasUpstash ? null : 'Map is per-instance only. Configure Upstash for cross-instance dedup.',
       },
       timestamp: new Date().toISOString(),
     });
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
-  // ✅ Safe body parsing
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = {}; }
   }
   if (!body || typeof body !== 'object') body = {};
+  const action = String(body.action || '');
 
-  const action = body.action;
+  // Public storefront provider configuration. This reveals only enabled/disabled
+  // booleans and safe office data; courier credentials never leave the server.
+  if (action === 'checkout_delivery_settings') {
+    const settings = await readDeliverySettings(getSupabaseForDeliverySettings());
+    return res.status(200).json({ ok: true, data: settings.data, source: settings.source });
+  }
 
-  // Quick ping
+  if (action === 'checkout_zr_options') {
+    const wilayaId = Number(body.wilaya_id);
+    const commune = String(body.commune || '').trim();
+    if (!wilayaId || !commune) return res.status(400).json({ ok: false, error: 'wilaya_id and commune are required' });
+
+    const settings = await readDeliverySettings(getSupabaseForDeliverySettings());
+    if (!settings.data.zrexpress) {
+      return res.status(200).json({ ok: false, error: 'PROVIDER_DISABLED', message: 'ZR Express غير متاحة في المتجر حاليًا.' });
+    }
+
+    const prepared = await prepareZrOrder({
+      wilaya_id: wilayaId,
+      commune,
+      wilaya: String(wilayaId),
+      delivery_type: 'office',
+    });
+    if (!prepared.ok) return res.status(200).json({ ok: false, error: prepared.error, message: prepared.message || 'تعذر تحميل مكاتب ZR Express.' });
+    return res.status(200).json({
+      ok: true,
+      data: {
+        destination: { wilaya: prepared.data.destination.wilaya, commune: prepared.data.destination.commune },
+        pickup_hubs: prepared.data.pickupHubs,
+      },
+    });
+  }
+
+  if (action === 'checkout_zr_quote') {
+    const wilayaId = Number(body.wilaya_id);
+    const commune = String(body.commune || '').trim();
+    if (!wilayaId || !commune) return res.status(400).json({ ok: false, error: 'wilaya_id and commune are required' });
+
+    const settings = await readDeliverySettings(getSupabaseForDeliverySettings());
+    if (!settings.data.zrexpress) {
+      return res.status(200).json({ ok: false, error: 'PROVIDER_DISABLED', message: 'ZR Express غير متاحة في المتجر حاليًا.' });
+    }
+
+    const quote = await getZrDeliveryQuote({ wilaya_id: wilayaId, commune, wilaya: String(wilayaId) });
+    return res.status(quote.ok ? 200 : 200).json(quote);
+  }
+
+  // Provider-aware admin actions are handled BEFORE the legacy NOEST env check,
+  // because a valid ZR operation must not depend on NOEST credentials.
+  if (action.startsWith('delivery_')) {
+    const handled = await handleDeliveryAction({
+      action,
+      body,
+      authorization: req.headers.authorization || '',
+    });
+    if (handled.handled) return res.status(handled.status || 200).json(handled.payload);
+  }
+
   if (action === 'ping') {
     return res.status(200).json({
       ok: true,
       pong: true,
-      version: 'ALMIRAJ_V4_HYBRID_DEDUP',
+      version: 'ALMIRAJ_V5_MULTI_PROVIDER',
+      providers: { noest: true, zrexpress: getZrSafeConfig().configured },
       idempotency_store: hasUpstash ? 'upstash+memory' : 'memory-only',
     });
   }
@@ -202,83 +219,62 @@ export default async function handler(req, res) {
     });
   }
 
-  // ═════════════════════════════════════════════
-  // GET WILAYAS
-  // ═════════════════════════════════════════════
   if (action === 'get_wilayas') {
     try {
-      const url = `${BASE}/api/public/wilayas`;
-      const r = await fetch(url, {
+      const r = await fetch(`${BASE}/api/public/wilayas`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID }),
       });
       const text = await r.text();
       const data = toObj(text);
-      if (r.ok && data) {
-        return res.status(200).json({ ok: true, data: data.data || data });
-      }
+      if (r.ok && data) return res.status(200).json({ ok: true, data: data.data || data });
       return res.status(200).json({ ok: false, error: 'Failed to fetch wilayas', status: r.status });
     } catch (e) {
-      return res.status(200).json({ ok: false, error: 'fetch_wilayas_failed', debug: (e.message || '').substring(0, 1500) });
+      return res.status(200).json({ ok: false, error: 'fetch_wilayas_failed', debug: (e?.message || '').substring(0, 1500) });
     }
   }
 
-  // ═════════════════════════════════════════════
-  // GET COMMUNES
-  // ═════════════════════════════════════════════
   if (action === 'get_communes') {
     const wilaya_id = Number(body.wilaya_id);
     if (!wilaya_id) return res.status(400).json({ ok: false, error: 'wilaya_id is required' });
     try {
-      const url = `${BASE}/api/public/communes`;
-      const r = await fetch(url, {
+      const r = await fetch(`${BASE}/api/public/communes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID, wilaya_id }),
       });
       const text = await r.text();
       const data = toObj(text);
-      if (r.ok && data) {
-        return res.status(200).json({ ok: true, data: data.data || data });
-      }
+      if (r.ok && data) return res.status(200).json({ ok: true, data: data.data || data });
       return res.status(200).json({ ok: false, error: 'Failed to fetch communes', status: r.status });
     } catch (e) {
-      return res.status(200).json({ ok: false, error: 'fetch_communes_failed', debug: (e.message || '').substring(0, 1500) });
+      return res.status(200).json({ ok: false, error: 'fetch_communes_failed', debug: (e?.message || '').substring(0, 1500) });
     }
   }
 
-  // ═════════════════════════════════════════════
-  // GET STOP DESK STATIONS
-  // ═════════════════════════════════════════════
   if (action === 'get_desks') {
     try {
-      const url = `${BASE}/api/public/stations`;
-      const r = await fetch(url, {
+      const r = await fetch(`${BASE}/api/public/stations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID }),
       });
       const text = await r.text();
       const data = toObj(text);
-      if (r.ok && data) {
-        return res.status(200).json({ ok: true, data: data.data || data });
-      }
+      if (r.ok && data) return res.status(200).json({ ok: true, data: data.data || data });
       return res.status(200).json({ ok: false, error: 'Failed to fetch desks', status: r.status });
     } catch (e) {
-      return res.status(200).json({ ok: false, error: 'fetch_desks_failed', debug: (e.message || '').substring(0, 1500) });
+      return res.status(200).json({ ok: false, error: 'fetch_desks_failed', debug: (e?.message || '').substring(0, 1500) });
     }
   }
 
-  // ═════════════════════════════════════════════
-  // DIAGNOSE — Test NOEST connectivity
-  // ═════════════════════════════════════════════
   if (action === 'diagnose') {
     const CREATE_URL = `${BASE}/api/public/create/order`;
     try {
       const r = await fetch(CREATE_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ api_token: API_TOKEN, user_guid: USER_GUID, test: true }),
       });
       const text = await r.text();
@@ -289,10 +285,7 @@ export default async function handler(req, res) {
           status: r.status,
           statusText: r.statusText,
           snippet: text.substring(0, 1500),
-          idempotency: {
-            store: hasUpstash ? 'upstash+memory' : 'memory-only',
-            memory_cache_size: RECENT.size,
-          },
+          idempotency: { store: hasUpstash ? 'upstash+memory' : 'memory-only', memory_cache_size: RECENT.size },
         },
       });
     } catch (e) {
@@ -301,63 +294,41 @@ export default async function handler(req, res) {
     }
   }
 
-  // ═════════════════════════════════════════════
-  // CREATE ORDER — with HYBRID IDEMPOTENCY
-  // ═════════════════════════════════════════════
   if (action === 'create_order') {
     const CREATE_URL = `${BASE}/api/public/create/order`;
-
-    // ── Step 1: Require request_id ──────────────────────────
     const request_id = String(body.request_id || '').trim();
     if (!request_id) {
-      return res.status(400).json({
-        ok: false,
-        error: 'request_id is required for idempotency. Generate with crypto.randomUUID().',
-      });
+      return res.status(400).json({ ok: false, error: 'request_id is required for idempotency. Generate with crypto.randomUUID().' });
     }
 
-    // ── Step 2: CHECK DEDUP (Upstash → Map) ─────────────────
     const cached = await dedupGet(request_id);
     if (cached) {
       const source = cached.source || 'unknown';
       const age = cached.age_ms || 0;
       delete cached.source;
       delete cached.age_ms;
-
-      console.log(`[DEDUP] ♻️ HIT from ${source} for request_id=${request_id} (age≈${Math.round(age / 1000)}s)`);
-
-      return res.status(200).json({
-        ...cached,
-        dedup: true,
-        dedup_source: source,
-        dedup_age_ms: age,
-      });
+      return res.status(200).json({ ...cached, dedup: true, dedup_source: source, dedup_age_ms: age });
     }
 
-    // ── Step 3: Build payload ───────────────────────────────
     const payload = {
       api_token: API_TOKEN,
       user_guid: USER_GUID,
-      client:    String(body.client || '').trim(),
-      phone:     String(body.phone || '').trim(),
-      adresse:   String(body.adresse || '').trim(),
+      client: String(body.client || '').trim(),
+      phone: String(body.phone || '').trim(),
+      adresse: String(body.adresse || '').trim(),
       wilaya_id: Number(body.wilaya_id),
-      commune:   String(body.commune || '').trim(),
-      montant:   Number(body.montant),
-      produit:   String(body.produit || '').trim(),
-      type_id:   Number(body.type_id),
+      commune: String(body.commune || '').trim(),
+      montant: Number(body.montant),
+      produit: String(body.produit || '').trim(),
+      type_id: Number(body.type_id),
       stop_desk: Number(body.stop_desk),
     };
-
     if (payload.stop_desk === 1) {
       const station_code = String(body.station_code || '').trim();
-      if (!station_code) {
-        return res.status(422).json({ ok: false, error: 'station_code required when stop_desk=1' });
-      }
+      if (!station_code) return res.status(422).json({ ok: false, error: 'station_code required when stop_desk=1' });
       payload.station_code = station_code;
     }
 
-    // Quick validation
     const missing = [];
     if (!payload.client) missing.push('client');
     if (!payload.phone) missing.push('phone');
@@ -368,84 +339,58 @@ export default async function handler(req, res) {
     if (!payload.produit) missing.push('produit');
     if (!payload.type_id) missing.push('type_id');
     if (![0, 1].includes(payload.stop_desk)) missing.push('stop_desk');
+    if (missing.length) return res.status(400).json({ ok: false, error: `Missing/invalid: ${missing.join(', ')}` });
 
-    if (missing.length) {
-      return res.status(400).json({ ok: false, error: `Missing/invalid: ${missing.join(', ')}` });
-    }
-
-    // ── Step 4: Send to NOEST (FIRST TIME for this request_id) ──
     try {
-      console.log(`[DEDUP] 🚀 NEW request_id=${request_id} — sending to NOEST (store: ${hasUpstash ? 'upstash+memory' : 'memory-only'})...`);
-
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30_000); // 30s timeout
-
+      const timeout = setTimeout(() => controller.abort(), 30_000);
       const r = await fetch(CREATE_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
-
       clearTimeout(timeout);
-
       const text = await r.text();
       const data = toObj(text);
 
-      // ✅ SUCCESS
       if (r.ok && data?.success === true) {
         const response = {
           ok: true,
           data: {
-            tracking:          String(data.tracking || ''),
-            reference:         data.reference ?? null,
+            tracking: String(data.tracking || ''),
+            reference: data.reference ?? null,
             regional_hub_name: data.regional_hub_name ?? null,
-            wilaya_rank:       data.wilaya_rank ?? null,
-            endpoint_used:     CREATE_URL,
+            wilaya_rank: data.wilaya_rank ?? null,
+            endpoint_used: CREATE_URL,
           },
         };
-
-        // Cache in BOTH stores (Upstash + Map) — 60 seconds
         await dedupSet(request_id, response, TTL_SUCCESS_S);
-
-        console.log(`[DEDUP] ✅ CACHED SUCCESS for request_id=${request_id} (tracking=${data.tracking}, store=${hasUpstash ? 'upstash+memory' : 'memory'})`);
         return res.status(200).json(response);
       }
 
-      // ❌ NOEST rejected
       const failResponse = {
         ok: false,
         error: data?.message || 'NOEST rejected the order or returned unexpected response',
         errors: data?.errors || null,
         status: r.status,
       };
-
-      // Cache failure briefly (10s) to prevent rapid re-spam
       await dedupSet(request_id, failResponse, TTL_FAILURE_S);
-
-      console.log(`[DEDUP] ❌ CACHED FAILURE for request_id=${request_id} (ttl=${TTL_FAILURE_S}s)`);
       return res.status(200).json(failResponse);
-
     } catch (e) {
-      const isAbort = e.name === 'AbortError';
-      const msg = isAbort
-        ? 'NOEST API timeout (30s) — try again'
-        : (e instanceof Error ? (e.stack || e.message) : safeJson(e));
-
-      // ⚠️ Network/timeout errors: DON'T cache → let user retry immediately
-      console.log(`[DEDUP] ⚠️ NETWORK ERROR for request_id=${request_id} — NOT cached (user can retry)`);
-      return res.status(200).json({
-        ok: false,
-        error: isAbort ? 'timeout' : 'fetch_failed',
-        debug: msg.substring(0, 1500),
-      });
+      const isAbort = e?.name === 'AbortError';
+      const msg = isAbort ? 'NOEST API timeout (30s) — try again' : (e instanceof Error ? (e.stack || e.message) : safeJson(e));
+      return res.status(200).json({ ok: false, error: isAbort ? 'timeout' : 'fetch_failed', debug: msg.substring(0, 1500) });
     }
   }
 
-  // Unknown action
   return res.status(400).json({
     ok: false,
     error: `Unknown action: ${action}`,
-    available: ['ping', 'diagnose', 'get_wilayas', 'get_communes', 'get_desks', 'create_order'],
+    available: [
+      'ping', 'diagnose', 'get_wilayas', 'get_communes', 'get_desks', 'create_order',
+      'checkout_delivery_settings', 'checkout_zr_options',
+      'delivery_provider_info', 'delivery_prepare_zrexpress', 'delivery_send', 'delivery_resend', 'delivery_sync',
+    ],
   });
 }

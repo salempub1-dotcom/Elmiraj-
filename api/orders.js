@@ -10,6 +10,7 @@
 
 import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { checkoutOfficeId, checkoutPreferredProvider } from '../lib/checkoutDeliverySelection.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
@@ -73,6 +74,9 @@ function getSupabase() {
 
 /** Build the NOEST create/order payload from a DB order row. Returns { error } if required shipping fields are missing. */
 function buildNoestPayloadFromOrder(order) {
+  if (checkoutPreferredProvider(order) === 'zrexpress') {
+    return { error: 'العميل اختار ZR Express لهذا الطلب. استخدم مسار شركات التوصيل الجديد بدل مسار NOEST القديم.' };
+  }
   const missing = [];
   if (!order.wilaya_id) missing.push('wilaya_id');
   if (!order.commune) missing.push('commune');
@@ -88,7 +92,7 @@ function buildNoestPayloadFromOrder(order) {
   const stopDesk = order.delivery_type === 'office' ? 1 : 0;
   let station_code;
   if (stopDesk === 1) {
-    station_code = String(order.selected_office || '').split(' — ')[0].trim();
+    station_code = checkoutOfficeId(order);
     if (!station_code) return { error: 'رمز مكتب الاستلام غير محفوظ لهذا الطلب — لا يمكن إرساله لشركة التوصيل تلقائياً.' };
   }
 

@@ -121,11 +121,12 @@ export default async function handler(req, res) {
         });
       }
 
-      console.log(`[LANDING_PAGES] ✅ Fetched ${(data || []).length} landing pages`);
+      const visibleData = (data || []).filter((page) => !String(page.slug || '').startsWith('__system_'));
+      console.log(`[LANDING_PAGES] ✅ Fetched ${visibleData.length} visible landing pages`);
       return res.status(200).json({
         ok: true,
-        data: data || [],
-        count: (data || []).length,
+        data: visibleData,
+        count: visibleData.length,
       });
     } catch (e) {
       console.error('[LANDING_PAGES] GET exception:', e.message);

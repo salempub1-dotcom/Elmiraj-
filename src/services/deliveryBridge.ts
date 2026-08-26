@@ -3,8 +3,8 @@
 // ============================================================
 // The existing dashboard calls /api/orders for send/resend/sync. To keep
 // App.tsx and the proven NOEST UI untouched, this tiny scoped bridge redirects
-// ONLY those three admin actions to the new generic /api/delivery endpoint.
-// Every other fetch in the store is passed through unchanged.
+// ONLY those three admin actions to provider-aware delivery_* actions hosted
+// inside the existing /api/noest function. Every other fetch is unchanged.
 // ============================================================
 
 export type DeliveryProvider = 'noest' | 'zrexpress';
@@ -91,9 +91,9 @@ export function installDeliveryFetchBridge(): void {
     const authorization = getAuthorization(init);
 
     if (action === 'sync_delivery_status') {
-      return nativeFetch('/api/delivery', {
+      return nativeFetch('/api/noest', {
         ...init,
-        body: JSON.stringify({ action: 'sync' }),
+        body: JSON.stringify({ action: 'delivery_sync' }),
       });
     }
 
@@ -106,10 +106,10 @@ export function installDeliveryFetchBridge(): void {
       return jsonResponse({ ok: false, error: 'USER_CANCELLED', message: 'تم إلغاء الإرسال.' });
     }
 
-    return nativeFetch('/api/delivery', {
+    return nativeFetch('/api/noest', {
       ...init,
       body: JSON.stringify({
-        action: mode === 'resend' ? 'resend' : 'send',
+        action: mode === 'resend' ? 'delivery_resend' : 'delivery_send',
         id: orderId,
         provider: selection.provider,
         ...(selection.source_hub_id ? { source_hub_id: selection.source_hub_id } : {}),

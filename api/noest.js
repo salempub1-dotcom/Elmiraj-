@@ -9,7 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { handleDeliveryAction } from '../lib/deliveryOrchestrator.js';
-import { getZrDeliveryQuote, getZrSafeConfig, prepareZrOrder } from '../lib/deliveryProviders.js';
+import { diagnoseZrWorkflows, getZrDeliveryQuote, getZrSafeConfig, prepareZrOrder } from '../lib/deliveryProviders.js';
 import { readDeliverySettings } from '../lib/deliverySettings.js';
 
 export const config = { api: { bodyParser: true } };
@@ -107,6 +107,11 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   if (req.method === 'GET') {
+    if (req.query?.debug === 'zr-workflows' && process.env.VERCEL_ENV !== 'production') {
+      const result = await diagnoseZrWorkflows();
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(result.ok ? 200 : 502).json(result);
+    }
     const zr = getZrSafeConfig();
     return res.status(200).json({
       ok: true,

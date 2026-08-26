@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import { App } from "./App";
 import DeliveryProviderDialog from "./components/admin/DeliveryProviderDialog";
+import DeliveryProviderLabels from "./components/admin/DeliveryProviderLabels";
 import { installDeliveryFetchBridge } from "./services/deliveryBridge";
 
 // Keep the proven App.tsx/NOEST handlers untouched. This scoped bridge only
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <App />
       <DeliveryProviderDialog />
+      <DeliveryProviderLabels />
     </BrowserRouter>
   </StrictMode>
 );

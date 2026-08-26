@@ -84,7 +84,7 @@ assert.match(providerSource, /externalId: String\(order\.tracking \|\| order\.id
 assert.match(providerSource, /ZR_READY_STATE_NOT_FOUND/);
 assert.match(providerSource, /deepFindReadyToDispatchState/);
 assert.match(providerSource, /collectZrWorkflowDiagnostics/);
-assert.match(providerSource, /workflow response tree/);
+assert.match(providerSource, /workflow payloads in more than one shape/);
 
 // ── The read-only preparation route must not create a parcel. ──────────────
 const prepareStart = orchestratorSource.indexOf("if (op === 'prepare_zrexpress')");

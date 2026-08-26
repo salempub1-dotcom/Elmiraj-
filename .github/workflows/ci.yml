@@ -22,3 +22,34 @@ jobs:
         run: npm ci
       - name: Production build
         run: npm run build
+
+      # Read-only smoke test. It never calls delivery_send/create_order and can
+      # therefore never create a NOEST or ZR Express shipment.
+      - name: Wait for Vercel preview delivery proxy
+        env:
+          PREVIEW_BASE: https://elmiraj-git-feature-zrexpress-integration-elmiraj1.vercel.app
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            body="$(curl -fsS --max-time 12 "$PREVIEW_BASE/api/noest" 2>/dev/null || true)"
+            if echo "$body" | jq -e '.ok == true' >/dev/null 2>&1; then
+              echo "$body" | jq '{ok, message, env: {NOEST_API_TOKEN: .env.NOEST_API_TOKEN, NOEST_USER_GUID: .env.NOEST_USER_GUID, ZREXPRESS_TENANT_ID: .env.ZREXPRESS_TENANT_ID, ZREXPRESS_API_KEY: .env.ZREXPRESS_API_KEY, ZREXPRESS_API_BASE: .env.ZREXPRESS_API_BASE, ZREXPRESS_API_VERSION: .env.ZREXPRESS_API_VERSION}}'
+              exit 0
+            fi
+            echo "Preview not ready yet (attempt $attempt/18); waiting 10s..."
+            sleep 10
+          done
+          echo "Preview delivery proxy did not become readable in time."
+          exit 1
+
+      - name: Verify NOEST + ZR provider configuration (read-only)
+        env:
+          PREVIEW_BASE: https://elmiraj-git-feature-zrexpress-integration-elmiraj1.vercel.app
+        run: |
+          set -euo pipefail
+          response="$(curl -fsS --max-time 15 \
+            -H 'Content-Type: application/json' \
+            -X POST "$PREVIEW_BASE/api/noest" \
+            --data '{"action":"ping"}')"
+          echo "$response" | jq '{ok, version, providers}'
+          echo "$response" | jq -e '.ok == true and .providers.noest == true and .providers.zrexpress == true' >/dev/null

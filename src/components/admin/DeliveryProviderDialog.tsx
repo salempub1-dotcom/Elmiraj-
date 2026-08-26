@@ -51,7 +51,7 @@ export default function DeliveryProviderDialog() {
   };
 
   const apiCall = async (authorization: string, payload: Record<string, unknown>) => {
-    const r = await fetch('/api/delivery', {
+    const r = await fetch('/api/noest', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ export default function DeliveryProviderDialog() {
   const loadZrPreparation = async (req: DeliverySelectionRequest) => {
     setStage('loading');
     setError('');
-    const result = await apiCall(req.authorization, { action: 'prepare_zrexpress', id: req.orderId });
+    const result = await apiCall(req.authorization, { action: 'delivery_prepare_zrexpress', id: req.orderId });
     if (!result.ok || !result.data) {
       setError(result.message || result.error || 'تعذر تحميل بيانات ZR Express.');
       setStage('provider');
@@ -100,7 +100,7 @@ export default function DeliveryProviderDialog() {
 
       if (detail.mode === 'resend') {
         setStage('loading');
-        void apiCall(detail.authorization, { action: 'provider_info', id: detail.orderId }).then((result) => {
+        void apiCall(detail.authorization, { action: 'delivery_provider_info', id: detail.orderId }).then((result) => {
           if (!result.ok || !result.data?.provider) {
             setError(result.message || result.error || 'تعذر تحديد شركة التوصيل السابقة.');
             setStage('provider');

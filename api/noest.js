@@ -7,8 +7,10 @@
 // preserved for backward compatibility.
 // ============================================================
 
+import { createClient } from '@supabase/supabase-js';
 import { handleDeliveryAction } from '../lib/deliveryOrchestrator.js';
-import { getZrSafeConfig } from '../lib/deliveryProviders.js';
+import { getZrSafeConfig, prepareZrOrder } from '../lib/deliveryProviders.js';
+import { readDeliverySettings } from '../lib/deliverySettings.js';
 
 export const config = { api: { bodyParser: true } };
 
@@ -78,6 +80,13 @@ async function dedupSet(requestId, response, ttlSeconds) {
   RECENT.set(requestId, { response, timestamp: Date.now(), ttl: ttlSeconds });
 }
 
+function getSupabaseForDeliverySettings() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+}
+
 function safeJson(v) {
   try { return JSON.stringify(v); } catch { return String(v); }
 }
@@ -130,6 +139,39 @@ export default async function handler(req, res) {
   }
   if (!body || typeof body !== 'object') body = {};
   const action = String(body.action || '');
+
+  // Public storefront provider configuration. This reveals only enabled/disabled
+  // booleans and safe office data; courier credentials never leave the server.
+  if (action === 'checkout_delivery_settings') {
+    const settings = await readDeliverySettings(getSupabaseForDeliverySettings());
+    return res.status(200).json({ ok: true, data: settings.data, source: settings.source });
+  }
+
+  if (action === 'checkout_zr_options') {
+    const wilayaId = Number(body.wilaya_id);
+    const commune = String(body.commune || '').trim();
+    if (!wilayaId || !commune) return res.status(400).json({ ok: false, error: 'wilaya_id and commune are required' });
+
+    const settings = await readDeliverySettings(getSupabaseForDeliverySettings());
+    if (!settings.data.zrexpress) {
+      return res.status(200).json({ ok: false, error: 'PROVIDER_DISABLED', message: 'ZR Express غير متاحة في المتجر حاليًا.' });
+    }
+
+    const prepared = await prepareZrOrder({
+      wilaya_id: wilayaId,
+      commune,
+      wilaya: String(wilayaId),
+      delivery_type: 'office',
+    });
+    if (!prepared.ok) return res.status(200).json({ ok: false, error: prepared.error, message: prepared.message || 'تعذر تحميل مكاتب ZR Express.' });
+    return res.status(200).json({
+      ok: true,
+      data: {
+        destination: { wilaya: prepared.data.destination.wilaya, commune: prepared.data.destination.commune },
+        pickup_hubs: prepared.data.pickupHubs,
+      },
+    });
+  }
 
   // Provider-aware admin actions are handled BEFORE the legacy NOEST env check,
   // because a valid ZR operation must not depend on NOEST credentials.
@@ -333,6 +375,7 @@ export default async function handler(req, res) {
     error: `Unknown action: ${action}`,
     available: [
       'ping', 'diagnose', 'get_wilayas', 'get_communes', 'get_desks', 'create_order',
+      'checkout_delivery_settings', 'checkout_zr_options',
       'delivery_provider_info', 'delivery_prepare_zrexpress', 'delivery_send', 'delivery_resend', 'delivery_sync',
     ],
   });

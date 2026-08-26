@@ -21,6 +21,7 @@ type ZrPreparation = {
   };
   source_hubs: ZrHub[];
   pickup_hubs: ZrHub[];
+  preferred_pickup_hub_id?: string | null;
 };
 
 function hubLabel(h: ZrHub): string {
@@ -34,6 +35,7 @@ export default function DeliveryProviderDialog() {
   const [prepared, setPrepared] = useState<ZrPreparation | null>(null);
   const [sourceHubId, setSourceHubId] = useState('');
   const [pickupHubId, setPickupHubId] = useState('');
+  const [preferredProvider, setPreferredProvider] = useState<'noest' | 'zrexpress' | null>(null);
 
   const reset = () => {
     setRequest(null);
@@ -42,6 +44,7 @@ export default function DeliveryProviderDialog() {
     setPrepared(null);
     setSourceHubId('');
     setPickupHubId('');
+    setPreferredProvider(null);
   };
 
   const finish = (selection: { provider: 'noest' | 'zrexpress'; source_hub_id?: string; pickup_hub_id?: string } | null) => {
@@ -77,6 +80,10 @@ export default function DeliveryProviderDialog() {
 
     const data = result.data as ZrPreparation;
     setPrepared(data);
+
+    if (data.delivery_type === 'office' && data.preferred_pickup_hub_id && data.pickup_hubs.some((h) => h.id === data.preferred_pickup_hub_id)) {
+      setPickupHubId(data.preferred_pickup_hub_id);
+    }
 
     if (data.delivery_type === 'home') {
       try {
@@ -115,6 +122,11 @@ export default function DeliveryProviderDialog() {
         });
       } else {
         setStage('provider');
+        void apiCall(detail.authorization, { action: 'delivery_provider_info', id: detail.orderId }).then((result) => {
+          if (result.ok && (result.data?.preferred_provider === 'noest' || result.data?.preferred_provider === 'zrexpress')) {
+            setPreferredProvider(result.data.preferred_provider);
+          }
+        });
       }
     };
 
@@ -169,7 +181,7 @@ export default function DeliveryProviderDialog() {
                   className="rounded-2xl border-2 border-blue-200 dark:border-blue-900 p-5 text-right hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all"
                 >
                   <div className="font-extrabold text-[#0B1833] dark:text-blue-200 text-lg">NOEST</div>
-                  <div className="text-xs text-gray-500 mt-1">الربط الحالي</div>
+                  <div className="text-xs text-gray-500 mt-1">{preferredProvider === 'noest' ? '✓ اختيار العميل' : 'الربط الحالي'}</div>
                 </button>
                 <button
                   type="button"
@@ -177,7 +189,7 @@ export default function DeliveryProviderDialog() {
                   className="rounded-2xl border-2 border-amber-200 dark:border-amber-900 p-5 text-right hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all"
                 >
                   <div className="font-extrabold text-[#0B1833] dark:text-amber-200 text-lg">ZR Express</div>
-                  <div className="text-xs text-gray-500 mt-1">API الجديدة v1</div>
+                  <div className="text-xs text-gray-500 mt-1">{preferredProvider === 'zrexpress' ? '✓ اختيار العميل' : 'API الجديدة v1'}</div>
                 </button>
               </div>
               <button type="button" onClick={() => finish(null)} className="w-full py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold">إلغاء</button>

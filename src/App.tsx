@@ -14,6 +14,9 @@ import HeroSection, { type LevelCategory } from './components/home/HeroSection';
 import WhyChooseSection from './components/home/WhyChooseSection';
 import TopProductsSection from './components/home/TopProductsSection';
 import ClassroomShowcaseSection from './components/home/ClassroomShowcaseSection';
+import DeliveryCompanySelector from './components/store/DeliveryCompanySelector';
+import DeliveryCompaniesSettingsCard from './components/admin/DeliveryCompaniesSettingsCard';
+import { checkoutOfficeLabel, decodeCheckoutDeliverySelection, deliveryProviderLabel, encodeCheckoutDeliverySelection } from './services/deliveryCheckout';
 
 // ============================================================
 // TYPES
@@ -686,7 +689,12 @@ function StoreApp({
       showToast('رقم الهاتف يجب أن يكون 10 أرقام', 'error');
       return;
     }
-    if (deliveryType === 'office' && !selectedOffice) {
+    const checkoutSelection = decodeCheckoutDeliverySelection(selectedOffice);
+    if (!checkoutSelection) {
+      showToast('يرجى اختيار شركة التوصيل', 'error');
+      return;
+    }
+    if (deliveryType === 'office' && !checkoutSelection.officeId) {
       showToast('يرجى اختيار مكتب الاستلام', 'error');
       return;
     }
@@ -1095,8 +1103,9 @@ function StoreApp({
                   <div className="flex justify-between"><span className="text-gray-500">الاسم:</span><span className="font-bold">{currentOrder.customer}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">الهاتف:</span><span className="font-bold">{currentOrder.phone}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">الولاية:</span><span className="font-bold">{currentOrder.wilaya}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">شركة التوصيل:</span><span className="font-bold">{deliveryProviderLabel(decodeCheckoutDeliverySelection(currentOrder.selectedOffice)?.provider)}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">التوصيل:</span><span className="font-bold">{currentOrder.deliveryType === 'home' ? 'إلى المنزل' : 'إلى المكتب'}</span></div>
-                  {currentOrder.selectedOffice && <div className="flex justify-between"><span className="text-gray-500">المكتب:</span><span className="font-bold text-xs">{currentOrder.selectedOffice}</span></div>}
+                  {currentOrder.deliveryType === 'office' && checkoutOfficeLabel(currentOrder.selectedOffice) && <div className="flex justify-between gap-3"><span className="text-gray-500">المكتب:</span><span className="font-bold text-xs text-left">{checkoutOfficeLabel(currentOrder.selectedOffice)}</span></div>}
                   <div className="border-t pt-2 flex justify-between text-lg"><span className="font-bold">المجموع الكلي:</span><span className="font-bold text-blue-700">{currentOrder.total.toLocaleString()} دج</span></div>
                 </div>
                 <div className="flex gap-3"><button onClick={() => { setActiveSection('track'); setTrackingInput(currentOrder.tracking); resetCheckout(); }} className="flex-1 border-2 border-[#183C6B] text-[#102A52] py-3 rounded-xl font-bold hover:bg-blue-50 transition-all">🔍 تتبع الطلب</button><button onClick={resetCheckout} className="flex-1 bg-[#102A52] text-white py-3 rounded-xl font-bold hover:bg-[#0B1833] transition-all">🏠 العودة للمتجر</button></div>
@@ -1110,8 +1119,15 @@ function StoreApp({
                   <div><label className="block text-sm font-bold text-gray-700 mb-1">الولاية * <span className="text-xs text-gray-400 font-normal">(Wilaya)</span></label><select value={customerWilayaId === '' ? '' : String(customerWilayaId)} onChange={e => { const v = e.target.value; if (!v) { setCustomerWilayaId(''); setCustomerWilayaLabel(''); setNoestCommunes([]); setCommune(''); setSelectedOffice(''); return; } const id = Number(v); setCustomerWilayaId(id); const w = noestWilayas.find(x => x.code === id); setCustomerWilayaLabel(w ? `${w.code} - ${w.nom} (${w.nom_ar})` : String(id)); setSelectedOffice(''); }} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none"><option value="">اختر الولاية / Choisir la wilaya</option>{noestWilayas.length > 0 ? noestWilayas.slice().sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={String(w.code)}>{w.code} - {w.nom} ({w.nom_ar})</option>)) : wilayaShipping.slice().sort((a, b) => a.code - b.code).map(w => (<option key={w.code} value={String(w.code)}>{w.code} - {w.name}</option>))}</select></div>
                   <div><label className="block text-sm font-bold text-gray-700 mb-1">البلدية * <span className="text-xs text-gray-400 font-normal">(Commune)</span></label><select value={commune} onChange={e => setCommune(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" disabled={!customerWilayaId || loadingNoest}><option value="">{!customerWilayaId ? 'اختر الولاية أولاً' : loadingNoest ? 'جاري تحميل البلديات...' : 'اختر البلدية / Choisir la commune'}</option>{noestCommunes.map((c, idx) => (<option key={`${c.wilaya_id}-${idx}`} value={c.nom}>{c.nom} ({c.nom_ar})</option>))}</select></div>
                   <div><label className="block text-sm font-bold text-gray-700 mb-1">العنوان التفصيلي *</label><textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#183C6B] outline-none" rows={2} placeholder="أدخل عنوانك التفصيلي" /></div>
-                  <div><label className="block text-sm font-bold text-gray-700 mb-2">نوع التوصيل *</label><div className="grid grid-cols-2 gap-3">{[{ value: 'home', icon: '🏠', label: 'إلى المنزل' }, { value: 'office', icon: '🏢', label: 'إلى المكتب' }].map(opt => (<button key={opt.value} onClick={() => { setDeliveryType(opt.value as 'home' | 'office'); setSelectedOffice(''); }} className={`p-3 rounded-xl border-2 font-bold text-sm transition-all ${deliveryType === opt.value ? 'border-[#183C6B] bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}>{opt.icon} {opt.label}</button>))}</div></div>
-                  {deliveryType === 'office' && customerWilayaId && (<div><label className="block text-sm font-bold text-gray-700 mb-2">🏢 اختر مكتب الاستلام * <span className="text-xs text-gray-400 font-normal">(Stop Desk)</span></label>{desks.length > 0 ? (<div className="max-h-48 overflow-y-auto space-y-2 border-2 border-gray-200 rounded-xl p-3">{desks.map(desk => (<button key={desk.code} onClick={() => setSelectedOffice(`${desk.code} — ${desk.name}`)} className={`w-full flex items-center gap-3 p-3 rounded-xl text-right transition-all border-2 ${selectedOffice === `${desk.code} — ${desk.name}` ? 'border-[#183C6B] bg-blue-50' : 'border-gray-100 hover:border-blue-300'}`}><span className="bg-[#102A52] text-white text-xs px-2 py-1 rounded-lg font-mono font-bold">{desk.code}</span><div className="flex-1"><span className="font-bold text-gray-800 text-sm block">{desk.name_ar}</span><span className="text-gray-500 text-xs">{desk.name}</span></div>{selectedOffice === `${desk.code} — ${desk.name}` && <span className="text-[#183C6B] mr-auto font-bold">✓</span>}</button>))}</div>) : (<div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 text-amber-700 text-sm font-bold text-center">⚠️ سيتم التواصل معك لتحديد نقطة الاستلام</div>)}</div>)}
+                  <DeliveryCompanySelector
+                    deliveryType={deliveryType}
+                    onDeliveryTypeChange={setDeliveryType}
+                    selectedOffice={selectedOffice}
+                    onSelectedOfficeChange={setSelectedOffice}
+                    wilayaId={customerWilayaId}
+                    commune={commune}
+                    noestDesks={desks}
+                  />
                   <div className="bg-gray-50 rounded-xl p-4 space-y-2">
                     <h4 className="font-bold text-gray-700 mb-3">ملخص الطلب</h4>
                     {cart.map(item => (<div key={item.id} className="flex justify-between text-sm"><span>{item.name} × {item.quantity}</span><span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span></div>))}
@@ -2425,6 +2441,8 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               </button>
               <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">⚙️ النظام والتكاملات</h2>
 
+              <DeliveryCompaniesSettingsCard />
+
               {/* Facebook Pixel Status */}
               <div className={`rounded-2xl p-4 border-2 flex items-center gap-3 ${typeof window !== 'undefined' && typeof window.fbq === 'function' ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700' : 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700'}`}>
                 <span className="text-2xl">{typeof window !== 'undefined' && typeof window.fbq === 'function' ? '✅' : '⚠️'}</span>
@@ -3282,7 +3300,7 @@ function OrderCard({
           </div>
           <p className="text-gray-600 dark:text-gray-300 text-sm">👤 {order.customer} | 📞 {order.phone}</p>
           <p className="text-gray-600 dark:text-gray-300 text-sm">📍 {order.wilaya} - {order.address}</p>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">🚚 {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${order.selectedOffice || ''}`}</p>
+          <p className="text-gray-600 dark:text-gray-300 text-sm">🚚 {deliveryProviderLabel(decodeCheckoutDeliverySelection(order.selectedOffice)?.provider)} — {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${checkoutOfficeLabel(order.selectedOffice)}`}</p>
         </div>
         <div className="text-left">
           <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{order.total.toLocaleString()} دج</p>

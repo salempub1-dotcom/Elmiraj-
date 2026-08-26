@@ -83,10 +83,12 @@ assert.ok(providerSource.includes("...(readyState.ok && readyState.data ? { stat
 assert.match(providerSource, /externalId: String\(order\.tracking \|\| order\.id\)/);
 assert.match(providerSource, /ZR_READY_STATE_NOT_FOUND/);
 assert.match(providerSource, /weight: \{ weight: 1, dimensionalWeight: null \}/);
+assert.match(providerSource, /function sanitizeZrProductSku/);
+assert.match(providerSource, /productSku: sanitizeZrProductSku/);
+assert.doesNotMatch(providerSource, /productSku: null/);
 assert.match(providerSource, /length: 1/);
 assert.match(providerSource, /sanitizeZrProductName/);
 assert.match(providerSource, /stockType: 'local'/);
-assert.match(providerSource, /productSku: null/);
 assert.match(providerSource, /\^\\\+213\[5-7\]\\d\{8\}\$/);
 assert.match(providerSource, /number2: null, number3: null/);
 assert.match(providerSource, /extractZrParcel/);

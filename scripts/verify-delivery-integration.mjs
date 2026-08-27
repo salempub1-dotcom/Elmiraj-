@@ -63,6 +63,7 @@ const checkoutServiceSource = read('src/services/deliveryCheckout.ts');
 const checkoutUiSource = read('src/components/store/DeliveryCompanySelector.tsx');
 const adminSettingsSource = read('src/components/admin/DeliveryCompaniesSettingsCard.tsx');
 const appSource = read('src/App.tsx');
+const deliveryBridgeSource = read('src/services/deliveryBridge.ts');
 
 // ── ZR live tariffs must never fall back to NOEST's static table. ──────────
 assert.ok(providerSource.includes("zrRequest('delivery-pricing/rates', { method: 'GET' })"));
@@ -123,11 +124,31 @@ assert.match(adminSettingsSource, /return \{ noest: true, zrexpress: true \}/);
 assert.doesNotMatch(adminSettingsSource, /return \{ noest: false, zrexpress: false \}/);
 assert.match(appSource, /<DeliveryCompanySelector/);
 assert.match(appSource, /<DeliveryCompaniesSettingsCard/);
+assert.match(appSource, /COMPACT_ORDER_CARD_V1/);
+assert.match(appSource, /rowIndex=\{orderIndex\}/);
+assert.match(appSource, /const \[expanded, setExpanded\] = useState\(false\)/);
+assert.match(appSource, /rowIndex % 2 === 0/);
+assert.ok(appSource.includes("bg-[#102A52] border-[#183C6B]"));
+assert.ok(appSource.includes("bg-[#171A1F] border-[#2A3038]"));
+assert.doesNotMatch(appSource, /border-r-4/);
+assert.doesNotMatch(appSource, /اضغط لعرض التفاصيل/);
+assert.doesNotMatch(appSource, /باقي التفاصيل/);
+assert.ok(appSource.includes('إرسال إلى ${providerLabel}'));
+assert.ok(appSource.includes("String(order.noestId).startsWith('ZR:') ? 'ZR Express' : 'NOEST'"));
 
 // Customer choice is preserved for admin sending; no silent switch to NOEST.
 assert.match(orchestratorSource, /body\.provider \|\| checkoutPreferredProvider\(order\)/);
 assert.match(orchestratorSource, /preferred_pickup_hub_id/);
 assert.match(orchestratorSource, /checkoutOfficeId\(order\)/);
+
+// A single enabled courier is a true one-click admin send. With both couriers
+// enabled, the existing explicit selection dialog remains. Customer preference
+// wins for already-created orders, and the server reuses their saved office/hub.
+assert.match(deliveryBridgeSource, /fetchDeliveryProviderSettings/);
+assert.match(deliveryBridgeSource, /resolveSingleProviderSend/);
+assert.match(deliveryBridgeSource, /enabledProviders\.length === 1/);
+assert.match(deliveryBridgeSource, /preferredProvider \|\| enabledProviders\[0\]/);
+assert.match(deliveryBridgeSource, /requestSelection\(orderId, mode, authorization\)/);
 
 // ── Server-side workflow guards and duplicate-send protection. ─────────────
 assert.match(orchestratorSource, /normalizeOrderStatus\(order\.status\) !== 'confirmed'/);

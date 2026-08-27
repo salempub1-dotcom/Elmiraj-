@@ -2562,10 +2562,11 @@ showToast(okIds.length === targets.length ? `تم حذف ${okIds.length} طلب 
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center"><p className="text-6xl mb-4">📭</p><p className="text-gray-400 dark:text-gray-500 text-lg">لا توجد طلبات بعد</p></div>
             ) : filteredOrders.length === 0 ? (
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-12 text-center"><p className="text-6xl mb-4">🔍</p><p className="text-gray-400 dark:text-gray-500 text-lg">لا توجد طلبات مطابقة للفلاتر الحالية</p></div>
-            ) : filteredOrders.map(order => (
+            ) : filteredOrders.map((order, orderIndex) => (
               <OrderCard
                 key={order.id}
                 order={order}
+                rowIndex={orderIndex}
                 sending={sendingOrderId === order.id}
                 onStatusChange={(status) => { setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status } : o)); db.updateOrderStatus(order.id, status); showToast('تم تحديث حالة الطلب'); }}
                 onUpdateNote={(note) => handleUpdateNote(order, note)}
@@ -3288,10 +3289,11 @@ function EditOrderItemsModal({
 }
 
 function OrderCard({
-  order, sending, todayKey,
+  order, rowIndex, sending, todayKey,
   onStatusChange, onUpdateNote, onUpdateReminder, onArchive, onDelete, onSend, onRequestResend, onEditItems,
 }: {
   order: Order;
+  rowIndex: number;
   sending: boolean;
   todayKey: string;
   onStatusChange: (status: Order['status']) => void;
@@ -3308,6 +3310,7 @@ function OrderCard({
   const [reminderDraft, setReminderDraft] = useState(order.reminderDate || '');
   const [savingReminder, setSavingReminder] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const isWaiting = order.status === 'waiting_customer';
   const noteChanged = noteDraft !== (order.internalNote || '');
@@ -3323,161 +3326,188 @@ function OrderCard({
   const canSend = normalizeOrderStatus(order.status) === 'confirmed' && !order.noestId;
   const canResend = !!order.noestId && normalizeOrderStatus(order.status) === 'confirmed';
 
+  const checkoutProvider = decodeCheckoutDeliverySelection(order.selectedOffice)?.provider;
+  const providerLabel = deliveryProviderLabel(checkoutProvider);
+  const sentProviderLabel = order.noestId
+    ? (String(order.noestId).startsWith('ZR:') ? 'ZR Express' : 'NOEST')
+    : null;
+  const locationText = [
+    order.wilayaId ? `${order.wilayaId} - ${order.wilaya}` : order.wilaya,
+    order.commune,
+    order.address,
+  ].filter(Boolean).join(' - ');
+  const rowTone = rowIndex % 2 === 0
+    ? 'bg-[#102A52] border-[#183C6B] dark:bg-[#102A52] dark:border-[#183C6B]'
+    : 'bg-[#171A1F] border-[#2A3038] dark:bg-[#171A1F] dark:border-[#2A3038]';
+
+  const toggleCardDetails = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest('button, input, textarea, select, a, label')) return;
+    setExpanded(v => !v);
+  };
+
+  // COMPACT_ORDER_CARD_V1 — compact by default, click card to reveal secondary details.
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-mono text-[#102A52] dark:text-blue-300 font-bold">{order.tracking}</span>
-            {order.noestId ? (
-              <span className="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-xs px-2 py-0.5 rounded-full font-bold">✅ أرسل إلى NOEST</span>
-            ) : (
-              <span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full font-bold">🚚 لم يرسل</span>
-            )}
-            {reminderBadge}
+    <div
+      onClick={toggleCardDetails}
+      className={`rounded-xl border shadow-sm transition-all duration-200 cursor-pointer ${rowTone} ${expanded ? 'ring-1 ring-[#183C6B]/30 dark:ring-blue-400/30 shadow-md' : 'hover:shadow-md'}`}
+    >
+      <div className="p-3 sm:p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              <span className="font-mono text-white font-extrabold text-sm">{order.tracking}</span>
+              {sentProviderLabel ? (
+                <span className="bg-emerald-100/90 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs px-2 py-0.5 rounded-full font-bold">✅ أرسل إلى {sentProviderLabel}</span>
+              ) : (
+                <span className="bg-white/10 text-gray-200 text-xs px-2 py-0.5 rounded-full font-bold">🚚 لم يرسل</span>
+              )}
+              {reminderBadge}
+              {!!order.internalNote && <span className="bg-violet-100/90 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[11px] px-2 py-0.5 rounded-full font-bold">📝 توجد ملاحظة</span>}
+            </div>
+
+            <div className="space-y-0.5 text-sm text-gray-100">
+              <p className="truncate">👤 <span className="font-bold">{order.customer}</span> <span className="text-gray-400">|</span> 📞 <span dir="ltr">{order.phone}</span></p>
+              <p className="truncate" title={locationText}>📍 {locationText}</p>
+              <p className="truncate">🚚 <span className="font-bold">{providerLabel}</span> — {order.deliveryType === 'home' ? 'توصيل للمنزل' : `إلى المكتب: ${checkoutOfficeLabel(order.selectedOffice) || 'مكتب الاستلام'}`}</p>
+            </div>
           </div>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">👤 {order.customer} | 📞 {order.phone}</p>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">📍 {order.wilaya} - {order.address}</p>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">🚚 {deliveryProviderLabel(decodeCheckoutDeliverySelection(order.selectedOffice)?.provider)} — {order.deliveryType === 'home' ? 'توصيل للمنزل' : `مكتب: ${checkoutOfficeLabel(order.selectedOffice)}`}</p>
-        </div>
-        <div className="text-left">
-          <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{order.total.toLocaleString()} دج</p>
-          <p className="text-gray-400 dark:text-gray-500 text-xs">{order.date}</p>
-        </div>
-      </div>
 
-      <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3 mb-3">
-        {order.items.map(item => (
-          <div key={item.id} className="flex justify-between text-sm">
-            <span>{item.name} × {item.quantity}</span>
-            <span className="font-bold">{(item.price * item.quantity).toLocaleString()} دج</span>
+          <div className="text-left flex-shrink-0">
+            <p className="text-lg sm:text-xl font-extrabold text-white whitespace-nowrap">{order.total.toLocaleString()} دج</p>
+            <p className="text-gray-300 text-xs mt-0.5 whitespace-nowrap">{order.date}</p>
           </div>
-        ))}
-      </div>
+        </div>
 
-      <div className="flex flex-wrap gap-2 mb-3">
-        {ORDER_STATUS_VALUES.map(status => (
-          <button
-            key={status}
-            onClick={() => onStatusChange(status)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${normalizeOrderStatus(order.status) === status ? 'bg-[#183C6B] text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300'}`}
-          >
-            {status === 'pending' ? '🟡 معلق' : status === 'confirmed' ? '🔵 مؤكد' : status === 'waiting_customer' ? '🟣 في انتظار العميل' : '🔴 ملغي'}
-          </button>
-        ))}
-      </div>
+        <div className="mt-2 pt-2 border-t border-white/10 space-y-0.5">
+          {order.items.map(item => (
+            <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate text-gray-100">{item.name} × {item.quantity}</span>
+              <span className="font-extrabold text-white whitespace-nowrap">{(item.price * item.quantity).toLocaleString()} دج</span>
+            </div>
+          ))}
+        </div>
 
-      {/* ── ملاحظة داخلية — إدارية فقط، تُبرَز بوضوح عند "بانتظار العميل" ── */}
-      <div className={`rounded-xl p-3 mb-3 border-2 ${isWaiting ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/40' : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60'}`}>
-        <label className={`block text-xs font-bold mb-1.5 ${isWaiting ? 'text-violet-700 dark:text-violet-300' : 'text-gray-500 dark:text-gray-400'}`}>📝 ملاحظة داخلية (للإدارة فقط){isWaiting && ' — بانتظار العميل'}</label>
-        <textarea
-          value={noteDraft}
-          onChange={e => setNoteDraft(e.target.value)}
-          rows={isWaiting ? 3 : 2}
-          placeholder="مثال: الزبونة تريد إضافة Flash Cards أخرى. لا يتم إرسال الطلب حتى تتواصل معنا."
-          className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:border-[#183C6B] outline-none resize-y"
-        />
-        <div className="flex items-center gap-2 mt-2">
-          <button
-            disabled={!noteChanged || savingNote}
-            onClick={async () => { setSavingNote(true); await onUpdateNote(noteDraft); setSavingNote(false); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${noteChanged ? 'bg-[#183C6B] text-white hover:bg-[#102A52]' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}
-          >
-            {savingNote ? '⏳ جارٍ الحفظ...' : '💾 حفظ الملاحظة'}
-          </button>
-          {(noteDraft || order.internalNote) && (
+        <div className="flex flex-wrap gap-1.5 mt-2.5">
+          {ORDER_STATUS_VALUES.map(status => (
             <button
-              disabled={savingNote}
-              onClick={async () => { setNoteDraft(''); setSavingNote(true); await onUpdateNote(''); setSavingNote(false); }}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
+              key={status}
+              onClick={() => onStatusChange(status)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${normalizeOrderStatus(order.status) === status ? 'bg-white text-[#102A52] shadow-sm' : 'bg-white/10 text-gray-100 hover:bg-white/20'}`}
             >
-              🗑️ مسح
+              {status === 'pending' ? '🟡 معلق' : status === 'confirmed' ? '🔵 مؤكد' : status === 'waiting_customer' ? '🟣 في انتظار العميل' : '🔴 ملغي'}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 pt-2 border-t border-white/10 flex flex-wrap items-center gap-2">
+          {canSend && (
+            <button
+              disabled={sending}
+              onClick={onSend}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all text-white ${sending ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-[#102A52] hover:bg-[#0B1833]'}`}
+            >
+              {sending ? '⏳ جارٍ الإرسال...' : `🚚 إرسال إلى ${providerLabel}`}
             </button>
           )}
         </div>
       </div>
 
-      {/* ── تذكير المتابعة (اختياري) ── */}
-      <div className="flex flex-wrap items-center gap-2 mb-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3">
-        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">🔔 تذكير</label>
-        <input
-          type="date"
-          value={reminderDraft}
-          onChange={e => setReminderDraft(e.target.value)}
-          className="border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 px-2 py-1 text-sm focus:border-[#183C6B] outline-none"
-        />
-        <button
-          disabled={!reminderChanged || savingReminder || !reminderDraft}
-          onClick={async () => { setSavingReminder(true); await onUpdateReminder(reminderDraft); setSavingReminder(false); }}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${reminderChanged && reminderDraft ? 'bg-[#183C6B] text-white hover:bg-[#102A52]' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}
-        >
-          💾 حفظ
-        </button>
-        {(reminderDraft || order.reminderDate) && (
-          <button
-            disabled={savingReminder}
-            onClick={async () => { setReminderDraft(''); setSavingReminder(true); await onUpdateReminder(null); setSavingReminder(false); }}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
-          >
-            🗑️ مسح
-          </button>
-        )}
-      </div>
-
-      {/* ── معلومات الإرسال لشركة التوصيل ── */}
-      {(order.sentToDeliveryAt || (order.deliverySendCount ?? 0) > 0) && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700 rounded-xl p-3 mb-3 space-y-1">
-          <p className="font-bold text-gray-600 dark:text-gray-300 mb-1">🚚 معلومات التوصيل</p>
-          <div>حالة الإرسال: <span className="font-bold text-gray-700 dark:text-gray-200">تم الإرسال إلى NOEST</span></div>
-          {order.sentToDeliveryAt && <div>أول إرسال: <span className="font-bold text-gray-700 dark:text-gray-200">{formatAlgiersDateTime(order.sentToDeliveryAt)}</span></div>}
-          {order.deliveryLastSentAt && order.deliveryLastSentAt !== order.sentToDeliveryAt && <div>آخر إرسال: <span className="font-bold text-gray-700 dark:text-gray-200">{formatAlgiersDateTime(order.deliveryLastSentAt)}</span></div>}
-          <div>عدد مرات الإرسال: <span className="font-bold text-gray-700 dark:text-gray-200">{order.deliverySendCount || 1}</span></div>
-          {order.noestId && <div>رقم التتبع: <span className="font-mono font-bold text-gray-700 dark:text-gray-200">{order.noestId}</span></div>}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
-        <button onClick={onArchive} className="text-xs text-gray-500 dark:text-gray-400 hover:text-[#183C6B] font-bold transition-all">📦 أرشفة</button>
-        {canEditOrderItems(order) && (
-          <button onClick={onEditItems} className="text-xs text-gray-500 dark:text-gray-400 hover:text-[#183C6B] dark:hover:text-blue-300 font-bold transition-all">✏️ تعديل الطلب</button>
-        )}
-
-        {canSend && (
-          <button
-            disabled={sending}
-            onClick={onSend}
-            className={`mr-auto px-4 py-2 rounded-xl text-sm font-bold transition-all text-white ${sending ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-[#102A52] hover:bg-[#0B1833]'}`}
-          >
-            {sending ? '⏳ جارٍ الإرسال...' : '🚚 إرسال إلى شركة التوصيل'}
-          </button>
-        )}
-
-        {/* ── "⋮ المزيد" — إجراءات ثانوية أقل بروزاً: حذف الطلب (دائماً)، وإعادة الإرسال (عند توفرها) ── */}
-        <div className={`relative ${canSend ? '' : 'mr-auto'}`}>
-          <button onClick={() => setMoreOpen(v => !v)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 rounded-lg text-sm font-bold transition-all">⋮ المزيد</button>
-          {moreOpen && (
-            <div className="absolute left-0 bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-1 z-10 whitespace-nowrap">
-              {canResend && (
-                <button
-                  disabled={sending}
-                  onClick={() => { setMoreOpen(false); onRequestResend(); }}
-                  className="block w-full text-right px-4 py-2 text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-all"
-                >
-                  🔄 إعادة الإرسال إلى شركة التوصيل
-                </button>
-              )}
+      {expanded && (
+        <div className="px-3 sm:px-4 pb-4 pt-3 border-t border-white/10 bg-white/95 dark:bg-[#0E131A] rounded-b-xl">
+          {/* ملاحظة داخلية — تظهر فقط عند توسيع البطاقة */}
+          <div className={`rounded-xl p-3 mb-3 border-2 ${isWaiting ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/40' : 'border-gray-200/80 dark:border-gray-700 bg-white/70 dark:bg-gray-900/35'}`}>
+            <label className={`block text-xs font-bold mb-1.5 ${isWaiting ? 'text-violet-700 dark:text-violet-300' : 'text-gray-500 dark:text-gray-400'}`}>📝 ملاحظة داخلية (للإدارة فقط){isWaiting && ' — بانتظار العميل'}</label>
+            <textarea
+              value={noteDraft}
+              onChange={e => setNoteDraft(e.target.value)}
+              rows={isWaiting ? 3 : 2}
+              placeholder="مثال: الزبونة تريد إضافة Flash Cards أخرى. لا يتم إرسال الطلب حتى تتواصل معنا."
+              className="w-full border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:border-[#183C6B] outline-none resize-y"
+            />
+            <div className="flex items-center gap-2 mt-2">
               <button
-                onClick={() => { setMoreOpen(false); onDelete(); }}
-                className="block w-full text-right px-4 py-2 text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
+                disabled={!noteChanged || savingNote}
+                onClick={async () => { setSavingNote(true); await onUpdateNote(noteDraft); setSavingNote(false); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${noteChanged ? 'bg-[#183C6B] text-white hover:bg-[#102A52]' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}
               >
-                🗑️ حذف الطلب
+                {savingNote ? '⏳ جارٍ الحفظ...' : '💾 حفظ الملاحظة'}
               </button>
+              {(noteDraft || order.internalNote) && (
+                <button
+                  disabled={savingNote}
+                  onClick={async () => { setNoteDraft(''); setSavingNote(true); await onUpdateNote(''); setSavingNote(false); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
+                >🗑️ مسح</button>
+              )}
+            </div>
+          </div>
+
+          {/* تذكير المتابعة */}
+          <div className="flex flex-wrap items-center gap-2 mb-3 bg-white/70 dark:bg-gray-900/35 border border-gray-200/80 dark:border-gray-700 rounded-xl p-3">
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400">🔔 تذكير</label>
+            <input
+              type="date"
+              value={reminderDraft}
+              onChange={e => setReminderDraft(e.target.value)}
+              className="border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 px-2 py-1 text-sm focus:border-[#183C6B] outline-none"
+            />
+            <button
+              disabled={!reminderChanged || savingReminder || !reminderDraft}
+              onClick={async () => { setSavingReminder(true); await onUpdateReminder(reminderDraft); setSavingReminder(false); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${reminderChanged && reminderDraft ? 'bg-[#183C6B] text-white hover:bg-[#102A52]' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}
+            >💾 حفظ</button>
+            {(reminderDraft || order.reminderDate) && (
+              <button
+                disabled={savingReminder}
+                onClick={async () => { setReminderDraft(''); setSavingReminder(true); await onUpdateReminder(null); setSavingReminder(false); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
+              >🗑️ مسح</button>
+            )}
+          </div>
+
+          {/* معلومات شركة التوصيل */}
+          {(order.sentToDeliveryAt || (order.deliverySendCount ?? 0) > 0) && (
+            <div className="text-xs text-gray-600 dark:text-gray-300 bg-white/70 dark:bg-gray-900/35 border border-gray-200/80 dark:border-gray-700 rounded-xl p-3 mb-3 space-y-1">
+              <p className="font-bold text-gray-700 dark:text-gray-200 mb-1">🚚 معلومات التوصيل</p>
+              <div>حالة الإرسال: <span className="font-bold">تم الإرسال إلى {sentProviderLabel || providerLabel}</span></div>
+              {order.sentToDeliveryAt && <div>أول إرسال: <span className="font-bold">{formatAlgiersDateTime(order.sentToDeliveryAt)}</span></div>}
+              {order.deliveryLastSentAt && order.deliveryLastSentAt !== order.sentToDeliveryAt && <div>آخر إرسال: <span className="font-bold">{formatAlgiersDateTime(order.deliveryLastSentAt)}</span></div>}
+              <div>عدد مرات الإرسال: <span className="font-bold">{order.deliverySendCount || 1}</span></div>
+              {order.noestId && <div>رقم التتبع: <span className="font-mono font-bold">{order.noestId}</span></div>}
             </div>
           )}
+
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-blue-200/60 dark:border-white/10">
+            <button onClick={onArchive} className="text-xs text-gray-500 dark:text-gray-300 hover:text-[#183C6B] dark:hover:text-blue-300 font-bold transition-all">📦 أرشفة</button>
+            {canEditOrderItems(order) && (
+              <button onClick={onEditItems} className="text-xs text-gray-500 dark:text-gray-300 hover:text-[#183C6B] dark:hover:text-blue-300 font-bold transition-all">✏️ تعديل الطلب</button>
+            )}
+
+            <div className="relative mr-auto">
+              <button onClick={() => setMoreOpen(v => !v)} className="text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white px-2 py-1 rounded-lg text-sm font-bold transition-all">⋮ المزيد</button>
+              {moreOpen && (
+                <div className="absolute left-0 bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-1 z-10 whitespace-nowrap">
+                  {canResend && (
+                    <button
+                      disabled={sending}
+                      onClick={() => { setMoreOpen(false); onRequestResend(); }}
+                      className="block w-full text-right px-4 py-2 text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-all"
+                    >🔄 إعادة الإرسال إلى شركة التوصيل</button>
+                  )}
+                  <button
+                    onClick={() => { setMoreOpen(false); onDelete(); }}
+                    className="block w-full text-right px-4 py-2 text-xs font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
+                  >🗑️ حذف الطلب</button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
+
 }
 
 // ============================================================

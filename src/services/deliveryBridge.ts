@@ -1,3 +1,5 @@
+import { fetchDeliveryProviderSettings } from './deliveryCheckout';
+
 // ============================================================
 // Delivery bridge
 // ============================================================
@@ -79,6 +81,57 @@ async function dispatchProviderRefreshFromResponse(response: Response, orderId: 
   }
 }
 
+async function fetchPreferredProvider(
+  nativeFetch: typeof window.fetch,
+  orderId: string,
+  authorization: string,
+): Promise<DeliveryProvider | null> {
+  try {
+    const response = await nativeFetch('/api/noest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authorization ? { Authorization: authorization } : {}),
+      },
+      body: JSON.stringify({ action: 'delivery_provider_info', id: orderId }),
+    });
+    const payload = await response.json();
+    const preferred = payload?.data?.preferred_provider;
+    return preferred === 'noest' || preferred === 'zrexpress' ? preferred : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveSingleProviderSend(
+  nativeFetch: typeof window.fetch,
+  orderId: string,
+  authorization: string,
+): Promise<DeliverySelection | null> {
+  try {
+    const [settings, preferredProvider] = await Promise.all([
+      fetchDeliveryProviderSettings(),
+      fetchPreferredProvider(nativeFetch, orderId, authorization),
+    ]);
+
+    const enabledProviders: DeliveryProvider[] = [];
+    if (settings.noest) enabledProviders.push('noest');
+    if (settings.zrexpress) enabledProviders.push('zrexpress');
+
+    // When only one courier is enabled in admin settings, the existing
+    // "send to delivery" button becomes a real one-click action. The customer's
+    // saved courier choice remains first priority for existing orders; otherwise
+    // the single currently enabled courier is used. Office/hub data is already
+    // stored on the order and is resolved server-side, so no second selection is needed.
+    if (enabledProviders.length === 1) {
+      return { provider: preferredProvider || enabledProviders[0] };
+    }
+  } catch {
+    // If settings cannot be read, fall back to the explicit selection dialog.
+  }
+  return null;
+}
+
 export function installDeliveryFetchBridge(): void {
   if (typeof window === 'undefined') return;
   const marker = '__almirajDeliveryBridgeInstalled';
@@ -118,7 +171,14 @@ export function installDeliveryFetchBridge(): void {
     if (!orderId) return jsonResponse({ ok: false, error: 'id is required' }, 400);
 
     const mode = action === 'resend_to_delivery' ? 'resend' : 'send';
-    const selection = await requestSelection(orderId, mode, authorization);
+
+    let selection: DeliverySelection | null = null;
+    if (mode === 'send') {
+      selection = await resolveSingleProviderSend(nativeFetch, orderId, authorization);
+    }
+    if (!selection) {
+      selection = await requestSelection(orderId, mode, authorization);
+    }
     if (!selection) {
       return jsonResponse({ ok: false, error: 'USER_CANCELLED', message: 'تم إلغاء الإرسال.' });
     }

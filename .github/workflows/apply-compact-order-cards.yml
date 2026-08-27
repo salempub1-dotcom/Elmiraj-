@@ -22,6 +22,8 @@ jobs:
           cache: npm
       - name: Apply patch
         run: node scripts/apply-compact-order-cards.mjs
+      - name: Fix compact verifier pattern
+        run: node scripts/fix-compact-verifier.mjs
       - name: Install dependencies
         run: npm ci
       - name: Build

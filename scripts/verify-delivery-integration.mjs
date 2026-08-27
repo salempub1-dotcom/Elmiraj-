@@ -124,6 +124,12 @@ assert.match(adminSettingsSource, /return \{ noest: true, zrexpress: true \}/);
 assert.doesNotMatch(adminSettingsSource, /return \{ noest: false, zrexpress: false \}/);
 assert.match(appSource, /<DeliveryCompanySelector/);
 assert.match(appSource, /<DeliveryCompaniesSettingsCard/);
+assert.match(appSource, /COMPACT_ORDER_CARD_V1/);
+assert.match(appSource, /rowIndex=\{orderIndex\}/);
+assert.match(appSource, /const \[expanded, setExpanded\] = useState\(false\)/);
+assert.match(appSource, /rowIndex % 2 === 0/);
+assert.match(appSource, /اضغط لعرض التفاصيل/);
+assert.ok(appSource.includes('إرسال إلى ${providerLabel}'));
 
 // Customer choice is preserved for admin sending; no silent switch to NOEST.
 assert.match(orchestratorSource, /body\.provider \|\| checkoutPreferredProvider\(order\)/);

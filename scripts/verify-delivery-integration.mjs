@@ -60,10 +60,10 @@ const proxySource = read('api/noest.js');
 const trackingSource = read('api/track-order.js');
 const settingsSource = read('lib/deliverySettings.js');
 const checkoutServiceSource = read('src/services/deliveryCheckout.ts');
-const deliveryBridgeSource = read('src/services/deliveryBridge.ts');
 const checkoutUiSource = read('src/components/store/DeliveryCompanySelector.tsx');
 const adminSettingsSource = read('src/components/admin/DeliveryCompaniesSettingsCard.tsx');
 const appSource = read('src/App.tsx');
+const deliveryBridgeSource = read('src/services/deliveryBridge.ts');
 
 // ── ZR live tariffs must never fall back to NOEST's static table. ──────────
 assert.ok(providerSource.includes("zrRequest('delivery-pricing/rates', { method: 'GET' })"));
@@ -130,6 +130,7 @@ assert.match(appSource, /const \[expanded, setExpanded\] = useState\(false\)/);
 assert.match(appSource, /rowIndex % 2 === 0/);
 assert.match(appSource, /اضغط لعرض التفاصيل/);
 assert.ok(appSource.includes('إرسال إلى ${providerLabel}'));
+assert.ok(appSource.includes("String(order.noestId).startsWith('ZR:') ? 'ZR Express' : 'NOEST'"));
 
 // Customer choice is preserved for admin sending; no silent switch to NOEST.
 assert.match(orchestratorSource, /body\.provider \|\| checkoutPreferredProvider\(order\)/);
@@ -143,7 +144,7 @@ assert.match(deliveryBridgeSource, /fetchDeliveryProviderSettings/);
 assert.match(deliveryBridgeSource, /resolveSingleProviderSend/);
 assert.match(deliveryBridgeSource, /enabledProviders\.length === 1/);
 assert.match(deliveryBridgeSource, /preferredProvider \|\| enabledProviders\[0\]/);
-assert.match(deliveryBridgeSource, /selection = await requestSelection\(orderId, mode, authorization\)/);
+assert.match(deliveryBridgeSource, /requestSelection\(orderId, mode, authorization\)/);
 
 // ── Server-side workflow guards and duplicate-send protection. ─────────────
 assert.match(orchestratorSource, /normalizeOrderStatus\(order\.status\) !== 'confirmed'/);

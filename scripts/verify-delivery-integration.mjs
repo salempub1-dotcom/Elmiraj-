@@ -128,7 +128,11 @@ assert.match(appSource, /COMPACT_ORDER_CARD_V1/);
 assert.match(appSource, /rowIndex=\{orderIndex\}/);
 assert.match(appSource, /const \[expanded, setExpanded\] = useState\(false\)/);
 assert.match(appSource, /rowIndex % 2 === 0/);
-assert.match(appSource, /اضغط لعرض التفاصيل/);
+assert.ok(appSource.includes("bg-[#102A52] border-[#183C6B]"));
+assert.ok(appSource.includes("bg-[#171A1F] border-[#2A3038]"));
+assert.doesNotMatch(appSource, /border-r-4/);
+assert.doesNotMatch(appSource, /اضغط لعرض التفاصيل/);
+assert.doesNotMatch(appSource, /باقي التفاصيل/);
 assert.ok(appSource.includes('إرسال إلى ${providerLabel}'));
 assert.ok(appSource.includes("String(order.noestId).startsWith('ZR:') ? 'ZR Express' : 'NOEST'"));
 

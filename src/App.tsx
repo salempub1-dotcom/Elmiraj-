@@ -3337,8 +3337,8 @@ function OrderCard({
     order.address,
   ].filter(Boolean).join(' - ');
   const rowTone = rowIndex % 2 === 0
-    ? 'bg-[#E5EEF9] border-blue-200 border-r-4 border-r-[#183C6B] dark:bg-[#0B1833] dark:border-blue-950 dark:border-r-blue-500'
-    : 'bg-[#F4F8FD] border-sky-200 border-r-4 border-r-[#79A5D2] dark:bg-[#132A46] dark:border-sky-950 dark:border-r-sky-400';
+    ? 'bg-[#102A52] border-[#183C6B] dark:bg-[#102A52] dark:border-[#183C6B]'
+    : 'bg-[#171A1F] border-[#2A3038] dark:bg-[#171A1F] dark:border-[#2A3038]';
 
   const toggleCardDetails = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
@@ -3356,18 +3356,17 @@ function OrderCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
-              <span className="font-mono text-[#102A52] dark:text-blue-200 font-extrabold text-sm">{order.tracking}</span>
+              <span className="font-mono text-white font-extrabold text-sm">{order.tracking}</span>
               {sentProviderLabel ? (
                 <span className="bg-emerald-100/90 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs px-2 py-0.5 rounded-full font-bold">✅ أرسل إلى {sentProviderLabel}</span>
               ) : (
-                <span className="bg-white/70 dark:bg-white/10 text-gray-500 dark:text-gray-300 text-xs px-2 py-0.5 rounded-full font-bold">🚚 لم يرسل</span>
+                <span className="bg-white/10 text-gray-200 text-xs px-2 py-0.5 rounded-full font-bold">🚚 لم يرسل</span>
               )}
               {reminderBadge}
               {!!order.internalNote && <span className="bg-violet-100/90 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[11px] px-2 py-0.5 rounded-full font-bold">📝 توجد ملاحظة</span>}
-              <span className="text-[11px] text-gray-400 dark:text-gray-400 font-bold">{expanded ? '▲ إخفاء التفاصيل' : '▼ اضغط لعرض التفاصيل'}</span>
             </div>
 
-            <div className="space-y-0.5 text-sm text-gray-700 dark:text-gray-200">
+            <div className="space-y-0.5 text-sm text-gray-100">
               <p className="truncate">👤 <span className="font-bold">{order.customer}</span> <span className="text-gray-400">|</span> 📞 <span dir="ltr">{order.phone}</span></p>
               <p className="truncate" title={locationText}>📍 {locationText}</p>
               <p className="truncate">🚚 <span className="font-bold">{providerLabel}</span> — {order.deliveryType === 'home' ? 'توصيل للمنزل' : `إلى المكتب: ${checkoutOfficeLabel(order.selectedOffice) || 'مكتب الاستلام'}`}</p>
@@ -3375,16 +3374,16 @@ function OrderCard({
           </div>
 
           <div className="text-left flex-shrink-0">
-            <p className="text-lg sm:text-xl font-extrabold text-blue-800 dark:text-blue-200 whitespace-nowrap">{order.total.toLocaleString()} دج</p>
-            <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 whitespace-nowrap">{order.date}</p>
+            <p className="text-lg sm:text-xl font-extrabold text-white whitespace-nowrap">{order.total.toLocaleString()} دج</p>
+            <p className="text-gray-300 text-xs mt-0.5 whitespace-nowrap">{order.date}</p>
           </div>
         </div>
 
-        <div className="mt-2 pt-2 border-t border-blue-200/60 dark:border-white/10 space-y-0.5">
+        <div className="mt-2 pt-2 border-t border-white/10 space-y-0.5">
           {order.items.map(item => (
             <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate text-gray-700 dark:text-gray-200">{item.name} × {item.quantity}</span>
-              <span className="font-extrabold text-gray-800 dark:text-gray-100 whitespace-nowrap">{(item.price * item.quantity).toLocaleString()} دج</span>
+              <span className="min-w-0 truncate text-gray-100">{item.name} × {item.quantity}</span>
+              <span className="font-extrabold text-white whitespace-nowrap">{(item.price * item.quantity).toLocaleString()} دج</span>
             </div>
           ))}
         </div>
@@ -3394,14 +3393,14 @@ function OrderCard({
             <button
               key={status}
               onClick={() => onStatusChange(status)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${normalizeOrderStatus(order.status) === status ? 'bg-[#183C6B] text-white shadow-sm' : 'bg-white/75 dark:bg-white/10 text-gray-600 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-blue-900/40'}`}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${normalizeOrderStatus(order.status) === status ? 'bg-white text-[#102A52] shadow-sm' : 'bg-white/10 text-gray-100 hover:bg-white/20'}`}
             >
               {status === 'pending' ? '🟡 معلق' : status === 'confirmed' ? '🔵 مؤكد' : status === 'waiting_customer' ? '🟣 في انتظار العميل' : '🔴 ملغي'}
             </button>
           ))}
         </div>
 
-        <div className="mt-3 pt-2 border-t border-blue-200/60 dark:border-white/10 flex flex-wrap items-center gap-2">
+        <div className="mt-3 pt-2 border-t border-white/10 flex flex-wrap items-center gap-2">
           {canSend && (
             <button
               disabled={sending}
@@ -3411,18 +3410,11 @@ function OrderCard({
               {sending ? '⏳ جارٍ الإرسال...' : `🚚 إرسال إلى ${providerLabel}`}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setExpanded(v => !v)}
-            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${expanded ? 'bg-blue-100 dark:bg-blue-950/50 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200' : 'bg-white/70 dark:bg-white/10 border-blue-200/70 dark:border-white/10 text-gray-600 dark:text-gray-200'} ${canSend ? '' : 'mr-auto'}`}
-          >
-            {expanded ? '▲ إخفاء التفاصيل' : '▼ باقي التفاصيل'}
-          </button>
         </div>
       </div>
 
       {expanded && (
-        <div className="px-3 sm:px-4 pb-4 pt-3 border-t border-blue-200/70 dark:border-white/10 bg-white/35 dark:bg-black/10 rounded-b-xl">
+        <div className="px-3 sm:px-4 pb-4 pt-3 border-t border-white/10 bg-white/95 dark:bg-[#0E131A] rounded-b-xl">
           {/* ملاحظة داخلية — تظهر فقط عند توسيع البطاقة */}
           <div className={`rounded-xl p-3 mb-3 border-2 ${isWaiting ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/40' : 'border-gray-200/80 dark:border-gray-700 bg-white/70 dark:bg-gray-900/35'}`}>
             <label className={`block text-xs font-bold mb-1.5 ${isWaiting ? 'text-violet-700 dark:text-violet-300' : 'text-gray-500 dark:text-gray-400'}`}>📝 ملاحظة داخلية (للإدارة فقط){isWaiting && ' — بانتظار العميل'}</label>

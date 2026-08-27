@@ -22,6 +22,8 @@ jobs:
           cache: npm
       - name: Apply patch
         run: node scripts/apply-compact-order-cards.mjs
+      - name: Fix sent courier badge
+        run: node scripts/fix-compact-sent-provider-label.mjs
       - name: Fix compact verifier pattern
         run: node scripts/fix-compact-verifier.mjs
       - name: Install dependencies
@@ -39,5 +41,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/App.tsx scripts/verify-delivery-integration.mjs
-          git commit -m "feat: compact expandable alternating order cards"
+          git commit -m "fix: keep compact card courier badge provider-aware"
           git push origin HEAD:fix/admin-one-click-delivery

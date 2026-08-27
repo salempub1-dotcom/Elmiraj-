@@ -60,6 +60,7 @@ const proxySource = read('api/noest.js');
 const trackingSource = read('api/track-order.js');
 const settingsSource = read('lib/deliverySettings.js');
 const checkoutServiceSource = read('src/services/deliveryCheckout.ts');
+const deliveryBridgeSource = read('src/services/deliveryBridge.ts');
 const checkoutUiSource = read('src/components/store/DeliveryCompanySelector.tsx');
 const adminSettingsSource = read('src/components/admin/DeliveryCompaniesSettingsCard.tsx');
 const appSource = read('src/App.tsx');
@@ -128,6 +129,15 @@ assert.match(appSource, /<DeliveryCompaniesSettingsCard/);
 assert.match(orchestratorSource, /body\.provider \|\| checkoutPreferredProvider\(order\)/);
 assert.match(orchestratorSource, /preferred_pickup_hub_id/);
 assert.match(orchestratorSource, /checkoutOfficeId\(order\)/);
+
+// A single enabled courier is a true one-click admin send. With both couriers
+// enabled, the existing explicit selection dialog remains. Customer preference
+// wins for already-created orders, and the server reuses their saved office/hub.
+assert.match(deliveryBridgeSource, /fetchDeliveryProviderSettings/);
+assert.match(deliveryBridgeSource, /resolveSingleProviderSend/);
+assert.match(deliveryBridgeSource, /enabledProviders\.length === 1/);
+assert.match(deliveryBridgeSource, /preferredProvider \|\| enabledProviders\[0\]/);
+assert.match(deliveryBridgeSource, /selection = await requestSelection\(orderId, mode, authorization\)/);
 
 // ── Server-side workflow guards and duplicate-send protection. ─────────────
 assert.match(orchestratorSource, /normalizeOrderStatus\(order\.status\) !== 'confirmed'/);

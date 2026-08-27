@@ -3329,7 +3329,7 @@ function OrderCard({
   const checkoutProvider = decodeCheckoutDeliverySelection(order.selectedOffice)?.provider;
   const providerLabel = deliveryProviderLabel(checkoutProvider);
   const sentProviderLabel = order.noestId
-    ? (String(order.noestId).startsWith('ZR:') ? 'ZR Express' : providerLabel)
+    ? (String(order.noestId).startsWith('ZR:') ? 'ZR Express' : 'NOEST')
     : null;
   const locationText = [
     order.wilayaId ? `${order.wilayaId} - ${order.wilaya}` : order.wilaya,

@@ -1,0 +1,41 @@
+name: Apply final order card style
+
+on:
+  push:
+    branches:
+      - fix/admin-one-click-delivery
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/admin-one-click-delivery
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply final card style
+        run: node scripts/apply-final-order-card-style.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Production build
+        run: npm run build
+      - name: Delivery integration checks
+        run: node scripts/verify-delivery-integration.mjs
+      - name: Commit final card style
+        run: |
+          if git diff --quiet; then
+            echo "No patch needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx scripts/verify-delivery-integration.mjs
+          git commit -m "style: alternate navy and charcoal compact order cards"
+          git push origin HEAD:fix/admin-one-click-delivery

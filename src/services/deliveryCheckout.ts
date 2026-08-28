@@ -3,6 +3,7 @@ export type DeliveryProvider = 'noest' | 'zrexpress';
 export interface DeliveryProviderSettings {
   noest: boolean;
   zrexpress: boolean;
+  whatsappConfirmation: boolean;
 }
 
 export interface ZrPickupHub {
@@ -38,7 +39,7 @@ export interface CheckoutDeliverySelection {
 }
 
 const PREFIX = '@DP1:';
-const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true };
+const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true, whatsappConfirmation: false };
 
 async function jsonPost(payload: Record<string, unknown>, auth = '') {
   const response = await fetch('/api/noest', {
@@ -59,8 +60,9 @@ export async function fetchDeliveryProviderSettings(): Promise<DeliveryProviderS
     if (result?.ok && result?.data) {
       const noest = result.data.noest !== false;
       const zrexpress = result.data.zrexpress !== false;
-      if (!noest && !zrexpress) return { ...DEFAULTS };
-      return { noest, zrexpress };
+      const whatsappConfirmation = result.data.whatsappConfirmation === true;
+      if (!noest && !zrexpress) return { ...DEFAULTS, whatsappConfirmation };
+      return { noest, zrexpress, whatsappConfirmation };
     }
   } catch { /* fallback below */ }
   return { ...DEFAULTS };
@@ -77,7 +79,7 @@ export async function saveDeliveryProviderSettings(next: DeliveryProviderSetting
     if (response.status === 401) return { ok: false, message: 'انتهت جلسة الإدارة. سجّل الدخول من جديد.' };
     return result;
   } catch {
-    return { ok: false, message: 'تعذر حفظ إعدادات شركات التوصيل.' };
+    return { ok: false, message: 'تعذر حفظ إعدادات المتجر.' };
   }
 }
 

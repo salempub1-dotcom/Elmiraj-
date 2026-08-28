@@ -22,6 +22,8 @@ jobs:
         run: npm run build
       - name: Delivery integration safety checks
         run: node scripts/verify-delivery-integration.mjs
+      - name: WhatsApp V1 safety checks
+        run: node scripts/verify-whatsapp-v1.mjs
 
       # Diagnostic only: Vercel Preview Authentication may intentionally return
       # its HTML login page. If the preview is public, validate provider config;

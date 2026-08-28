@@ -299,8 +299,8 @@ export default function DeliveryCompanySelector({
           aria-describedby="whatsapp-consent-help"
         />
         <span className="min-w-0">
-          <span className="block text-sm font-bold leading-5 text-gray-800">أوافق على استلام تأكيد هذا الطلب عبر WhatsApp.</span>
-          <span id="whatsapp-consent-help" className="block text-[11px] text-gray-500 mt-0.5 leading-5">رسالة خدمية لتأكيد استلام الطلب فقط.</span>
+          <span className="block text-sm font-bold leading-5 text-gray-800">أوافق على استلام رسالة عبر WhatsApp لتأكيد وصول طلبي.</span>
+          <span id="whatsapp-consent-help" className="block text-[11px] text-gray-500 mt-0.5 leading-5">سنرسل لك رسالة فقط لإبلاغك بأن طلبك تم استلامه بنجاح.</span>
         </span>
       </label>
     </div>

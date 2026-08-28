@@ -290,7 +290,7 @@ export default function DeliveryCompanySelector({
         </div>
       )}
 
-      <label className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 cursor-pointer select-none">
+      <label className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2.5 cursor-pointer select-none">
         <input
           type="checkbox"
           checked={whatsappConsent}
@@ -299,8 +299,8 @@ export default function DeliveryCompanySelector({
           aria-describedby="whatsapp-consent-help"
         />
         <span className="min-w-0">
-          <span className="block text-sm font-bold text-gray-800">أوافق على استلام تأكيد هذا الطلب عبر WhatsApp.</span>
-          <span id="whatsapp-consent-help" className="block text-xs text-gray-500 mt-1 leading-relaxed">رسالة خدمية لتأكيد استلام الطلب فقط. يمكنك إكمال الطلب بشكل طبيعي دون الموافقة.</span>
+          <span className="block text-sm font-bold leading-5 text-gray-800">أوافق على استلام تأكيد هذا الطلب عبر WhatsApp.</span>
+          <span id="whatsapp-consent-help" className="block text-[11px] text-gray-500 mt-0.5 leading-5">رسالة خدمية لتأكيد استلام الطلب فقط.</span>
         </span>
       </label>
     </div>

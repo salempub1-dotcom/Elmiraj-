@@ -28,6 +28,13 @@ interface Props {
 }
 
 const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true };
+const WHATSAPP_CONSENT_COOKIE = 'almiraj_whatsapp_consent';
+
+function writeWhatsAppConsentCookie(enabled: boolean) {
+  if (typeof document === 'undefined') return;
+  const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${WHATSAPP_CONSENT_COOKIE}=${enabled ? '1' : '0'}; Max-Age=${enabled ? 1800 : 0}; Path=/; SameSite=Lax${secure}`;
+}
 
 function providerButtonClasses(active: boolean) {
   return `p-4 rounded-2xl border-2 text-right transition-all ${active
@@ -54,6 +61,7 @@ export default function DeliveryCompanySelector({
   const [zrHubs, setZrHubs] = useState<ZrPickupHub[]>([]);
   const [loadingZr, setLoadingZr] = useState(false);
   const [zrError, setZrError] = useState('');
+  const [whatsappConsent, setWhatsappConsent] = useState(false);
 
   const decoded = useMemo(() => decodeCheckoutDeliverySelection(selectedOffice), [selectedOffice]);
   const enabledProviders = useMemo<DeliveryProvider[]>(() => {
@@ -66,6 +74,14 @@ export default function DeliveryCompanySelector({
   const provider: DeliveryProvider = decoded?.provider && enabledProviders.includes(decoded.provider)
     ? decoded.provider
     : enabledProviders[0];
+
+  // Consent is scoped to this checkout session only. The cookie carries no
+  // personal data; it is merely a short-lived boolean that the same-origin
+  // /api/orders request can read server-side after the customer explicitly opts in.
+  useEffect(() => {
+    writeWhatsAppConsentCookie(false);
+    return () => writeWhatsAppConsentCookie(false);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +154,11 @@ export default function DeliveryCompanySelector({
       officeId: hub.id,
       officeName: [label.title, label.secondary].filter(Boolean).join(' — '),
     }));
+  };
+
+  const setConsent = (enabled: boolean) => {
+    setWhatsappConsent(enabled);
+    writeWhatsAppConsentCookie(enabled);
   };
 
   const selectedOfficeId = decoded?.officeId || '';
@@ -268,6 +289,20 @@ export default function DeliveryCompanySelector({
           )}
         </div>
       )}
+
+      <label className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={whatsappConsent}
+          onChange={(event) => setConsent(event.target.checked)}
+          className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-600"
+          aria-describedby="whatsapp-consent-help"
+        />
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-gray-800">أوافق على استلام تأكيد هذا الطلب عبر WhatsApp.</span>
+          <span id="whatsapp-consent-help" className="block text-xs text-gray-500 mt-1 leading-relaxed">رسالة خدمية لتأكيد استلام الطلب فقط. يمكنك إكمال الطلب بشكل طبيعي دون الموافقة.</span>
+        </span>
+      </label>
     </div>
   );
 }

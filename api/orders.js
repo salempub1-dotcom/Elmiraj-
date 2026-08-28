@@ -5,7 +5,9 @@
 // Order success NEVER depends on WhatsApp success.
 // ============================================================
 
+import { createClient } from '@supabase/supabase-js';
 import ordersCoreHandler from '../lib/ordersCore.js';
+import { readDeliverySettings } from '../lib/deliverySettings.js';
 import { hasWhatsAppConsent, sendOrderReceivedWhatsApp } from '../lib/whatsapp.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
@@ -16,6 +18,13 @@ function parsedBody(raw) {
     try { return JSON.parse(raw); } catch { return {}; }
   }
   return {};
+}
+
+function getSupabaseForStorefrontSettings() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
 function makeCaptureResponse(realRes) {
@@ -80,9 +89,17 @@ export default async function handler(req, res) {
   let whatsapp = { sent: false, skipped: 'NO_CONSENT' };
 
   if (consent) {
-    // Await with a short server-side timeout inside the helper. A failure is
-    // deliberately non-fatal because the order is already safely persisted.
-    whatsapp = await sendOrderReceivedWhatsApp(body.order);
+    // The admin visibility toggle is also enforced server-side. Hiding the
+    // storefront option means no WhatsApp request is made even if a stale or
+    // manually crafted consent cookie is present.
+    const storefrontSettings = await readDeliverySettings(getSupabaseForStorefrontSettings());
+    if (!storefrontSettings.data.whatsappConfirmation) {
+      whatsapp = { sent: false, skipped: 'FEATURE_DISABLED' };
+    } else {
+      // Await with a short server-side timeout inside the helper. A failure is
+      // deliberately non-fatal because the order is already safely persisted.
+      whatsapp = await sendOrderReceivedWhatsApp(body.order);
+    }
   }
 
   return res.status(result.statusCode).json({

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { defaultDeliverySettings } from '../lib/deliverySettings.js';
 import {
   buildWhatsAppTemplatePayload,
   hasWhatsAppConsent,
@@ -6,6 +7,7 @@ import {
   sendOrderReceivedWhatsApp,
 } from '../lib/whatsapp.js';
 
+assert.equal(defaultDeliverySettings().whatsappConfirmation, false);
 assert.equal(normalizeAlgerianWhatsAppNumber('0555123456'), '213555123456');
 assert.equal(normalizeAlgerianWhatsAppNumber('+213555123456'), '213555123456');
 assert.equal(normalizeAlgerianWhatsAppNumber('213 555 123 456'), '213555123456');

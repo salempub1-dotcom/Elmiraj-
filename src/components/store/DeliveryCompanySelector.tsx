@@ -27,7 +27,7 @@ interface Props {
   noestDesks: NoestDeskLike[];
 }
 
-const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true };
+const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true, whatsappConfirmation: false };
 const WHATSAPP_CONSENT_COOKIE = 'almiraj_whatsapp_consent';
 
 function writeWhatsAppConsentCookie(enabled: boolean) {
@@ -88,6 +88,10 @@ export default function DeliveryCompanySelector({
     void fetchDeliveryProviderSettings().then((next) => {
       if (cancelled) return;
       setSettings(next);
+      if (!next.whatsappConfirmation) {
+        setWhatsappConsent(false);
+        writeWhatsAppConsentCookie(false);
+      }
       setLoadingSettings(false);
     });
     return () => { cancelled = true; };
@@ -290,19 +294,21 @@ export default function DeliveryCompanySelector({
         </div>
       )}
 
-      <label className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2.5 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={whatsappConsent}
-          onChange={(event) => setConsent(event.target.checked)}
-          className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-600"
-          aria-describedby="whatsapp-consent-help"
-        />
-        <span className="min-w-0">
-          <span className="block text-sm font-bold leading-5 text-gray-800">أوافق على استلام رسالة عبر WhatsApp لتأكيد وصول طلبي.</span>
-          <span id="whatsapp-consent-help" className="block text-[11px] text-gray-500 mt-0.5 leading-5">سنرسل لك رسالة فقط لإبلاغك بأن طلبك تم استلامه بنجاح.</span>
-        </span>
-      </label>
+      {settings.whatsappConfirmation && (
+        <label className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={whatsappConsent}
+            onChange={(event) => setConsent(event.target.checked)}
+            className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-600"
+            aria-describedby="whatsapp-consent-help"
+          />
+          <span className="min-w-0">
+            <span className="block text-sm font-bold leading-5 text-gray-800">أوافق على استلام رسالة عبر WhatsApp لتأكيد تسجيل طلبي.</span>
+            <span id="whatsapp-consent-help" className="block text-[11px] text-gray-500 mt-0.5 leading-5">سنرسل لك رسالة واحدة فقط لتأكيد أن طلبك تم استلامه بنجاح.</span>
+          </span>
+        </label>
+      )}
     </div>
   );
 }

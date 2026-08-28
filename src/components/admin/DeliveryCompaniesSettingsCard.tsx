@@ -5,7 +5,7 @@ import {
   type DeliveryProviderSettings,
 } from '../../services/deliveryCheckout';
 
-const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true };
+const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true, whatsappConfirmation: false };
 
 type DeliveryVisibilityMode = 'noest' | 'zrexpress' | 'both';
 
@@ -14,10 +14,10 @@ function settingsToMode(settings: DeliveryProviderSettings): DeliveryVisibilityM
   return settings.zrexpress ? 'zrexpress' : 'noest';
 }
 
-function modeToSettings(mode: DeliveryVisibilityMode): DeliveryProviderSettings {
-  if (mode === 'noest') return { noest: true, zrexpress: false };
-  if (mode === 'zrexpress') return { noest: false, zrexpress: true };
-  return { noest: true, zrexpress: true };
+function modeToSettings(mode: DeliveryVisibilityMode, current: DeliveryProviderSettings): DeliveryProviderSettings {
+  if (mode === 'noest') return { ...current, noest: true, zrexpress: false };
+  if (mode === 'zrexpress') return { ...current, noest: false, zrexpress: true };
+  return { ...current, noest: true, zrexpress: true };
 }
 
 export default function DeliveryCompaniesSettingsCard() {
@@ -37,7 +37,7 @@ export default function DeliveryCompaniesSettingsCard() {
         setSaved(next);
       })
       .catch(() => {
-        if (!cancelled) setError('تعذر تحميل إعدادات شركات التوصيل.');
+        if (!cancelled) setError('تعذر تحميل إعدادات المتجر.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -47,13 +47,20 @@ export default function DeliveryCompaniesSettingsCard() {
 
   const mode = settingsToMode(settings);
   const savedMode = settingsToMode(saved);
-  const dirty = mode !== savedMode;
+  const dirty = mode !== savedMode || settings.whatsappConfirmation !== saved.whatsappConfirmation;
 
   const selectMode = (nextMode: DeliveryVisibilityMode) => {
     if (loading || saving) return;
     setMessage('');
     setError('');
-    setSettings(modeToSettings(nextMode));
+    setSettings(modeToSettings(nextMode, settings));
+  };
+
+  const toggleWhatsApp = () => {
+    if (loading || saving) return;
+    setMessage('');
+    setError('');
+    setSettings((current) => ({ ...current, whatsappConfirmation: !current.whatsappConfirmation }));
   };
 
   const save = async () => {
@@ -66,7 +73,7 @@ export default function DeliveryCompaniesSettingsCard() {
     if (result.ok && result.data) {
       setSettings(result.data);
       setSaved(result.data);
-      setMessage('تم تحديث شركات التوصيل الظاهرة للزبون.');
+      setMessage('تم تحديث إعدادات المتجر الظاهرة للزبون.');
     } else {
       setError(result.message || 'تعذر حفظ الإعدادات.');
     }
@@ -123,9 +130,40 @@ export default function DeliveryCompaniesSettingsCard() {
         💡 إذا اخترت شركة واحدة فقط فلن نطلب من الزبون اختيار شركة التوصيل، وسيكمل مباشرة إلى نوع التوصيل والمكتب عند الحاجة. اختيار «الشركتان» يعرض له المقارنة والاختيار بينهما.
       </div>
 
+      <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 dark:border-emerald-900/70 bg-emerald-50/60 dark:bg-emerald-950/20 p-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">💬</span>
+              <h4 className="font-extrabold text-gray-800 dark:text-gray-50">تأكيد الطلب عبر WhatsApp</h4>
+              <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full ${settings.whatsappConfirmation
+                ? 'bg-emerald-500 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                {settings.whatsappConfirmation ? 'ظاهر للزبون' : 'مخفي'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-5">
+              عند التفعيل يظهر خيار موافقة WhatsApp في صفحة تأكيد الطلب. عند الإخفاء لا يظهر الخيار ولا تُرسل رسالة WhatsApp حتى لو كانت إعدادات Meta جاهزة.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.whatsappConfirmation}
+            disabled={loading || saving}
+            onClick={toggleWhatsApp}
+            className={`shrink-0 min-w-28 px-4 py-2.5 rounded-xl text-sm font-extrabold transition-all disabled:opacity-60 ${settings.whatsappConfirmation
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-100'}`}
+          >
+            {settings.whatsappConfirmation ? 'إخفاء الميزة' : 'إظهار الميزة'}
+          </button>
+        </div>
+      </div>
+
       {dirty && !error && (
         <div className="mt-3 text-xs font-bold text-amber-700 dark:text-amber-300">
-          لديك تغيير غير محفوظ: {currentLabel}
+          لديك تغييرات غير محفوظة.
         </div>
       )}
       {error && <div className="mt-3 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 p-3 text-sm font-bold text-red-700 dark:text-red-300">{error}</div>}
@@ -138,7 +176,7 @@ export default function DeliveryCompaniesSettingsCard() {
           onClick={() => void save()}
           className="px-5 py-2.5 rounded-xl bg-[#102A52] hover:bg-[#0B1833] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-extrabold transition-all"
         >
-          {saving ? '⏳ جارٍ الحفظ...' : '💾 تطبيق الاختيار في المتجر'}
+          {saving ? '⏳ جارٍ الحفظ...' : '💾 تطبيق الإعدادات في المتجر'}
         </button>
       </div>
     </section>

@@ -105,6 +105,39 @@ body {
 }
 
 /* ============================================================
+   Storefront mobile header — keep the white bar compact so the
+   classroom hero has more useful first-screen space.
+   ============================================================ */
+@media (max-width: 767px) {
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl {
+    min-height: 52px;
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 img[alt="المعراج"] {
+    width: 2.15rem !important;
+    height: 2.15rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:first-child {
+    gap: 0.5rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 h1 {
+    font-size: 1.05rem !important;
+    line-height: 1.25 !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 p {
+    font-size: 0.68rem !important;
+    line-height: 1.25 !important;
+  }
+}
+
+/* ============================================================
    طباعة قسم "آخر الطلبات" فقط (لوحة تحكم الإدارة)
    ============================================================ */
 @media print {

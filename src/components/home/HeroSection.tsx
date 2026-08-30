@@ -46,58 +46,68 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
     document.getElementById(EDUCATION_LEVELS_SECTION_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const renderHeroImage = (src: string, index: number, mobile = false) => {
-    const isActive = index === activeImage;
-
-    return (
-      <img
-        key={`${mobile ? 'mobile' : 'desktop'}-${src}`}
-        src={src}
-        alt=""
-        aria-hidden="true"
-        loading={index === 0 ? 'eager' : 'lazy'}
-        fetchPriority={index === 0 ? 'high' : 'auto'}
-        decoding="async"
-        style={{
-          opacity: isActive ? (mobile ? 0.9 : 1) : 0,
-          transform: reduceMotion ? 'scale(1.01)' : isActive ? (mobile ? 'scale(1.025)' : 'scale(1.045)') : 'scale(1.01)',
-          transition: reduceMotion
-            ? 'none'
-            : 'opacity 1100ms ease-in-out, transform 7600ms ease-out',
-        }}
-        className={
-          mobile
-            ? 'absolute inset-0 h-full w-full select-none object-cover object-[42%_center]'
-            : 'absolute inset-y-0 left-0 h-full w-[72%] select-none object-cover object-center lg:w-[68%] xl:w-[66%]'
-        }
-      />
-    );
-  };
-
   return (
     <section className="relative isolate overflow-hidden bg-[#071226] text-white">
-      {/* Mobile-first visual: cropped cinematic band, then a soft fade into the navy content area. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[245px] overflow-hidden bg-[#071226] sm:hidden">
-        {HERO_IMAGES.map((src, index) => renderHeroImage(src, index, true))}
+      {/* Mobile: a cropped cinematic image band, not a full wallpaper. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[220px] overflow-hidden bg-[#071226] sm:hidden">
+        {HERO_IMAGES.map((src, index) => {
+          const isActive = index === activeImage;
+          return (
+            <img
+              key={`mobile-${src}`}
+              src={src}
+              alt=""
+              aria-hidden="true"
+              loading={index === 0 ? 'eager' : 'lazy'}
+              fetchPriority={index === 0 ? 'high' : 'auto'}
+              decoding="async"
+              style={{
+                opacity: isActive ? 0.86 : 0,
+                transform: reduceMotion ? 'scale(1.01)' : isActive ? 'scale(1.025)' : 'scale(1.01)',
+                transition: reduceMotion ? 'none' : 'opacity 1000ms ease-in-out, transform 7600ms ease-out',
+              }}
+              className="absolute inset-0 h-full w-full select-none object-cover object-[40%_center]"
+            />
+          );
+        })}
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(180deg, rgba(7,18,38,.08) 0%, rgba(7,18,38,.18) 48%, rgba(7,18,38,.72) 78%, #071226 100%)',
+              'linear-gradient(180deg, rgba(7,18,38,.04) 0%, rgba(7,18,38,.12) 42%, rgba(7,18,38,.62) 76%, #071226 100%)',
           }}
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(270deg, rgba(7,18,38,.72) 0%, rgba(7,18,38,.28) 45%, rgba(7,18,38,.02) 100%)',
+              'linear-gradient(270deg, rgba(7,18,38,.60) 0%, rgba(7,18,38,.20) 48%, rgba(7,18,38,0) 100%)',
           }}
         />
       </div>
 
-      {/* Desktop/tablet visual keeps the elegant partial-image composition on the left. */}
+      {/* Desktop/tablet: partial-image composition on the left. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden overflow-hidden bg-[#071226] sm:block">
-        {HERO_IMAGES.map((src, index) => renderHeroImage(src, index))}
+        {HERO_IMAGES.map((src, index) => {
+          const isActive = index === activeImage;
+          return (
+            <img
+              key={`desktop-${src}`}
+              src={src}
+              alt=""
+              aria-hidden="true"
+              loading={index === 0 ? 'eager' : 'lazy'}
+              fetchPriority={index === 0 ? 'high' : 'auto'}
+              decoding="async"
+              style={{
+                opacity: isActive ? 1 : 0,
+                transform: reduceMotion ? 'scale(1.01)' : isActive ? 'scale(1.045)' : 'scale(1.01)',
+                transition: reduceMotion ? 'none' : 'opacity 1100ms ease-in-out, transform 7600ms ease-out',
+              }}
+              className="absolute inset-y-0 left-0 h-full w-[72%] select-none object-cover object-center lg:w-[68%] xl:w-[66%]"
+            />
+          );
+        })}
       </div>
 
       <div
@@ -122,33 +132,36 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         <div className="absolute -top-20 -right-14 h-64 w-64 rounded-full bg-amber-400/[0.05] blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[560px] max-w-7xl items-start px-4 pb-5 pt-[185px] sm:min-h-[570px] sm:items-center sm:px-6 sm:py-10 lg:min-h-[640px] lg:py-14">
+      <div className="relative z-10 mx-auto flex min-h-[535px] max-w-7xl items-start px-4 pb-5 pt-[155px] sm:min-h-[570px] sm:items-center sm:px-6 sm:py-10 lg:min-h-[640px] lg:py-14">
         <div className="ml-auto w-full text-right sm:w-[70%] lg:w-[58%] xl:w-[56%]">
-          <div className="mb-3 hidden items-center justify-start gap-3 text-sm font-bold text-amber-400/90 sm:flex">
-            <span className="h-px w-16 bg-amber-400/80" />
+          <div className="mb-2 flex items-center justify-start gap-2 text-[0.68rem] font-bold text-amber-300/90 sm:mb-3 sm:text-sm">
+            <span className="h-px w-8 bg-amber-400/75 sm:w-16" />
             <span>المعراج للتعليم</span>
           </div>
 
-          <h1 className="miraj-rise max-w-3xl text-[1.9rem] font-extrabold leading-[1.18] drop-shadow-[0_3px_18px_rgba(0,0,0,.46)] min-[390px]:text-[2.05rem] sm:text-4xl sm:leading-tight lg:text-5xl xl:text-[3.25rem]">
+          <h1 className="miraj-rise max-w-3xl text-[1.78rem] font-extrabold leading-[1.16] drop-shadow-[0_3px_18px_rgba(0,0,0,.46)] min-[390px]:text-[1.95rem] sm:text-4xl sm:leading-tight lg:text-5xl xl:text-[3.25rem]">
             <span className="block">أدوات تعليمية مبتكرة</span>
             <span className="mt-1 block text-amber-400">لأساتذة المستقبل</span>
           </h1>
 
-          <div className="miraj-rise miraj-delay-1 mt-3 flex flex-wrap items-baseline justify-start gap-x-1.5 gap-y-1 text-[0.92rem] font-bold text-blue-100 min-[390px]:text-base sm:mt-4 sm:gap-x-2 sm:text-xl lg:text-2xl">
+          <div className="miraj-rise miraj-delay-1 mt-2.5 flex min-h-6 flex-wrap items-baseline justify-start gap-x-1.5 gap-y-1 text-[0.86rem] font-bold text-blue-100 min-[390px]:text-[0.95rem] sm:mt-4 sm:gap-x-2 sm:text-xl lg:text-2xl">
             <span>كل ما يحتاجه الأستاذ لـ</span>
             <TypewriterPhrase />
           </div>
           <span className="sr-only">كل ما يحتاجه الأستاذ لـ {TYPEWRITER_PHRASES.join('، ')}.</span>
 
-          <p className="miraj-rise miraj-delay-2 mt-3 max-w-xl text-[0.8rem] leading-6 text-blue-50/88 drop-shadow-sm min-[390px]:text-[0.84rem] sm:mt-6 sm:text-base lg:text-lg">
+          <p className="miraj-rise miraj-delay-2 mt-2.5 text-[0.78rem] leading-[1.75] text-blue-50/88 drop-shadow-sm sm:hidden">
+            أدوات تعليمية عملية تساعد الأستاذ على التحضير وتجعل الدرس أكثر تفاعلاً.
+          </p>
+          <p className="miraj-rise miraj-delay-2 mt-6 hidden max-w-xl text-base leading-relaxed text-blue-50/90 drop-shadow-sm sm:block lg:text-lg">
             نقدّم للأساتذة أدوات تعليمية تفاعلية تساعدهم على تحضير الدروس، وتجعل التلاميذ أكثر تفاعلاً وانخراطًا في العملية التعليمية.
           </p>
 
-          <div className="miraj-rise miraj-delay-3 mt-4 grid grid-cols-2 gap-2.5 sm:mt-7 sm:flex sm:flex-wrap sm:items-center sm:gap-3 lg:mt-8">
+          <div className="miraj-rise miraj-delay-3 mt-3.5 grid grid-cols-[1.15fr_.85fr] gap-2 sm:mt-7 sm:flex sm:flex-wrap sm:items-center sm:gap-3 lg:mt-8">
             <button
               type="button"
               onClick={onBrowseProducts}
-              className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3 py-3 text-sm font-bold text-white shadow-xl shadow-black/25 ring-1 ring-amber-300/45 transition-all duration-200 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 sm:min-h-0 sm:px-9 sm:py-4 sm:text-lg sm:hover:-translate-y-0.5 sm:hover:bg-amber-600"
+              className="inline-flex min-h-[50px] items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3 py-3 text-[0.88rem] font-bold text-white shadow-xl shadow-black/25 ring-1 ring-amber-300/45 transition-all duration-200 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 sm:min-h-0 sm:px-9 sm:py-4 sm:text-lg sm:hover:-translate-y-0.5 sm:hover:bg-amber-600"
             >
               <span aria-hidden="true">🛍️</span>
               <span>تصفح المنتجات</span>
@@ -156,20 +169,20 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
             <button
               type="button"
               onClick={handleDiscoverByLevel}
-              className="inline-flex min-h-12 items-center justify-center gap-1 rounded-xl border border-white/30 bg-[#071226]/62 px-2.5 py-3 text-[0.78rem] font-semibold text-white/95 backdrop-blur-[2px] transition-all duration-200 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 sm:min-h-0 sm:px-5 sm:py-3.5 sm:text-sm sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/70"
+              className="inline-flex min-h-[50px] items-center justify-center gap-1 rounded-xl border border-white/25 bg-[#071226]/70 px-2 py-3 text-[0.72rem] font-semibold text-white/95 transition-all duration-200 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 sm:min-h-0 sm:bg-[#071226]/55 sm:px-5 sm:py-3.5 sm:text-sm sm:backdrop-blur-[2px] sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/70"
             >
               <span>اكتشف حسب الطور</span>
               <span aria-hidden="true">←</span>
             </button>
           </div>
 
-          <div className="miraj-rise miraj-delay-4 mt-3 grid grid-cols-3 gap-2 sm:mt-6 sm:flex sm:flex-wrap">
+          <div className="miraj-rise miraj-delay-4 mt-2.5 grid grid-cols-3 gap-1.5 sm:mt-6 sm:flex sm:flex-wrap sm:gap-2">
             {LEVEL_CHIPS.map(chip => (
               <button
                 key={chip.value}
                 type="button"
                 onClick={() => onSelectLevel(chip.value)}
-                className="inline-flex min-h-10 items-center justify-center gap-1 rounded-full border border-white/18 bg-[#071226]/58 px-2 py-2 text-[0.72rem] font-bold text-white/92 backdrop-blur-[2px] transition-all duration-200 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 sm:min-h-0 sm:px-3.5 sm:text-sm sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/65"
+                className="inline-flex min-h-[42px] items-center justify-center gap-1 rounded-full border border-white/15 bg-[#071226]/68 px-1.5 py-2 text-[0.69rem] font-bold text-white/92 transition-all duration-200 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 sm:min-h-0 sm:bg-[#071226]/50 sm:px-3.5 sm:text-sm sm:backdrop-blur-[2px] sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/65"
               >
                 <span aria-hidden="true">{chip.icon}</span>
                 <span>{chip.label}</span>

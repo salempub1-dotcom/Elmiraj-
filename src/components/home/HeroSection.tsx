@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import heroImage1 from '../../assets/hero/al_miraj_hero_1.webp';
+import heroImage2 from '../../assets/hero/al_miraj_hero_2.webp';
+import heroImage3 from '../../assets/hero/al_miraj_hero_3.webp';
 import TypewriterPhrase, { TYPEWRITER_PHRASES } from './TypewriterPhrase';
 
 export type LevelCategory = 'تحضيري' | 'ابتدائي' | 'متوسط';
@@ -10,11 +13,7 @@ const LEVEL_CHIPS: { value: LevelCategory; label: string; icon: string }[] = [
 ];
 
 const EDUCATION_LEVELS_SECTION_ID = 'education-levels';
-const HERO_IMAGES = [
-  '/images/hero/al_miraj_hero_1.webp',
-  '/images/hero/al_miraj_hero_2.webp',
-  '/images/hero/al_miraj_hero_3.webp',
-] as const;
+const HERO_IMAGES = [heroImage1, heroImage2, heroImage3] as const;
 
 interface HeroSectionProps {
   onBrowseProducts: () => void;
@@ -28,11 +27,9 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
 
   useEffect(() => {
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-
     const syncMotionPreference = () => setReduceMotion(motionQuery.matches);
     syncMotionPreference();
     motionQuery.addEventListener?.('change', syncMotionPreference);
-
     return () => motionQuery.removeEventListener?.('change', syncMotionPreference);
   }, []);
 
@@ -46,11 +43,11 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
     };
 
     if (idleWindow.requestIdleCallback) {
-      const id = idleWindow.requestIdleCallback(prepareSecondaryImages, { timeout: 1800 });
+      const id = idleWindow.requestIdleCallback(prepareSecondaryImages, { timeout: 1200 });
       return () => idleWindow.cancelIdleCallback?.(id);
     }
 
-    const timeout = window.setTimeout(prepareSecondaryImages, 1200);
+    const timeout = window.setTimeout(prepareSecondaryImages, 700);
     return () => window.clearTimeout(timeout);
   }, [reduceMotion]);
 
@@ -101,30 +98,28 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         })}
       </div>
 
-      {/* Desktop/tablet brand gradient: dark behind the Arabic copy, lighter over the classroom scene. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 hidden sm:block"
         style={{
           background:
-            'linear-gradient(270deg, rgba(7,18,38,.96) 0%, rgba(11,24,51,.89) 30%, rgba(11,24,51,.72) 55%, rgba(11,24,51,.43) 78%, rgba(7,18,38,.18) 100%)',
+            'linear-gradient(270deg, rgba(7,18,38,.92) 0%, rgba(11,24,51,.82) 30%, rgba(11,24,51,.62) 55%, rgba(11,24,51,.30) 78%, rgba(7,18,38,.06) 100%)',
         }}
       />
 
-      {/* Slightly stronger mobile veil keeps copy readable without hiding the image completely. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 sm:hidden"
         style={{
           background:
-            'linear-gradient(270deg, rgba(7,18,38,.97) 0%, rgba(11,24,51,.92) 36%, rgba(11,24,51,.78) 64%, rgba(7,18,38,.50) 100%)',
+            'linear-gradient(270deg, rgba(7,18,38,.95) 0%, rgba(11,24,51,.87) 36%, rgba(11,24,51,.68) 64%, rgba(7,18,38,.38) 100%)',
         }}
       />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#071226]/5" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#071226]/[0.03]" />
 
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-amber-400/[0.07] blur-3xl" />
-        <div className="absolute -bottom-24 left-1/4 h-80 w-80 rounded-full bg-blue-400/[0.07] blur-3xl" />
+        <div className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-amber-400/[0.06] blur-3xl" />
+        <div className="absolute -bottom-24 left-1/4 h-80 w-80 rounded-full bg-blue-400/[0.05] blur-3xl" />
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-[520px] max-w-7xl items-center px-4 py-7 sm:min-h-[570px] sm:px-6 sm:py-10 lg:min-h-[650px] lg:py-14">

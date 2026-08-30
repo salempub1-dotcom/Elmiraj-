@@ -26,3 +26,5 @@ async function restore(prefix, outputName) {
 
 await restore('previewvideo', 'al_miraj_hero_preview.mp4');
 await restore('previewposter', 'al_miraj_hero_preview_poster.webp');
+await restore('herov2', 'al_miraj_hero_bg.mp4');
+await restore('posterv2', 'al_miraj_hero_bg_poster.webp');

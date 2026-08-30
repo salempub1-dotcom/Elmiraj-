@@ -10,8 +10,8 @@ const LEVEL_CHIPS: { value: LevelCategory; label: string; icon: string }[] = [
 ];
 
 const EDUCATION_LEVELS_SECTION_ID = 'education-levels';
-const HERO_POSTER = '/assets/hero/al_miraj_hero_preview_poster.webp';
-const HERO_VIDEO_MP4 = '/assets/hero/al_miraj_hero_preview.mp4';
+const HERO_POSTER = '/assets/hero/al_miraj_hero_bg_poster.webp';
+const HERO_VIDEO_MP4 = '/assets/hero/al_miraj_hero_bg.mp4';
 
 interface HeroSectionProps {
   onBrowseProducts: () => void;
@@ -26,8 +26,6 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
     const video = videoRef.current;
     if (!video) return;
 
-    // Chrome/Safari autoplay requires a muted inline video. Set both properties
-    // explicitly as well as the JSX attributes so preview playback is reliable.
     video.muted = true;
     video.defaultMuted = true;
 
@@ -35,10 +33,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
       const playPromise = video.play();
       playPromise
         ?.then(() => setVideoReady(true))
-        .catch(() => {
-          // Keep the poster visible if the browser blocks playback.
-          setVideoReady(false);
-        });
+        .catch(() => setVideoReady(false));
     };
 
     if (video.readyState >= 2) {
@@ -56,7 +51,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
 
   return (
     <section className="relative isolate overflow-hidden bg-[#071226] text-white">
-      {/* Poster visible immediately while the video loads or if playback fails. */}
+      {/* Lightweight poster appears instantly while the background video starts. */}
       <img
         src={HERO_POSTER}
         alt=""
@@ -64,49 +59,54 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         loading="eager"
         fetchPriority="high"
         decoding="async"
-        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[56%_center] sm:object-[58%_center] lg:object-center"
+        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[50%_center] sm:object-[48%_center] lg:object-center"
       />
 
-      {/* Preview video is always mounted so autoplay can start reliably. */}
+      {/* Decorative video: intentionally softened so the Al Miraj identity stays dominant. */}
       <video
         ref={videoRef}
         autoPlay
         muted
         loop
         playsInline
-        preload="auto"
+        preload="metadata"
         poster={HERO_POSTER}
         aria-hidden="true"
         tabIndex={-1}
         onLoadedData={() => setVideoReady(true)}
         onPlaying={() => setVideoReady(true)}
         onError={() => setVideoReady(false)}
-        className={`pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[56%_center] sm:object-[58%_center] lg:object-center transition-opacity duration-500 ${
-          videoReady ? 'opacity-100' : 'opacity-0'
+        style={{ filter: 'saturate(.78) contrast(.93) brightness(.88)' }}
+        className={`pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[50%_center] sm:object-[48%_center] lg:object-center transition-opacity duration-700 ${
+          videoReady ? 'opacity-[0.72]' : 'opacity-0'
         }`}
       >
         <source src={HERO_VIDEO_MP4} type="video/mp4" />
       </video>
 
-      {/* Navy overlay: strongest behind the copy, lighter over the product area. */}
+      {/*
+        Brand overlay: very dark behind the Arabic copy on the right, then gradually
+        opens toward the left so the classroom video remains visible but secondary.
+      */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            'linear-gradient(270deg, rgba(5,14,31,.90) 0%, rgba(11,24,51,.78) 38%, rgba(11,24,51,.48) 66%, rgba(7,18,38,.18) 100%)',
+            'linear-gradient(270deg, rgba(7,18,38,.97) 0%, rgba(11,24,51,.93) 26%, rgba(11,24,51,.82) 50%, rgba(11,24,51,.62) 74%, rgba(7,18,38,.38) 100%)',
         }}
       />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#071226]/5" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#071226]/15" />
 
+      {/* Subtle navy/gold atmosphere without competing with the footage. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
-        <div className="absolute -bottom-24 left-1/4 h-80 w-80 rounded-full bg-blue-400/10 blur-3xl" />
+        <div className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-amber-400/[0.07] blur-3xl" />
+        <div className="absolute -bottom-24 left-1/4 h-80 w-80 rounded-full bg-blue-400/[0.07] blur-3xl" />
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-[520px] max-w-7xl items-center px-4 py-7 sm:min-h-[570px] sm:px-6 sm:py-10 lg:min-h-[650px] lg:py-14">
         <div className="w-full lg:max-w-[59%]">
-          <h1 className="miraj-rise max-w-3xl text-[1.7rem] font-extrabold leading-[1.28] drop-shadow-[0_3px_18px_rgba(0,0,0,.32)] sm:text-4xl sm:leading-tight lg:text-5xl xl:text-[3.25rem]">
+          <h1 className="miraj-rise max-w-3xl text-[1.7rem] font-extrabold leading-[1.28] drop-shadow-[0_3px_18px_rgba(0,0,0,.38)] sm:text-4xl sm:leading-tight lg:text-5xl xl:text-[3.25rem]">
             <span className="block">أدوات تعليمية مبتكرة</span>
             <span className="mt-1 block text-amber-400">لأساتذة المستقبل</span>
           </h1>
@@ -133,7 +133,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
             <button
               type="button"
               onClick={handleDiscoverByLevel}
-              className="inline-flex items-center gap-1.5 rounded-2xl border border-white/25 bg-[#071226]/35 px-4 py-3 text-sm font-semibold text-white/90 backdrop-blur-sm transition-all duration-200 hover:border-white/45 hover:bg-[#071226]/50 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 sm:px-5 sm:py-3.5"
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-white/25 bg-[#071226]/40 px-4 py-3 text-sm font-semibold text-white/90 backdrop-blur-sm transition-all duration-200 hover:border-white/45 hover:bg-[#071226]/55 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 sm:px-5 sm:py-3.5"
             >
               <span>اكتشف حسب الطور</span>
               <span aria-hidden="true">←</span>
@@ -146,7 +146,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
                 key={chip.value}
                 type="button"
                 onClick={() => onSelectLevel(chip.value)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-[#071226]/35 px-3.5 py-2 text-xs font-bold text-white/90 backdrop-blur-sm transition-all duration-200 hover:border-amber-300/60 hover:bg-[#071226]/55 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 sm:text-sm"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-[#071226]/40 px-3.5 py-2 text-xs font-bold text-white/90 backdrop-blur-sm transition-all duration-200 hover:border-amber-300/60 hover:bg-[#071226]/55 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 sm:text-sm"
               >
                 <span aria-hidden="true">{chip.icon}</span>
                 <span>{chip.label}</span>

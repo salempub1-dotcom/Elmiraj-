@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import heroImage1 from '../../assets/hero/al_miraj_hero_1.webp';
-import heroImage2 from '../../assets/hero/al_miraj_hero_2.webp';
-import heroImage3 from '../../assets/hero/al_miraj_hero_3.webp';
+import heroImage1 from '../../assets/hero/heroImage1';
+import heroImage2 from '../../assets/hero/heroImage2';
+import heroImage3 from '../../assets/hero/heroImage3';
 import TypewriterPhrase, { TYPEWRITER_PHRASES } from './TypewriterPhrase';
 
 export type LevelCategory = 'تحضيري' | 'ابتدائي' | 'متوسط';
@@ -43,11 +43,11 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
     };
 
     if (idleWindow.requestIdleCallback) {
-      const id = idleWindow.requestIdleCallback(prepareSecondaryImages, { timeout: 1200 });
+      const id = idleWindow.requestIdleCallback(prepareSecondaryImages, { timeout: 1000 });
       return () => idleWindow.cancelIdleCallback?.(id);
     }
 
-    const timeout = window.setTimeout(prepareSecondaryImages, 700);
+    const timeout = window.setTimeout(prepareSecondaryImages, 500);
     return () => window.clearTimeout(timeout);
   }, [reduceMotion]);
 
@@ -70,7 +70,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
 
   return (
     <section className="relative isolate overflow-hidden bg-[#071226] text-white">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden bg-[#071226]">
         {HERO_IMAGES.map((src, index) => {
           const shouldRender = index === 0 || secondaryImagesReady;
           if (!shouldRender) return null;
@@ -78,7 +78,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
           const isActive = index === activeImage;
           return (
             <img
-              key={src}
+              key={index}
               src={src}
               alt=""
               aria-hidden="true"
@@ -86,24 +86,25 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
               fetchPriority={index === 0 ? 'high' : 'auto'}
               decoding="async"
               style={{
-                opacity: isActive ? 1 : 0,
+                opacity: isActive ? 0.96 : 0,
                 transform: reduceMotion ? 'scale(1)' : isActive ? 'scale(1.025)' : 'scale(1)',
                 transition: reduceMotion
                   ? 'none'
                   : 'opacity 1200ms ease-in-out, transform 7000ms ease-out',
               }}
-              className="absolute inset-0 h-full w-full select-none object-cover object-[40%_center] sm:object-[42%_center] lg:object-center"
+              className="absolute inset-0 h-full w-full select-none object-cover object-[43%_center] sm:object-[44%_center] lg:object-center"
             />
           );
         })}
       </div>
 
+      {/* Brand gradient: dark on the right behind Arabic copy, much lighter over the visual on the left. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 hidden sm:block"
         style={{
           background:
-            'linear-gradient(270deg, rgba(7,18,38,.92) 0%, rgba(11,24,51,.82) 30%, rgba(11,24,51,.62) 55%, rgba(11,24,51,.30) 78%, rgba(7,18,38,.06) 100%)',
+            'linear-gradient(270deg, rgba(7,18,38,.91) 0%, rgba(11,24,51,.80) 30%, rgba(11,24,51,.54) 56%, rgba(11,24,51,.20) 79%, rgba(7,18,38,.04) 100%)',
         }}
       />
 
@@ -112,14 +113,12 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         className="pointer-events-none absolute inset-0 sm:hidden"
         style={{
           background:
-            'linear-gradient(270deg, rgba(7,18,38,.95) 0%, rgba(11,24,51,.87) 36%, rgba(11,24,51,.68) 64%, rgba(7,18,38,.38) 100%)',
+            'linear-gradient(270deg, rgba(7,18,38,.94) 0%, rgba(11,24,51,.85) 38%, rgba(11,24,51,.61) 68%, rgba(7,18,38,.26) 100%)',
         }}
       />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#071226]/[0.03]" />
 
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-amber-400/[0.06] blur-3xl" />
-        <div className="absolute -bottom-24 left-1/4 h-80 w-80 rounded-full bg-blue-400/[0.05] blur-3xl" />
+        <div className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-amber-400/[0.05] blur-3xl" />
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-[520px] max-w-7xl items-center px-4 py-7 sm:min-h-[570px] sm:px-6 sm:py-10 lg:min-h-[650px] lg:py-14">

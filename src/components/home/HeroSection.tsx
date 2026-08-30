@@ -59,15 +59,15 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         fetchPriority={index === 0 ? 'high' : 'auto'}
         decoding="async"
         style={{
-          opacity: isActive ? (mobile ? 0.84 : 1) : 0,
-          transform: reduceMotion ? 'scale(1.01)' : isActive ? (mobile ? 'scale(1.035)' : 'scale(1.045)') : 'scale(1.01)',
+          opacity: isActive ? (mobile ? 0.95 : 1) : 0,
+          transform: reduceMotion ? 'scale(1)' : isActive ? (mobile ? 'scale(1.012)' : 'scale(1.045)') : 'scale(1)',
           transition: reduceMotion
             ? 'none'
             : 'opacity 1100ms ease-in-out, transform 7600ms ease-out',
         }}
         className={
           mobile
-            ? 'absolute inset-0 h-full w-full select-none object-cover object-[40%_center]'
+            ? 'absolute inset-0 h-full w-full select-none object-contain object-center'
             : 'absolute inset-y-0 left-0 h-full w-[72%] select-none object-cover object-center lg:w-[68%] xl:w-[66%]'
         }
       />
@@ -76,21 +76,21 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
 
   return (
     <section className="relative isolate overflow-hidden bg-[#071226] text-white">
-      {/* Mobile: compact cinematic crop so the first CTA stays close to the first viewport. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[205px] overflow-hidden bg-[#071226] sm:hidden">
+      {/* Mobile: preserve the full 16:9 classroom composition, then fade it into the navy copy area. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[56.25vw] min-h-[202px] max-h-[242px] overflow-hidden bg-[#071226] sm:hidden">
         {HERO_IMAGES.map((src, index) => renderHeroImage(src, index, true))}
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(180deg, rgba(7,18,38,.05) 0%, rgba(7,18,38,.16) 40%, rgba(7,18,38,.70) 73%, #071226 100%)',
+              'linear-gradient(180deg, rgba(7,18,38,.015) 0%, rgba(7,18,38,.06) 50%, rgba(7,18,38,.44) 76%, #071226 100%)',
           }}
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(270deg, rgba(7,18,38,.68) 0%, rgba(7,18,38,.28) 48%, rgba(7,18,38,.02) 100%)',
+              'linear-gradient(270deg, rgba(7,18,38,.34) 0%, rgba(7,18,38,.12) 46%, rgba(7,18,38,0) 100%)',
           }}
         />
       </div>
@@ -122,19 +122,19 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         <div className="absolute -top-20 -right-14 h-64 w-64 rounded-full bg-amber-400/[0.05] blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[545px] max-w-7xl items-start px-4 pb-5 pt-[164px] sm:min-h-[570px] sm:items-center sm:px-6 sm:py-10 lg:min-h-[640px] lg:py-14">
+      <div className="relative z-10 mx-auto flex min-h-[600px] max-w-7xl items-start px-4 pb-5 pt-[47vw] min-[430px]:pt-[198px] sm:min-h-[570px] sm:items-center sm:px-6 sm:py-10 lg:min-h-[640px] lg:py-14">
         <div className="ml-auto w-full text-right sm:w-[70%] lg:w-[58%] xl:w-[56%]">
           <div className="mb-3 hidden items-center justify-start gap-3 text-sm font-bold text-amber-400/90 sm:flex">
             <span className="h-px w-16 bg-amber-400/80" />
             <span>المعراج للتعليم</span>
           </div>
 
-          <h1 className="miraj-rise max-w-3xl text-[1.78rem] font-extrabold leading-[1.18] tracking-[-0.02em] drop-shadow-[0_3px_18px_rgba(0,0,0,.46)] min-[390px]:text-[1.98rem] sm:text-4xl sm:leading-tight sm:tracking-normal lg:text-5xl xl:text-[3.25rem]">
+          <h1 className="miraj-rise max-w-3xl text-[1.72rem] font-extrabold leading-[1.18] tracking-[-0.02em] drop-shadow-[0_3px_18px_rgba(0,0,0,.46)] min-[390px]:text-[1.92rem] sm:text-4xl sm:leading-tight sm:tracking-normal lg:text-5xl xl:text-[3.25rem]">
             <span className="block">أدوات تعليمية مبتكرة</span>
             <span className="mt-1 block text-amber-400">لأساتذة المستقبل</span>
           </h1>
 
-          <div className="miraj-rise miraj-delay-1 mt-2.5 flex min-h-7 flex-wrap items-baseline justify-start gap-x-1.5 gap-y-1 text-[0.9rem] font-bold text-blue-100 min-[390px]:text-[0.98rem] sm:mt-4 sm:gap-x-2 sm:text-xl lg:text-2xl">
+          <div className="miraj-rise miraj-delay-1 mt-2.5 flex min-h-7 flex-wrap items-baseline justify-start gap-x-1.5 gap-y-1 text-[0.9rem] font-bold text-blue-100 min-[390px]:text-[0.96rem] sm:mt-4 sm:gap-x-2 sm:text-xl lg:text-2xl">
             <span>كل ما يحتاجه الأستاذ لـ</span>
             <TypewriterPhrase />
           </div>

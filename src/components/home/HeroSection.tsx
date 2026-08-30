@@ -59,7 +59,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         fetchPriority={index === 0 ? 'high' : 'auto'}
         decoding="async"
         style={{
-          opacity: isActive ? (mobile ? 0.82 : 1) : 0,
+          opacity: isActive ? (mobile ? 0.84 : 1) : 0,
           transform: reduceMotion ? 'scale(1.01)' : isActive ? (mobile ? 'scale(1.035)' : 'scale(1.045)') : 'scale(1.01)',
           transition: reduceMotion
             ? 'none'
@@ -76,21 +76,21 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
 
   return (
     <section className="relative isolate overflow-hidden bg-[#071226] text-white">
-      {/* Mobile: compact visual band with a deep fade into the content area. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[225px] overflow-hidden bg-[#071226] sm:hidden">
+      {/* Mobile: compact cinematic crop so the first CTA stays close to the first viewport. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[205px] overflow-hidden bg-[#071226] sm:hidden">
         {HERO_IMAGES.map((src, index) => renderHeroImage(src, index, true))}
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(180deg, rgba(7,18,38,.06) 0%, rgba(7,18,38,.16) 42%, rgba(7,18,38,.68) 76%, #071226 100%)',
+              'linear-gradient(180deg, rgba(7,18,38,.05) 0%, rgba(7,18,38,.16) 40%, rgba(7,18,38,.70) 73%, #071226 100%)',
           }}
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(270deg, rgba(7,18,38,.74) 0%, rgba(7,18,38,.32) 48%, rgba(7,18,38,.03) 100%)',
+              'linear-gradient(270deg, rgba(7,18,38,.68) 0%, rgba(7,18,38,.28) 48%, rgba(7,18,38,.02) 100%)',
           }}
         />
       </div>
@@ -122,29 +122,32 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         <div className="absolute -top-20 -right-14 h-64 w-64 rounded-full bg-amber-400/[0.05] blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[610px] max-w-7xl items-start px-4 pb-6 pt-[188px] sm:min-h-[570px] sm:items-center sm:px-6 sm:py-10 lg:min-h-[640px] lg:py-14">
+      <div className="relative z-10 mx-auto flex min-h-[545px] max-w-7xl items-start px-4 pb-5 pt-[164px] sm:min-h-[570px] sm:items-center sm:px-6 sm:py-10 lg:min-h-[640px] lg:py-14">
         <div className="ml-auto w-full text-right sm:w-[70%] lg:w-[58%] xl:w-[56%]">
           <div className="mb-3 hidden items-center justify-start gap-3 text-sm font-bold text-amber-400/90 sm:flex">
             <span className="h-px w-16 bg-amber-400/80" />
             <span>المعراج للتعليم</span>
           </div>
 
-          <h1 className="miraj-rise max-w-3xl text-[1.78rem] font-extrabold leading-[1.2] tracking-[-0.02em] drop-shadow-[0_3px_18px_rgba(0,0,0,.46)] min-[390px]:text-[1.98rem] sm:text-4xl sm:leading-tight sm:tracking-normal lg:text-5xl xl:text-[3.25rem]">
+          <h1 className="miraj-rise max-w-3xl text-[1.78rem] font-extrabold leading-[1.18] tracking-[-0.02em] drop-shadow-[0_3px_18px_rgba(0,0,0,.46)] min-[390px]:text-[1.98rem] sm:text-4xl sm:leading-tight sm:tracking-normal lg:text-5xl xl:text-[3.25rem]">
             <span className="block">أدوات تعليمية مبتكرة</span>
             <span className="mt-1 block text-amber-400">لأساتذة المستقبل</span>
           </h1>
 
-          <div className="miraj-rise miraj-delay-1 mt-3 flex min-h-7 flex-wrap items-baseline justify-start gap-x-1.5 gap-y-1 text-[0.92rem] font-bold text-blue-100 min-[390px]:text-base sm:mt-4 sm:gap-x-2 sm:text-xl lg:text-2xl">
+          <div className="miraj-rise miraj-delay-1 mt-2.5 flex min-h-7 flex-wrap items-baseline justify-start gap-x-1.5 gap-y-1 text-[0.9rem] font-bold text-blue-100 min-[390px]:text-[0.98rem] sm:mt-4 sm:gap-x-2 sm:text-xl lg:text-2xl">
             <span>كل ما يحتاجه الأستاذ لـ</span>
             <TypewriterPhrase />
           </div>
           <span className="sr-only">كل ما يحتاجه الأستاذ لـ {TYPEWRITER_PHRASES.join('، ')}.</span>
 
-          <p className="miraj-rise miraj-delay-2 mt-3 max-w-xl text-[0.8rem] leading-[1.75] text-blue-50/88 drop-shadow-sm min-[390px]:text-[0.84rem] sm:mt-6 sm:text-base sm:leading-relaxed lg:text-lg">
+          <p className="miraj-rise miraj-delay-2 mt-2.5 text-[0.8rem] leading-[1.7] text-blue-50/88 drop-shadow-sm sm:hidden">
+            أدوات تعليمية تفاعلية تساعد الأستاذ على التحضير وتجعل الدرس أكثر وضوحًا وتفاعلًا.
+          </p>
+          <p className="miraj-rise miraj-delay-2 mt-6 hidden max-w-xl text-base leading-relaxed text-blue-50/88 drop-shadow-sm sm:block lg:text-lg">
             نقدّم للأساتذة أدوات تعليمية تفاعلية تساعدهم على تحضير الدروس، وتجعل التلاميذ أكثر تفاعلاً وانخراطًا في العملية التعليمية.
           </p>
 
-          <div className="miraj-rise miraj-delay-3 mt-4 grid w-full grid-cols-1 gap-2.5 sm:mt-7 sm:flex sm:flex-wrap sm:items-center sm:gap-3 lg:mt-8">
+          <div className="miraj-rise miraj-delay-3 mt-3.5 grid w-full grid-cols-1 gap-2 sm:mt-7 sm:flex sm:flex-wrap sm:items-center sm:gap-3 lg:mt-8">
             <button
               type="button"
               onClick={onBrowseProducts}
@@ -156,20 +159,20 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
             <button
               type="button"
               onClick={handleDiscoverByLevel}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-white/25 bg-white/[0.045] px-4 py-2.5 text-sm font-semibold text-white/95 backdrop-blur-[2px] transition-all duration-200 active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 sm:min-h-0 sm:w-auto sm:bg-[#071226]/55 sm:px-5 sm:py-3.5 sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/70"
+              className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-white/25 bg-white/[0.045] px-4 py-2 text-[0.82rem] font-semibold text-white/95 backdrop-blur-[2px] transition-all duration-200 active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 sm:min-h-0 sm:w-auto sm:bg-[#071226]/55 sm:px-5 sm:py-3.5 sm:text-sm sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/70"
             >
               <span>اكتشف حسب الطور</span>
               <span aria-hidden="true">←</span>
             </button>
           </div>
 
-          <div className="miraj-rise miraj-delay-4 mt-3 grid grid-cols-3 gap-2 sm:mt-6 sm:flex sm:flex-wrap">
+          <div className="miraj-rise miraj-delay-4 mt-2.5 grid grid-cols-3 gap-2 sm:mt-6 sm:flex sm:flex-wrap">
             {LEVEL_CHIPS.map(chip => (
               <button
                 key={chip.value}
                 type="button"
                 onClick={() => onSelectLevel(chip.value)}
-                className="inline-flex min-h-10 items-center justify-center gap-1 rounded-full border border-white/18 bg-white/[0.045] px-2 py-2 text-[0.72rem] font-bold text-white/92 backdrop-blur-[2px] transition-all duration-200 active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 min-[390px]:text-xs sm:min-h-0 sm:bg-[#071226]/50 sm:px-3.5 sm:text-sm sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/65"
+                className="inline-flex min-h-9 items-center justify-center gap-1 rounded-full border border-white/18 bg-white/[0.045] px-2 py-1.5 text-[0.7rem] font-bold text-white/92 backdrop-blur-[2px] transition-all duration-200 active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 min-[390px]:text-[0.74rem] sm:min-h-0 sm:bg-[#071226]/50 sm:px-3.5 sm:py-2 sm:text-sm sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/65"
               >
                 <span aria-hidden="true">{chip.icon}</span>
                 <span>{chip.label}</span>

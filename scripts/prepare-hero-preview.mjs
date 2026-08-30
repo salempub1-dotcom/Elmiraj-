@@ -24,5 +24,5 @@ async function restore(prefix, outputName) {
   console.log(`[hero-preview] restored ${outputName} (${buffer.length} bytes)`);
 }
 
-await restore('video', 'al_miraj_hero_preview.mp4');
-await restore('poster', 'al_miraj_hero_preview_poster.webp');
+await restore('previewvideo', 'al_miraj_hero_preview.mp4');
+await restore('previewposter', 'al_miraj_hero_preview_poster.webp');

@@ -13,12 +13,6 @@ const EDUCATION_LEVELS_SECTION_ID = 'education-levels';
 const HERO_POSTER = '/assets/hero/al_miraj_hero_preview_poster.webp';
 const HERO_VIDEO_MP4 = '/assets/hero/al_miraj_hero_preview.mp4';
 
-type NavigatorWithConnection = Navigator & {
-  connection?: {
-    saveData?: boolean;
-  };
-};
-
 interface HeroSectionProps {
   onBrowseProducts: () => void;
   onSelectLevel: (category: LevelCategory) => void;
@@ -26,34 +20,35 @@ interface HeroSectionProps {
 
 export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSectionProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const saveData = (navigator as NavigatorWithConnection).connection?.saveData === true;
+    const video = videoRef.current;
+    if (!video) return;
 
-    const updateVideoPreference = () => {
-      const canAnimate = !reducedMotion.matches && !saveData;
-      setShouldLoadVideo(canAnimate);
-      if (!canAnimate) setVideoReady(false);
+    // Chrome/Safari autoplay requires a muted inline video. Set both properties
+    // explicitly as well as the JSX attributes so preview playback is reliable.
+    video.muted = true;
+    video.defaultMuted = true;
+
+    const startPlayback = () => {
+      const playPromise = video.play();
+      playPromise
+        ?.then(() => setVideoReady(true))
+        .catch(() => {
+          // Keep the poster visible if the browser blocks playback.
+          setVideoReady(false);
+        });
     };
 
-    updateVideoPreference();
-    reducedMotion.addEventListener?.('change', updateVideoPreference);
-
-    return () => reducedMotion.removeEventListener?.('change', updateVideoPreference);
-  }, []);
-
-  useEffect(() => {
-    if (!shouldLoadVideo) {
-      videoRef.current?.pause();
-      return;
+    if (video.readyState >= 2) {
+      startPlayback();
+    } else {
+      video.addEventListener('loadeddata', startPlayback, { once: true });
     }
 
-    const playPromise = videoRef.current?.play();
-    playPromise?.catch(() => setVideoReady(false));
-  }, [shouldLoadVideo]);
+    return () => video.removeEventListener('loadeddata', startPlayback);
+  }, []);
 
   const handleDiscoverByLevel = () => {
     document.getElementById(EDUCATION_LEVELS_SECTION_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -61,7 +56,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
 
   return (
     <section className="relative isolate overflow-hidden bg-[#071226] text-white">
-      {/* صورة Poster تظهر فورًا وتبقى كـ fallback عند Data Saver / Reduced Motion */}
+      {/* Poster visible immediately while the video loads or if playback fails. */}
       <img
         src={HERO_POSTER}
         alt=""
@@ -72,40 +67,38 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[56%_center] sm:object-[58%_center] lg:object-center"
       />
 
-      {/* فيديو Decorative فقط — لا يحجب المحتوى ولا يستقبل أي تفاعل */}
-      {shouldLoadVideo && (
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster={HERO_POSTER}
-          aria-hidden="true"
-          tabIndex={-1}
-          onCanPlay={() => setVideoReady(true)}
-          onError={() => setVideoReady(false)}
-          className={`pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[56%_center] sm:object-[58%_center] lg:object-center transition-opacity duration-700 ${
-            videoReady ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          <source src={HERO_VIDEO_MP4} type="video/mp4" />
-        </video>
-      )}
+      {/* Preview video is always mounted so autoplay can start reliably. */}
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        poster={HERO_POSTER}
+        aria-hidden="true"
+        tabIndex={-1}
+        onLoadedData={() => setVideoReady(true)}
+        onPlaying={() => setVideoReady(true)}
+        onError={() => setVideoReady(false)}
+        className={`pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[56%_center] sm:object-[58%_center] lg:object-center transition-opacity duration-500 ${
+          videoReady ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        <source src={HERO_VIDEO_MP4} type="video/mp4" />
+      </video>
 
-      {/* Overlay كحلي: أغمق قرب النص وأخف فوق المنتجات */}
+      {/* Navy overlay: strongest behind the copy, lighter over the product area. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            'linear-gradient(270deg, rgba(5,14,31,.94) 0%, rgba(11,24,51,.83) 38%, rgba(11,24,51,.58) 66%, rgba(7,18,38,.28) 100%)',
+            'linear-gradient(270deg, rgba(5,14,31,.90) 0%, rgba(11,24,51,.78) 38%, rgba(11,24,51,.48) 66%, rgba(7,18,38,.18) 100%)',
         }}
       />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#071226]/10" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#071226]/5" />
 
-      {/* توهجات خفيفة جدًا للحفاظ على هوية المعراج */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
         <div className="absolute -bottom-24 left-1/4 h-80 w-80 rounded-full bg-blue-400/10 blur-3xl" />

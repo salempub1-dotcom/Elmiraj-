@@ -45,13 +45,13 @@ jobs:
       - name: Delivery integration safety checks
         run: node scripts/verify-delivery-integration.mjs
 
-      - name: Commit only the product code change
+      - name: Commit product code and clean temporary helper files
         run: |
           rm -f clicktocall.patch .github/workflows/apply-click-to-call-once.yml
           git config user.name "Al Miraj Admin Bot"
           git config user.email "admin@elm3raj.com"
           git add -A
-          git diff --cached --name-only
-          test "$(git diff --cached --name-only)" = "src/App.tsx"
+          git diff --cached --name-status
+          test "$(git diff --cached --name-only | sort)" = "$(printf '%s\n' '.github/workflows/apply-click-to-call-once.yml' 'clicktocall.patch' 'src/App.tsx' | sort)"
           git commit -m "feat(admin): add mobile click-to-call for customer phone numbers"
           git push origin HEAD:automation/click-to-call-apply

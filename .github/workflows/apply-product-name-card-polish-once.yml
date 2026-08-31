@@ -1,0 +1,72 @@
+name: One-shot Product Name Card Polish
+
+on:
+  push:
+    branches:
+      - preview/admin-product-name-card-polish
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: preview/admin-product-name-card-polish
+          fetch-depth: 0
+
+      - name: Apply compact product-name UI polish
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/App.tsx')
+          s = p.read_text()
+          old = '''            <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 max-w-[72%] truncate rounded-md border border-red-400/70 bg-red-500/15 px-2 py-1 text-red-50 font-bold">{item.name} × {item.quantity}</span>
+              <span className="font-extrabold text-white whitespace-nowrap">{(item.price * item.quantity).toLocaleString()} دج</span>
+            </div>'''
+          new = '''            <div key={item.id} className="flex items-start justify-between gap-2 text-sm">
+              <span
+                className="min-w-0 flex-1 whitespace-normal break-words rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] sm:text-xs leading-4 text-gray-900 font-extrabold shadow-sm"
+                title={`${item.name} × ${item.quantity}`}
+              >
+                {item.name} × {item.quantity}
+              </span>
+              <span className="pt-1 font-extrabold text-white whitespace-nowrap text-xs sm:text-sm">{(item.price * item.quantity).toLocaleString()} دج</span>
+            </div>'''
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one product row match, got {count}')
+          p.write_text(s.replace(old, new, 1))
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Production build
+        run: npm run build
+
+      - name: Delivery integration safety checks
+        run: node scripts/verify-delivery-integration.mjs
+
+      - name: Commit product code and remove helper workflow
+        run: |
+          git config user.name "Al Miraj Admin Bot"
+          git config user.email "admin@elm3raj.com"
+          git rm .github/workflows/apply-product-name-card-polish-once.yml
+          git add src/App.tsx
+          git commit -m "feat(admin): improve mobile product name readability"
+          git push origin HEAD:preview/admin-product-name-card-polish

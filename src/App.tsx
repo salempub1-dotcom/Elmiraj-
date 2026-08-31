@@ -3448,7 +3448,7 @@ function OrderCard({
         <div className="mt-2 pt-2 border-t border-white/10 space-y-0.5">
           {order.items.map(item => (
             <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
-              <span className="min-w-0 max-w-[72%] truncate rounded-md border border-red-400/70 bg-red-500/15 px-2 py-1 text-red-50 font-bold">{item.name} × {item.quantity}</span>
+              <span className="min-w-0 flex-1 whitespace-normal break-words rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] sm:text-xs leading-4 text-gray-900 font-extrabold shadow-sm">{item.name} × {item.quantity}</span>
               <span className="font-extrabold text-white whitespace-nowrap">{(item.price * item.quantity).toLocaleString()} دج</span>
             </div>
           ))}

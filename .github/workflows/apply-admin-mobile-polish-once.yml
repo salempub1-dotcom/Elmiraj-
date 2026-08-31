@@ -1,0 +1,55 @@
+name: One-shot Admin Mobile Polish
+
+on:
+  push:
+    branches:
+      - preview/admin-mobile-price-call-polish
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: preview/admin-mobile-price-call-polish
+          fetch-depth: 0
+
+      - name: Verify patch applies cleanly
+        run: git apply --check admin-mobile-polish.patch
+
+      - name: Apply patch
+        run: git apply admin-mobile-polish.patch
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Production build
+        run: npm run build
+
+      - name: Delivery integration safety checks
+        run: node scripts/verify-delivery-integration.mjs
+
+      - name: Commit product code and remove helper files
+        run: |
+          git config user.name "Al Miraj Admin Bot"
+          git config user.email "admin@elm3raj.com"
+          git rm admin-mobile-polish.patch .github/workflows/apply-admin-mobile-polish-once.yml
+          git add src/App.tsx
+          git diff --cached --name-status
+          test "$(git diff --cached --name-only | sort)" = "$(printf '%s\n' '.github/workflows/apply-admin-mobile-polish-once.yml' 'admin-mobile-polish.patch' 'src/App.tsx' | sort)"
+          git commit -m "feat(admin): polish mobile call and price badges"
+          git push origin HEAD:preview/admin-mobile-price-call-polish

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import "./cart-polish.css";
+import "./cart-frame.css";
 import { App } from "./App";
 import DeliveryProviderDialog from "./components/admin/DeliveryProviderDialog";
 import DeliveryProviderLabels from "./components/admin/DeliveryProviderLabels";

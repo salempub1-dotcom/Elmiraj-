@@ -1,45 +1,60 @@
-/* Slim premium cart frame with a cleaner cart glyph. */
+/* Storefront cart: restore the familiar labeled button while preserving the
+   current slim navy-to-blue gradient frame. */
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative {
-  width: 2.82rem !important;
-  height: 2.82rem !important;
-  min-width: 2.82rem !important;
-  min-height: 2.82rem !important;
-  padding: 0.1rem !important;
+  width: auto !important;
+  height: 2.72rem !important;
+  min-width: 8.15rem !important;
+  min-height: 2.72rem !important;
+  padding: 0.1rem 0.88rem !important;
   border-radius: 0.9rem !important;
   border: 1px solid rgba(11, 24, 51, 0.11) !important;
   background: linear-gradient(145deg, #102a52 0%, #204f86 100%) !important;
   box-shadow:
     0 5px 14px rgba(11, 24, 51, 0.13),
     inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
-  position: relative;
+  position: relative !important;
   isolation: isolate;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.48rem !important;
+  overflow: visible !important;
+  font-size: 0 !important;
+  color: transparent !important;
 }
 
-/* Thin inner panel leaves only a narrow gradient rim visible. */
-header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::after {
-  content: "" !important;
-  position: absolute !important;
-  inset: 0.105rem !important;
-  z-index: -1 !important;
-  border-radius: 0.78rem !important;
-  background: linear-gradient(145deg, #ffffff 0%, #f7f9fc 100%) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72) !important;
-  pointer-events: none;
-}
-
-/* Cleaner cart: simple navy outline with a small gold plus. */
+/* Previous-store style cart glyph, clean and readable on the dark frame. */
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::before {
   content: "" !important;
-  width: 1.48rem !important;
-  height: 1.48rem !important;
+  width: 1.12rem !important;
+  height: 1.12rem !important;
+  flex: 0 0 1.12rem !important;
   position: relative !important;
   z-index: 1 !important;
   display: block !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Cpath d='M4.5 6.5h3.1l2.25 11.2a2.6 2.6 0 0 0 2.55 2.1h9.4a2.6 2.6 0 0 0 2.5-1.9l2-7.4H9.1' stroke='%230B1833' stroke-width='2.15' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='13' cy='25' r='1.8' fill='%230B1833'/%3E%3Ccircle cx='22' cy='25' r='1.8' fill='%230B1833'/%3E%3Ccircle cx='24.2' cy='7.2' r='4.4' fill='%23D4AF37'/%3E%3Cpath d='M24.2 4.9v4.6M21.9 7.2h4.6' stroke='white' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M3.5 4.5h2.2l2.15 10.25a2 2 0 0 0 1.95 1.58h7.75a2 2 0 0 0 1.94-1.5L21 8H6.43' stroke='%23FFFFFF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='10' cy='20' r='1.15' fill='%23FFFFFF'/%3E%3Ccircle cx='18' cy='20' r='1.15' fill='%23FFFFFF'/%3E%3C/svg%3E") !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
   background-size: contain !important;
   transition: transform 180ms ease, filter 180ms ease !important;
+}
+
+/* The label mirrors the former storefront button shown by the user. */
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::after {
+  content: "تصفح العربة" !important;
+  position: relative !important;
+  inset: auto !important;
+  z-index: 1 !important;
+  display: inline-block !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif !important;
+  font-size: 0.78rem !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  pointer-events: none;
 }
 
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:hover {
@@ -52,14 +67,14 @@ header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > b
 }
 
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:hover::before {
-  transform: scale(1.04) !important;
-  filter: saturate(1.05) !important;
+  transform: translateX(-1px) scale(1.04) !important;
 }
 
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:active {
-  transform: scale(0.97) !important;
+  transform: scale(0.98) !important;
 }
 
+/* Quantity badge stays unobtrusive and does not cover the cart glyph. */
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative > span.absolute[class~="-top-2"][class~="-right-2"] {
   width: 1.02rem !important;
   height: 1.02rem !important;
@@ -74,17 +89,41 @@ header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > b
   box-shadow: 0 2px 7px rgba(11, 24, 51, 0.18) !important;
 }
 
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative > span.absolute[class~="inset-0"] {
+  display: none !important;
+}
+
+/* Brand typography: explicit Cairo treatment for a cleaner Arabic wordmark. */
+header.bg-white.shadow-md.sticky.top-0.z-50 h1 {
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.035em !important;
+  line-height: 1.08 !important;
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 h1 + p {
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+}
+
 @media (max-width: 767px) {
   header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative {
-    width: 2.92rem !important;
-    height: 2.92rem !important;
-    min-width: 2.92rem !important;
-    min-height: 2.92rem !important;
-    border-radius: 0.94rem !important;
+    min-width: 7.55rem !important;
+    height: 2.72rem !important;
+    min-height: 2.72rem !important;
+    padding-inline: 0.72rem !important;
+    gap: 0.4rem !important;
+    border-radius: 0.9rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::after {
+    font-size: 0.73rem !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::before {
-    width: 1.56rem !important;
-    height: 1.56rem !important;
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+    flex-basis: 1.05rem !important;
   }
 }

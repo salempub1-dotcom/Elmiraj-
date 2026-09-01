@@ -114,4 +114,34 @@ html[data-storefront-theme="dark"] .miraj-language-toggle:hover {
   .miraj-language-toggle.is-en .miraj-lang-en {
     display: inline;
   }
+
+  /* Mobile bottom navigation uses short Arabic labels in App.tsx. In English
+     mode, replace only those visible labels while preserving icons, state and
+     the live cart count. Arabic mode remains untouched. */
+  html[data-storefront-lang="en"] nav.fixed.bottom-0.left-0.right-0 > button:nth-child(1) > span:last-child,
+  html[data-storefront-lang="en"] nav.fixed.bottom-0.left-0.right-0 > button:nth-child(2) > span:last-child,
+  html[data-storefront-lang="en"] nav.fixed.bottom-0.left-0.right-0 > button:nth-child(3) > span:last-child,
+  html[data-storefront-lang="en"] nav.fixed.bottom-0.left-0.right-0 > button:nth-child(5) > span:last-child {
+    font-size: 0 !important;
+  }
+
+  html[data-storefront-lang="en"] nav.fixed.bottom-0.left-0.right-0 > button:nth-child(1) > span:last-child::after {
+    content: "Home";
+    font-size: 0.75rem;
+  }
+
+  html[data-storefront-lang="en"] nav.fixed.bottom-0.left-0.right-0 > button:nth-child(2) > span:last-child::after {
+    content: "Products";
+    font-size: 0.75rem;
+  }
+
+  html[data-storefront-lang="en"] nav.fixed.bottom-0.left-0.right-0 > button:nth-child(3) > span:last-child::after {
+    content: "Track";
+    font-size: 0.75rem;
+  }
+
+  html[data-storefront-lang="en"] nav.fixed.bottom-0.left-0.right-0 > button:nth-child(5) > span:last-child::after {
+    content: "Contact";
+    font-size: 0.75rem;
+  }
 }

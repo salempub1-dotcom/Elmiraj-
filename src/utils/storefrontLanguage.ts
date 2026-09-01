@@ -2,8 +2,10 @@ type StorefrontLanguage = 'ar' | 'en';
 
 const STORAGE_KEY = 'miraj-storefront-language-v1';
 const LANG_ATTR = 'data-storefront-lang';
+const OBSERVER_OPTIONS: MutationObserverInit = { childList: true, subtree: true, characterData: true };
+
 let observer: MutationObserver | null = null;
-let syncQueued = false;
+let currentLanguage: StorefrontLanguage = 'ar';
 
 const AR_TO_EN: Record<string, string> = {
   'المعراج': 'Al Miraj',
@@ -137,54 +139,52 @@ function translateTextValue(value: string, language: StorefrontLanguage) {
   return value;
 }
 
+function isTranslatableNode(node: Node) {
+  const parent = node.parentElement;
+  if (!parent) return true;
+  return !parent.closest('[data-storefront-no-translate="true"], script, style, textarea');
+}
+
+function translateTextNode(node: Text, language: StorefrontLanguage) {
+  if (!isTranslatableNode(node)) return;
+  const current = node.nodeValue ?? '';
+  const next = translateTextValue(current, language);
+  if (next !== current) node.nodeValue = next;
+}
+
+function translateInput(input: HTMLInputElement, language: StorefrontLanguage) {
+  if (input.closest('[data-storefront-no-translate="true"]')) return;
+  const dictionary = language === 'en' ? PLACEHOLDERS_AR_TO_EN : PLACEHOLDERS_EN_TO_AR;
+  const current = input.getAttribute('placeholder') ?? '';
+  const next = dictionary[current];
+  if (next && next !== current) input.setAttribute('placeholder', next);
+}
+
 function translateElement(element: Element, language: StorefrontLanguage) {
-  if (element.closest('[data-storefront-no-translate="true"]')) return;
-  if (element.closest('script, style, textarea')) return;
+  if (element.closest('[data-storefront-no-translate="true"], script, style, textarea')) return;
+
+  if (element instanceof HTMLInputElement && element.hasAttribute('placeholder')) {
+    translateInput(element, language);
+  }
 
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const nodes: Text[] = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
-  nodes.forEach(node => {
-    const next = translateTextValue(node.nodeValue ?? '', language);
-    if (next !== node.nodeValue) node.nodeValue = next;
-  });
+  while (walker.nextNode()) translateTextNode(walker.currentNode as Text, language);
 
-  element.querySelectorAll<HTMLInputElement>('input[placeholder]').forEach(input => {
-    const dictionary = language === 'en' ? PLACEHOLDERS_AR_TO_EN : PLACEHOLDERS_EN_TO_AR;
-    const current = input.getAttribute('placeholder') ?? '';
-    const next = dictionary[current];
-    if (next) input.setAttribute('placeholder', next);
-  });
+  element.querySelectorAll<HTMLInputElement>('input[placeholder]').forEach(input => translateInput(input, language));
 }
 
 function updateToggle(button: HTMLButtonElement, language: StorefrontLanguage) {
-  button.classList.toggle('is-en', language === 'en');
-  button.classList.toggle('is-ar', language === 'ar');
-  button.innerHTML = '<span class="miraj-lang-ar">AR</span><span class="miraj-lang-sep">/</span><span class="miraj-lang-en">EN</span>';
-  button.setAttribute('aria-label', language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية');
-  button.setAttribute('title', language === 'ar' ? 'English' : 'العربية');
-}
-
-function applyLanguage(language: StorefrontLanguage) {
-  if (!isPublicStorefront()) {
-    document.documentElement.removeAttribute(LANG_ATTR);
-    document.documentElement.lang = 'ar';
-    document.documentElement.dir = 'rtl';
-    return;
+  if (button.dataset.languageState !== language) {
+    button.dataset.languageState = language;
+    button.classList.toggle('is-en', language === 'en');
+    button.classList.toggle('is-ar', language === 'ar');
+    button.innerHTML = '<span class="miraj-lang-ar">AR</span><span class="miraj-lang-sep">/</span><span class="miraj-lang-en">EN</span>';
   }
 
-  document.documentElement.setAttribute(LANG_ATTR, language);
-  document.documentElement.lang = language;
-  document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl';
-
-  if (document.body) translateElement(document.body, language);
-  document.querySelectorAll<HTMLButtonElement>('.miraj-language-toggle').forEach(button => updateToggle(button, language));
-}
-
-function toggleLanguage() {
-  const next: StorefrontLanguage = readLanguage() === 'ar' ? 'en' : 'ar';
-  saveLanguage(next);
-  applyLanguage(next);
+  const label = language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية';
+  const title = language === 'ar' ? 'English' : 'العربية';
+  if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
+  if (button.getAttribute('title') !== title) button.setAttribute('title', title);
 }
 
 function ensureToggle() {
@@ -198,14 +198,19 @@ function ensureToggle() {
 
   const actionGroup = headerRow.lastElementChild;
   if (!(actionGroup instanceof HTMLElement)) return;
-
   if (!actionGroup.querySelector('input[placeholder="ابحث..."], input[placeholder="Search..."]')) return;
-  if (actionGroup.querySelector('.miraj-language-toggle')) return;
+
+  const existing = actionGroup.querySelector<HTMLButtonElement>('.miraj-language-toggle');
+  if (existing) {
+    updateToggle(existing, currentLanguage);
+    return;
+  }
 
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'miraj-language-toggle';
-  updateToggle(button, readLanguage());
+  button.setAttribute('data-storefront-no-translate', 'true');
+  updateToggle(button, currentLanguage);
   button.addEventListener('click', toggleLanguage);
 
   const themeButton = actionGroup.querySelector('.miraj-theme-toggle');
@@ -215,37 +220,80 @@ function ensureToggle() {
   else actionGroup.appendChild(button);
 }
 
-function syncLanguage() {
-  if (!isPublicStorefront()) {
-    applyLanguage('ar');
-    return;
-  }
-  applyLanguage(readLanguage());
-  ensureToggle();
+function observe() {
+  if (!observer || !document.body) return;
+  observer.observe(document.body, OBSERVER_OPTIONS);
 }
 
-function queueSync() {
-  if (syncQueued) return;
-  syncQueued = true;
-  queueMicrotask(() => {
-    syncQueued = false;
-    syncLanguage();
-  });
+function applyLanguage(language: StorefrontLanguage, translateWholeDocument = true) {
+  currentLanguage = language;
+
+  if (!isPublicStorefront()) {
+    document.documentElement.removeAttribute(LANG_ATTR);
+    document.documentElement.lang = 'ar';
+    document.documentElement.dir = 'rtl';
+    return;
+  }
+
+  observer?.disconnect();
+
+  document.documentElement.setAttribute(LANG_ATTR, language);
+  document.documentElement.lang = language;
+  document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl';
+
+  if (translateWholeDocument && document.body) translateElement(document.body, language);
+  ensureToggle();
+
+  observe();
+}
+
+function toggleLanguage() {
+  const next: StorefrontLanguage = currentLanguage === 'ar' ? 'en' : 'ar';
+  saveLanguage(next);
+  applyLanguage(next, true);
+}
+
+function processMutations(records: MutationRecord[]) {
+  if (!isPublicStorefront()) return;
+
+  // Disconnect while translating our own DOM changes so those writes do not
+  // recursively trigger another whole translation pass.
+  observer?.disconnect();
+
+  for (const record of records) {
+    if (record.type === 'characterData' && record.target instanceof Text) {
+      translateTextNode(record.target, currentLanguage);
+      continue;
+    }
+
+    if (record.type === 'childList') {
+      record.addedNodes.forEach(node => {
+        if (node instanceof Text) translateTextNode(node, currentLanguage);
+        else if (node instanceof Element) translateElement(node, currentLanguage);
+      });
+    }
+  }
+
+  ensureToggle();
+  observe();
 }
 
 export function installStorefrontLanguage() {
   if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
-  syncLanguage();
-  window.addEventListener('popstate', queueSync);
+  currentLanguage = readLanguage();
+  observer = new MutationObserver(processMutations);
 
-  const startObserver = () => {
-    if (observer || !document.body) return;
-    observer = new MutationObserver(queueSync);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    queueSync();
+  const start = () => {
+    applyLanguage(currentLanguage, true);
+    observe();
   };
 
-  if (document.body) startObserver();
-  else document.addEventListener('DOMContentLoaded', startObserver, { once: true });
+  if (document.body) start();
+  else document.addEventListener('DOMContentLoaded', start, { once: true });
+
+  window.addEventListener('popstate', () => {
+    currentLanguage = readLanguage();
+    applyLanguage(isPublicStorefront() ? currentLanguage : 'ar', true);
+  });
 }

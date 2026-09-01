@@ -1,7 +1,4 @@
 import { useEffect, useState } from 'react';
-import heroImage1 from '../../assets/hero/heroImage1';
-import heroImage2 from '../../assets/hero/heroImage2';
-import heroImage3 from '../../assets/hero/heroImage3';
 import TypewriterPhrase, { TYPEWRITER_PHRASES } from './TypewriterPhrase';
 
 export type LevelCategory = 'تحضيري' | 'ابتدائي' | 'متوسط';
@@ -14,9 +11,9 @@ const LEVEL_CHIPS: { value: LevelCategory; label: string; icon: string }[] = [
 
 const EDUCATION_LEVELS_SECTION_ID = 'education-levels';
 const HERO_IMAGES = [
-  { src: heroImage1, position: '34% center' },
-  { src: heroImage2, position: '31% center' },
-  { src: heroImage3, position: '32% center' },
+  { src: '/images/hero/al_miraj_hero_1.webp', position: '34% center' },
+  { src: '/images/hero/al_miraj_hero_2.webp', position: '31% center' },
+  { src: '/images/hero/al_miraj_hero_3.webp', position: '32% center' },
 ] as const;
 
 interface HeroSectionProps {
@@ -63,7 +60,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
           const isActive = index === activeImage;
           return (
             <img
-              key={index}
+              key={image.src}
               src={image.src}
               alt=""
               aria-hidden="true"

@@ -4,6 +4,8 @@ const PURCHASE_SOUND_LABELS = [
   'اشتري الآن',
   'اشترِ الآن',
   'شراء الآن',
+  'Add to Cart',
+  'Buy Now',
 ];
 
 function isPublicStorefront() {

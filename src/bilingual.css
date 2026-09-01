@@ -1,0 +1,98 @@
+/* Storefront AR / EN toggle. Kept compact so it sits cleanly beside dark mode + cart. */
+.miraj-language-toggle {
+  height: 2.44rem;
+  min-width: 4.15rem;
+  padding: 0 0.68rem;
+  border-radius: 0.82rem;
+  border: 1px solid rgba(11, 24, 51, 0.12);
+  background: #f8fafc;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.24rem;
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 3px 10px rgba(11, 24, 51, 0.07);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.miraj-language-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(212, 175, 55, 0.45);
+  box-shadow: 0 6px 14px rgba(11, 24, 51, 0.10);
+}
+
+.miraj-language-toggle:active {
+  transform: scale(0.97);
+}
+
+.miraj-language-toggle .miraj-lang-sep {
+  opacity: 0.38;
+  font-weight: 500;
+}
+
+.miraj-language-toggle.is-ar .miraj-lang-ar,
+.miraj-language-toggle.is-en .miraj-lang-en {
+  color: #0b1833;
+  font-weight: 900;
+}
+
+.miraj-language-toggle.is-ar .miraj-lang-en,
+.miraj-language-toggle.is-en .miraj-lang-ar {
+  color: #9ca3af;
+}
+
+/* Cart label is rendered with CSS in the existing cart component. */
+html[data-storefront-lang="en"] header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::after {
+  content: "Cart" !important;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  letter-spacing: 0 !important;
+}
+
+/* In LTR, move the notification badge to the familiar top-right corner. */
+html[data-storefront-lang="en"] header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative > span.absolute[class~="-top-2"][class~="-right-2"] {
+  right: -0.48rem !important;
+  left: auto !important;
+}
+
+html[data-storefront-lang="en"] body {
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Keep product imagery and prices natural while allowing English UI flow. */
+html[data-storefront-lang="en"] input,
+html[data-storefront-lang="en"] select,
+html[data-storefront-lang="en"] textarea {
+  text-align: left;
+}
+
+/* Premium dark-mode counterpart for the language toggle. */
+html[data-storefront-theme="dark"] .miraj-language-toggle {
+  background: #10233f;
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #94a3b8;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.20);
+}
+
+html[data-storefront-theme="dark"] .miraj-language-toggle.is-ar .miraj-lang-ar,
+html[data-storefront-theme="dark"] .miraj-language-toggle.is-en .miraj-lang-en {
+  color: #f4c95d;
+}
+
+html[data-storefront-theme="dark"] .miraj-language-toggle:hover {
+  border-color: rgba(212, 175, 55, 0.50);
+  background: #132a4a;
+}
+
+@media (max-width: 767px) {
+  .miraj-language-toggle {
+    height: 2.38rem;
+    min-width: 3.72rem;
+    padding: 0 0.54rem;
+    border-radius: 0.78rem;
+    font-size: 0.62rem;
+  }
+}

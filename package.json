@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/prepare-hero-images.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/prepare-hero-images.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

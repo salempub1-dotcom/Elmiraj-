@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import heroImage1 from '../../assets/hero/heroImage1';
+import heroImage2 from '../../assets/hero/heroImage2';
+import heroImage3 from '../../assets/hero/heroImage3';
 import TypewriterPhrase, { TYPEWRITER_PHRASES } from './TypewriterPhrase';
 
 export type LevelCategory = 'تحضيري' | 'ابتدائي' | 'متوسط';
@@ -11,9 +14,9 @@ const LEVEL_CHIPS: { value: LevelCategory; label: string; icon: string }[] = [
 
 const EDUCATION_LEVELS_SECTION_ID = 'education-levels';
 const HERO_IMAGES = [
-  { src: '/images/hero-slide-1.webp', position: '34% center' },
-  { src: '/images/hero-slide-2.webp', position: '31% center' },
-  { src: '/images/hero-slide-3.webp', position: '32% center' },
+  { src: heroImage1, position: '34% center' },
+  { src: heroImage2, position: '31% center' },
+  { src: heroImage3, position: '32% center' },
 ] as const;
 
 interface HeroSectionProps {
@@ -60,19 +63,13 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
           const isActive = index === activeImage;
           return (
             <img
-              key={image.src}
+              key={index}
               src={image.src}
               alt=""
               aria-hidden="true"
               loading={index === 0 ? 'eager' : 'lazy'}
               fetchPriority={index === 0 ? 'high' : 'auto'}
               decoding="async"
-              onError={event => {
-                if (!event.currentTarget.dataset.fallbackApplied) {
-                  event.currentTarget.dataset.fallbackApplied = 'true';
-                  event.currentTarget.src = index === 1 ? '/images/hero-products.webp' : '/images/hero-teacher.webp';
-                }
-              }}
               className="absolute inset-0 h-full w-full select-none object-cover sm:object-center"
               style={{
                 objectPosition: image.position,
@@ -170,7 +167,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
                 key={chip.value}
                 type="button"
                 onClick={() => onSelectLevel(chip.value)}
-                className="inline-flex min-h-9 items-center justify-center gap-1 rounded-full border border-white/18 bg-white/[0.045] px-2 py-1.5 text-[0.7rem] font-bold text-white/92 backdrop-blur-[2px] transition-all duration-200 active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 min-[390px]:text-[0.74rem] sm:min-h-0 sm:bg-[#071226]/50 sm:px-3.5 sm:py-2 sm:text-sm sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/65"
+                className="inline-flex min-h-9 items-center justify-center gap-1 rounded-full border border-white/18 bg-white/[0.045] px-2 py-1.5 text-[0.7rem] font-bold text-white/92 backdrop-blur-[2px] transition-all duration-200 active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 min-[390px]:text-[0.74rem] sm:min-h-0 sm:bg-[#071226]/50 sm:px-3.5 sm:py-2 sm:text-sm sm:hover:border-amber-300/60 sm:hover:bg-[#071226]/65"
               >
                 <span aria-hidden="true">{chip.icon}</span>
                 <span>{chip.label}</span>

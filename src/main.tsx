@@ -12,13 +12,18 @@ import DeliveryProviderLabels from "./components/admin/DeliveryProviderLabels";
 import { installDeliveryFetchBridge } from "./services/deliveryBridge";
 import { installUiSounds } from "./utils/uiSounds";
 import { installStorefrontTheme } from "./utils/storefrontTheme";
+import { installPurchaseSoundIsolation } from "./utils/purchaseSoundIsolation";
 
 // Keep the proven App.tsx/NOEST handlers untouched. This scoped bridge only
 // redirects the three delivery actions (send/resend/sync) to the generic
 // provider API and leaves every other store/admin request unchanged.
 installDeliveryFetchBridge();
 
-// Lightweight storefront interaction sounds.
+// Preserve the original product-specific sounds on "add to cart" and "buy now"
+// by excluding those buttons from the newer global click sound.
+installPurchaseSoundIsolation();
+
+// Lightweight storefront interaction sounds for the rest of the UI.
 installUiSounds();
 
 // Optional premium dark mode. Light remains the default; visitor choice is

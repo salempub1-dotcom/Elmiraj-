@@ -1,0 +1,60 @@
+/* Storefront brand wordmark polish: stronger Cairo hierarchy with a restrained gold accent. */
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:first-child > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.08rem;
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 h1 {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 0 !important;
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif !important;
+  font-size: 1.14rem !important;
+  font-weight: 800 !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.045em !important;
+  color: #173f86 !important;
+  text-rendering: geometricPrecision;
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 h1::after {
+  content: "";
+  display: inline-block;
+  width: 0.82rem;
+  height: 0.14rem;
+  margin-inline-start: 0.34rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d4af37 0%, #f0cf66 100%);
+  box-shadow: 0 1px 3px rgba(212, 175, 55, 0.22);
+  transform: translateY(0.03rem);
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 h1 + p {
+  margin: 0 !important;
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif !important;
+  font-size: 0.59rem !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.012em !important;
+  color: #718096 !important;
+  opacity: 0.96;
+}
+
+@media (max-width: 767px) {
+  header.bg-white.shadow-md.sticky.top-0.z-50 h1 {
+    font-size: 1.18rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 h1::after {
+    width: 0.74rem;
+    height: 0.13rem;
+    margin-inline-start: 0.3rem;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 h1 + p {
+    font-size: 0.61rem !important;
+  }
+}

@@ -11,9 +11,9 @@ const LEVEL_CHIPS: { value: LevelCategory; label: string; icon: string }[] = [
 
 const EDUCATION_LEVELS_SECTION_ID = 'education-levels';
 const HERO_IMAGES = [
-  { src: '/images/hero/al_miraj_hero_1.webp', mobilePosition: '34% center' },
-  { src: '/images/hero/al_miraj_hero_2.webp', mobilePosition: '31% center' },
-  { src: '/images/hero/al_miraj_hero_3.webp', mobilePosition: '32% center' },
+  { src: '/images/hero-slide-1.webp', position: '34% center' },
+  { src: '/images/hero-slide-2.webp', position: '31% center' },
+  { src: '/images/hero-slide-3.webp', position: '32% center' },
 ] as const;
 
 interface HeroSectionProps {
@@ -67,9 +67,15 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
               loading={index === 0 ? 'eager' : 'lazy'}
               fetchPriority={index === 0 ? 'high' : 'auto'}
               decoding="async"
+              onError={event => {
+                if (!event.currentTarget.dataset.fallbackApplied) {
+                  event.currentTarget.dataset.fallbackApplied = 'true';
+                  event.currentTarget.src = index === 1 ? '/images/hero-products.webp' : '/images/hero-teacher.webp';
+                }
+              }}
               className="absolute inset-0 h-full w-full select-none object-cover sm:object-center"
               style={{
-                objectPosition: `var(--hero-pos, ${image.mobilePosition})`,
+                objectPosition: image.position,
                 opacity: isActive ? 1 : 0,
                 transform: reduceMotion ? 'scale(1)' : isActive ? 'scale(1.018)' : 'scale(1.002)',
                 transition: reduceMotion
@@ -101,13 +107,13 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
         className="pointer-events-none absolute inset-0 hidden sm:block"
         style={{
           background:
-            'linear-gradient(270deg, #071226 0%, rgba(7,18,38,.98) 28%, rgba(11,24,51,.88) 45%, rgba(11,24,51,.52) 64%, rgba(11,24,51,.12) 82%, rgba(11,24,51,0) 100%)',
+            'linear-gradient(270deg, #071226 0%, rgba(7,18,38,.97) 27%, rgba(11,24,51,.84) 44%, rgba(11,24,51,.46) 63%, rgba(11,24,51,.09) 81%, rgba(11,24,51,0) 100%)',
         }}
       />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 hidden sm:block"
-        style={{ background: 'linear-gradient(180deg, rgba(7,18,38,.04), rgba(7,18,38,.16))' }}
+        style={{ background: 'linear-gradient(180deg, rgba(7,18,38,.03), rgba(7,18,38,.13))' }}
       />
 
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">

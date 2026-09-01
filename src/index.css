@@ -239,6 +239,104 @@ header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl {
 }
 
 /* ============================================================
+   Premium storefront cart button.
+   Replaces the platform emoji visually with a crisp vector cart while
+   preserving the existing React logic/count badge and adding no asset request.
+   ============================================================ */
+@keyframes miraj-cart-pop-kf {
+  0%, 100% { transform: scale(1); }
+  42% { transform: scale(1.07); }
+  72% { transform: scale(0.985); }
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative {
+  width: 2.55rem;
+  height: 2.55rem;
+  min-width: 2.55rem;
+  min-height: 2.55rem;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center;
+  font-size: 0 !important;
+  color: transparent !important;
+  overflow: visible;
+  border: 1px solid rgba(212, 175, 55, 0.30) !important;
+  border-radius: 0.9rem !important;
+  background: linear-gradient(145deg, #17365f 0%, #0b1833 72%) !important;
+  box-shadow:
+    0 7px 18px rgba(11, 24, 51, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease !important;
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::before {
+  content: "";
+  width: 1.18rem;
+  height: 1.18rem;
+  background: #ffffff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='20' r='1'/%3E%3Ccircle cx='19' cy='20' r='1'/%3E%3Cpath d='M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 8H6'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='20' r='1'/%3E%3Ccircle cx='19' cy='20' r='1'/%3E%3Cpath d='M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 8H6'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform 180ms ease, background-color 180ms ease;
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:hover {
+  transform: translateY(-1px) scale(1.025);
+  border-color: rgba(212, 175, 55, 0.72) !important;
+  background: linear-gradient(145deg, #1d4271 0%, #0b1833 72%) !important;
+  box-shadow:
+    0 9px 22px rgba(11, 24, 51, 0.24),
+    0 0 0 3px rgba(212, 175, 55, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:hover::before {
+  background: #d4af37;
+  transform: translateY(-1px) scale(1.06);
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:active {
+  transform: translateY(0) scale(0.97);
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative.animate-bounce {
+  animation: miraj-cart-pop-kf 480ms cubic-bezier(.2,.8,.2,1) !important;
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative > span.absolute[class~="-top-2"][class~="-right-2"] {
+  width: 1.28rem !important;
+  height: 1.28rem !important;
+  font-size: 0.66rem !important;
+  line-height: 1 !important;
+  background: #d4af37 !important;
+  color: #0b1833 !important;
+  border: 2px solid #ffffff;
+  box-shadow: 0 3px 9px rgba(11, 24, 51, 0.22);
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative > span.absolute[class~="inset-0"] {
+  border-color: rgba(212, 175, 55, 0.42) !important;
+}
+
+@media (max-width: 767px) {
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative {
+    width: 2.72rem;
+    height: 2.72rem;
+    min-width: 2.72rem;
+    min-height: 2.72rem;
+    border-radius: 0.95rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::before {
+    width: 1.24rem;
+    height: 1.24rem;
+  }
+}
+
+/* ============================================================
    طباعة قسم "آخر الطلبات" فقط (لوحة تحكم الإدارة)
    ============================================================ */
 @media print {

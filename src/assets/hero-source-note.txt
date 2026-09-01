@@ -1,0 +1,1 @@
+The three WebP hero images are imported from src/assets so Vite bundles/inlines them reliably.

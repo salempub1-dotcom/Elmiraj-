@@ -88,11 +88,30 @@ html[data-storefront-theme="dark"] .miraj-language-toggle:hover {
 }
 
 @media (max-width: 767px) {
+  /* Mobile: one compact square. Show only the current language code.
+     Clicking the existing toggle switches AR <-> EN and the visible label follows. */
   .miraj-language-toggle {
-    height: 2.38rem;
-    min-width: 3.72rem;
-    padding: 0 0.54rem;
-    border-radius: 0.78rem;
-    font-size: 0.62rem;
+    width: 2.72rem;
+    min-width: 2.72rem;
+    height: 2.72rem;
+    padding: 0;
+    border-radius: 0.82rem;
+    gap: 0;
+    font-size: 0.76rem;
+    flex: 0 0 2.72rem;
+  }
+
+  .miraj-language-toggle .miraj-lang-sep {
+    display: none;
+  }
+
+  .miraj-language-toggle.is-ar .miraj-lang-en,
+  .miraj-language-toggle.is-en .miraj-lang-ar {
+    display: none;
+  }
+
+  .miraj-language-toggle.is-ar .miraj-lang-ar,
+  .miraj-language-toggle.is-en .miraj-lang-en {
+    display: inline;
   }
 }

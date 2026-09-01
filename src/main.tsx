@@ -5,20 +5,25 @@ import "./index.css";
 import "./cart-polish.css";
 import "./cart-frame.css";
 import "./brand-polish.css";
+import "./dark-mode.css";
 import { App } from "./App";
 import DeliveryProviderDialog from "./components/admin/DeliveryProviderDialog";
 import DeliveryProviderLabels from "./components/admin/DeliveryProviderLabels";
 import { installDeliveryFetchBridge } from "./services/deliveryBridge";
 import { installUiSounds } from "./utils/uiSounds";
+import { installStorefrontTheme } from "./utils/storefrontTheme";
 
 // Keep the proven App.tsx/NOEST handlers untouched. This scoped bridge only
 // redirects the three delivery actions (send/resend/sync) to the generic
 // provider API and leaves every other store/admin request unchanged.
 installDeliveryFetchBridge();
 
-// Tiny Web Audio cues: no audio files, no extra requests, and hover sound only
-// unlocks after the visitor's first interaction to respect browser policies.
+// Lightweight storefront interaction sounds.
 installUiSounds();
+
+// Optional premium dark mode. Light remains the default; visitor choice is
+// persisted locally and the admin/dashboard routes stay untouched.
+installStorefrontTheme();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

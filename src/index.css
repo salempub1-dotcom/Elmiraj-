@@ -80,7 +80,6 @@ body {
   animation-delay: 0.6s;
 }
 
-/* حركة طفو هادئة جدًا ومستمرة للبطاقات العائمة — تُدمج مع miraj-rise لدخول أولي + طفو لاحق */
 .miraj-float {
   animation:
     miraj-rise-kf 0.7s ease-out both,
@@ -93,7 +92,6 @@ body {
   animation: miraj-caret-blink-kf 1s steps(1) infinite;
 }
 
-/* احترام تفضيل تقليل الحركة: إيقاف كل أنيميشن الـHero وإظهار العناصر مباشرة */
 @media (prefers-reduced-motion: reduce) {
   .miraj-rise,
   .miraj-float,
@@ -105,36 +103,138 @@ body {
 }
 
 /* ============================================================
-   Storefront mobile header — keep the white brand bar close to
-   the reference layout: roomy enough for logo/name without
-   wasting first-screen space.
+   Storefront header — compact premium navigation.
+   CSS-only so there is zero extra JavaScript/runtime cost.
    ============================================================ */
-@media (max-width: 767px) {
+header.bg-white.shadow-md.sticky.top-0.z-50 {
+  border-bottom: 1px solid rgba(11, 24, 51, 0.08);
+  box-shadow: 0 5px 20px rgba(11, 24, 51, 0.07) !important;
+}
+
+header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl {
+  transition: min-height 180ms ease, padding 180ms ease;
+}
+
+@media (min-width: 768px) {
   header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl {
-    min-height: 68px;
-    padding-top: 0.72rem !important;
-    padding-bottom: 0.72rem !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
+    min-height: 56px;
+    padding-top: 0.42rem !important;
+    padding-bottom: 0.42rem !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 img[alt="المعراج"] {
-    width: 2.5rem !important;
-    height: 2.5rem !important;
+    width: 2.15rem !important;
+    height: 2.15rem !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:first-child {
-    gap: 0.75rem !important;
+    gap: 0.55rem !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 h1 {
-    font-size: 1.25rem !important;
-    line-height: 1.25 !important;
+    font-size: 1.08rem !important;
+    line-height: 1.15 !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 p {
-    font-size: 0.75rem !important;
-    line-height: 1.25 !important;
+    font-size: 0.64rem !important;
+    line-height: 1.2 !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 nav {
+    gap: 0.12rem !important;
+    padding: 0.24rem !important;
+    border: 1px solid #e8edf4;
+    border-radius: 999px;
+    background: #f8fafc;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 nav button {
+    border: 0 !important;
+    border-radius: 999px !important;
+    padding: 0.48rem 0.78rem !important;
+    color: #526176 !important;
+    line-height: 1.1 !important;
+    transition:
+      background-color 180ms ease,
+      color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 nav button:hover {
+    background: #ffffff;
+    color: #0b1833 !important;
+    box-shadow: 0 3px 10px rgba(11, 24, 51, 0.08);
+    transform: translateY(-1px);
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 nav button.border-b-2 {
+    background: #0b1833 !important;
+    color: #ffffff !important;
+    box-shadow: 0 5px 14px rgba(11, 24, 51, 0.18);
+    transform: none;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 input[placeholder="ابحث..."] {
+    width: 9.2rem !important;
+    height: 2.2rem;
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+    border-width: 1px !important;
+    border-color: #e3e8ef !important;
+    border-radius: 999px !important;
+    background: #f9fbfd;
+    transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 input[placeholder="ابحث..."]:focus {
+    background: #ffffff;
+    border-color: rgba(212, 175, 55, 0.72) !important;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.10);
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child {
+    gap: 0.45rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button {
+    min-width: 2.35rem;
+    min-height: 2.35rem;
+    padding: 0.5rem !important;
+    border-radius: 0.78rem !important;
+    box-shadow: 0 4px 12px rgba(11, 24, 51, 0.12);
+  }
+}
+
+/* Mobile keeps the brand readable but avoids an oversized white slab. */
+@media (max-width: 767px) {
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl {
+    min-height: 64px;
+    padding-top: 0.58rem !important;
+    padding-bottom: 0.58rem !important;
+    padding-left: 0.9rem !important;
+    padding-right: 0.9rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 img[alt="المعراج"] {
+    width: 2.32rem !important;
+    height: 2.32rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:first-child {
+    gap: 0.62rem !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 h1 {
+    font-size: 1.16rem !important;
+    line-height: 1.2 !important;
+  }
+
+  header.bg-white.shadow-md.sticky.top-0.z-50 p {
+    font-size: 0.7rem !important;
+    line-height: 1.2 !important;
   }
 }
 
@@ -168,14 +268,12 @@ body {
     border: 1px solid #ccc;
     color: #000 !important;
   }
-  /* عند "طباعة المحدد" فقط: أخفِ أي صف غير محدد داخل الجدول */
   body.print-selected-only #recent-orders-print-area tbody tr:not(.is-selected) {
     display: none;
   }
 }
 
-/* Carousel أفقي بـCSS scroll-snap (قسم "الأكثر طلبًا لدى الأساتذة" على الموبايل) — إخفاء
-   شريط التمرير بصريًا فقط مع إبقاء التمرير باللمس/العجلة يعمل بشكل طبيعي. */
+/* Carousel أفقي بـCSS scroll-snap (قسم "الأكثر طلبًا لدى الأساتذة" على الموبايل) */
 .miraj-scroll-x {
   scrollbar-width: none;
   -ms-overflow-style: none;

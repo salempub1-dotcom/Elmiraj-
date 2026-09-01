@@ -43,7 +43,10 @@ function sunIcon() {
 }
 
 function updateToggle(button: HTMLButtonElement, theme: StorefrontTheme) {
+  if (button.dataset.themeState === theme) return;
+
   const dark = theme === 'dark';
+  button.dataset.themeState = theme;
   button.innerHTML = dark ? sunIcon() : moonIcon();
   button.setAttribute('aria-label', dark ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الليلي');
   button.setAttribute('title', dark ? 'الوضع الفاتح' : 'الوضع الليلي');
@@ -56,7 +59,9 @@ function applyTheme(theme: StorefrontTheme) {
     return;
   }
 
-  document.documentElement.setAttribute(THEME_ATTR, theme);
+  if (document.documentElement.getAttribute(THEME_ATTR) !== theme) {
+    document.documentElement.setAttribute(THEME_ATTR, theme);
+  }
   document.documentElement.style.colorScheme = theme;
 
   document.querySelectorAll<HTMLButtonElement>('.miraj-theme-toggle').forEach(button => {

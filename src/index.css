@@ -105,34 +105,35 @@ body {
 }
 
 /* ============================================================
-   Storefront mobile header — keep the white bar compact so the
-   classroom hero has more useful first-screen space.
+   Storefront mobile header — keep the white brand bar close to
+   the reference layout: roomy enough for logo/name without
+   wasting first-screen space.
    ============================================================ */
 @media (max-width: 767px) {
   header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl {
-    min-height: 52px;
-    padding-top: 0.4rem !important;
-    padding-bottom: 0.4rem !important;
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
+    min-height: 68px;
+    padding-top: 0.72rem !important;
+    padding-bottom: 0.72rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 img[alt="المعراج"] {
-    width: 2.15rem !important;
-    height: 2.15rem !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:first-child {
-    gap: 0.5rem !important;
+    gap: 0.75rem !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 h1 {
-    font-size: 1.05rem !important;
+    font-size: 1.25rem !important;
     line-height: 1.25 !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 p {
-    font-size: 0.68rem !important;
+    font-size: 0.75rem !important;
     line-height: 1.25 !important;
   }
 }
@@ -172,7 +173,6 @@ body {
     display: none;
   }
 }
-
 
 /* Carousel أفقي بـCSS scroll-snap (قسم "الأكثر طلبًا لدى الأساتذة" على الموبايل) — إخفاء
    شريط التمرير بصريًا فقط مع إبقاء التمرير باللمس/العجلة يعمل بشكل طبيعي. */

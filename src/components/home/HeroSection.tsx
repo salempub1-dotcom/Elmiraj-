@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import TypewriterPhrase, { TYPEWRITER_PHRASES } from './TypewriterPhrase';
 
 export type LevelCategory = 'تحضيري' | 'ابتدائي' | 'متوسط';
@@ -9,8 +10,11 @@ const LEVEL_CHIPS: { value: LevelCategory; label: string; icon: string }[] = [
 ];
 
 const EDUCATION_LEVELS_SECTION_ID = 'education-levels';
-const MOBILE_HERO_IMAGE = '/images/hero-mobile-classroom.webp';
-const DESKTOP_HERO_IMAGE = '/images/hero-desktop-classroom.webp';
+const HERO_IMAGES = [
+  { src: '/images/hero/al_miraj_hero_1.webp', mobilePosition: '34% center' },
+  { src: '/images/hero/al_miraj_hero_2.webp', mobilePosition: '31% center' },
+  { src: '/images/hero/al_miraj_hero_3.webp', mobilePosition: '32% center' },
+] as const;
 
 interface HeroSectionProps {
   onBrowseProducts: () => void;
@@ -18,57 +22,92 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSectionProps) {
+  const [activeImage, setActiveImage] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduceMotion(media.matches);
+    sync();
+    media.addEventListener?.('change', sync);
+    return () => media.removeEventListener?.('change', sync);
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      setActiveImage(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setActiveImage(current => (current + 1) % HERO_IMAGES.length);
+    }, 6500);
+
+    return () => window.clearInterval(timer);
+  }, [reduceMotion]);
+
   const handleDiscoverByLevel = () => {
     document.getElementById(EDUCATION_LEVELS_SECTION_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
     <section className="relative isolate overflow-hidden bg-[#071226] text-white">
-      {/* One responsive visual per breakpoint: portrait on phones, wide classroom on larger screens. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[clamp(238px,65vw,280px)] overflow-hidden bg-[#071226] sm:inset-0 sm:h-full">
-        <picture>
-          <source media="(max-width: 639px)" srcSet={MOBILE_HERO_IMAGE} />
-          <img
-            src={DESKTOP_HERO_IMAGE}
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
-            className="absolute inset-0 h-full w-full select-none object-cover object-[50%_42%] sm:object-center"
-          />
-        </picture>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[clamp(235px,62vw,278px)] overflow-hidden bg-[#071226] sm:inset-0 sm:h-full"
+      >
+        {HERO_IMAGES.map((image, index) => {
+          const isActive = index === activeImage;
+          return (
+            <img
+              key={image.src}
+              src={image.src}
+              alt=""
+              aria-hidden="true"
+              loading={index === 0 ? 'eager' : 'lazy'}
+              fetchPriority={index === 0 ? 'high' : 'auto'}
+              decoding="async"
+              className="absolute inset-0 h-full w-full select-none object-cover sm:object-center"
+              style={{
+                objectPosition: `var(--hero-pos, ${image.mobilePosition})`,
+                opacity: isActive ? 1 : 0,
+                transform: reduceMotion ? 'scale(1)' : isActive ? 'scale(1.018)' : 'scale(1.002)',
+                transition: reduceMotion
+                  ? 'none'
+                  : 'opacity 1100ms cubic-bezier(.4,0,.2,1), transform 7000ms ease-out',
+              }}
+            />
+          );
+        })}
 
-        {/* Mobile: let the classroom remain fully visible across the phone width, then dissolve into navy. */}
         <div
           className="absolute inset-0 sm:hidden"
           style={{
             background:
-              'linear-gradient(180deg, rgba(7,18,38,.02) 0%, rgba(7,18,38,.05) 45%, rgba(7,18,38,.42) 72%, rgba(7,18,38,.88) 91%, #071226 100%)',
+              'linear-gradient(180deg, rgba(7,18,38,.02) 0%, rgba(7,18,38,.06) 45%, rgba(7,18,38,.40) 72%, rgba(7,18,38,.88) 91%, #071226 100%)',
           }}
         />
         <div
           className="absolute inset-0 sm:hidden"
           style={{
             background:
-              'linear-gradient(270deg, rgba(7,18,38,.16) 0%, rgba(7,18,38,.04) 55%, rgba(7,18,38,0) 100%)',
+              'linear-gradient(270deg, rgba(7,18,38,.18) 0%, rgba(7,18,38,.05) 55%, rgba(7,18,38,0) 100%)',
           }}
         />
       </div>
 
-      {/* Desktop/tablet: the wide image already leaves breathing room on the right; the gradient protects Arabic copy. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 hidden sm:block"
         style={{
           background:
-            'linear-gradient(270deg, #071226 0%, rgba(7,18,38,.97) 27%, rgba(11,24,51,.86) 43%, rgba(11,24,51,.48) 63%, rgba(11,24,51,.10) 82%, rgba(11,24,51,0) 100%)',
+            'linear-gradient(270deg, #071226 0%, rgba(7,18,38,.98) 28%, rgba(11,24,51,.88) 45%, rgba(11,24,51,.52) 64%, rgba(11,24,51,.12) 82%, rgba(11,24,51,0) 100%)',
         }}
       />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 hidden sm:block"
-        style={{ background: 'linear-gradient(180deg, rgba(7,18,38,.06), rgba(7,18,38,.17))' }}
+        style={{ background: 'linear-gradient(180deg, rgba(7,18,38,.04), rgba(7,18,38,.16))' }}
       />
 
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">

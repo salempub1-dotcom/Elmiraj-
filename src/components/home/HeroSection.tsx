@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import TypewriterPhrase, { TYPEWRITER_PHRASES } from './TypewriterPhrase';
 
 export type LevelCategory = 'تحضيري' | 'ابتدائي' | 'متوسط';
@@ -10,7 +9,8 @@ const LEVEL_CHIPS: { value: LevelCategory; label: string; icon: string }[] = [
 ];
 
 const EDUCATION_LEVELS_SECTION_ID = 'education-levels';
-const HERO_IMAGES = ['/images/hero-teacher.webp', '/images/hero-products.webp'] as const;
+const MOBILE_HERO_IMAGE = '/images/hero-mobile-classroom.webp';
+const DESKTOP_HERO_IMAGE = '/images/hero-desktop-classroom.webp';
 
 interface HeroSectionProps {
   onBrowseProducts: () => void;
@@ -18,132 +18,85 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSectionProps) {
-  const [activeImage, setActiveImage] = useState(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const sync = () => setReduceMotion(media.matches);
-    sync();
-    media.addEventListener?.('change', sync);
-    return () => media.removeEventListener?.('change', sync);
-  }, []);
-
-  useEffect(() => {
-    if (reduceMotion) {
-      setActiveImage(0);
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setActiveImage(current => (current + 1) % HERO_IMAGES.length);
-    }, 7000);
-
-    return () => window.clearInterval(timer);
-  }, [reduceMotion]);
-
   const handleDiscoverByLevel = () => {
     document.getElementById(EDUCATION_LEVELS_SECTION_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const renderHeroImage = (src: string, index: number, mobile = false) => {
-    const isActive = index === activeImage;
-
-    return (
-      <img
-        key={`${mobile ? 'mobile' : 'desktop'}-${src}`}
-        src={src}
-        alt=""
-        aria-hidden="true"
-        loading={index === 0 ? 'eager' : 'lazy'}
-        fetchPriority={index === 0 ? 'high' : 'auto'}
-        decoding="async"
-        style={{
-          opacity: isActive ? (mobile ? 0.95 : 1) : 0,
-          transform: reduceMotion ? 'scale(1)' : isActive ? (mobile ? 'scale(1.012)' : 'scale(1.045)') : 'scale(1)',
-          transition: reduceMotion
-            ? 'none'
-            : 'opacity 1100ms ease-in-out, transform 7600ms ease-out',
-        }}
-        className={
-          mobile
-            ? 'absolute inset-0 h-full w-full select-none object-contain object-center'
-            : 'absolute inset-y-0 left-0 h-full w-[72%] select-none object-cover object-center lg:w-[68%] xl:w-[66%]'
-        }
-      />
-    );
-  };
-
   return (
     <section className="relative isolate overflow-hidden bg-[#071226] text-white">
-      {/* Mobile: preserve the full 16:9 classroom composition, then fade it into the navy copy area. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[56.25vw] min-h-[202px] max-h-[242px] overflow-hidden bg-[#071226] sm:hidden">
-        {HERO_IMAGES.map((src, index) => renderHeroImage(src, index, true))}
+      {/* One responsive visual per breakpoint: portrait on phones, wide classroom on larger screens. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[clamp(238px,65vw,280px)] overflow-hidden bg-[#071226] sm:inset-0 sm:h-full">
+        <picture>
+          <source media="(max-width: 639px)" srcSet={MOBILE_HERO_IMAGE} />
+          <img
+            src={DESKTOP_HERO_IMAGE}
+            alt=""
+            aria-hidden="true"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            className="absolute inset-0 h-full w-full select-none object-cover object-[50%_42%] sm:object-center"
+          />
+        </picture>
+
+        {/* Mobile: let the classroom remain fully visible across the phone width, then dissolve into navy. */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 sm:hidden"
           style={{
             background:
-              'linear-gradient(180deg, rgba(7,18,38,.015) 0%, rgba(7,18,38,.06) 50%, rgba(7,18,38,.44) 76%, #071226 100%)',
+              'linear-gradient(180deg, rgba(7,18,38,.02) 0%, rgba(7,18,38,.05) 45%, rgba(7,18,38,.42) 72%, rgba(7,18,38,.88) 91%, #071226 100%)',
           }}
         />
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 sm:hidden"
           style={{
             background:
-              'linear-gradient(270deg, rgba(7,18,38,.34) 0%, rgba(7,18,38,.12) 46%, rgba(7,18,38,0) 100%)',
+              'linear-gradient(270deg, rgba(7,18,38,.16) 0%, rgba(7,18,38,.04) 55%, rgba(7,18,38,0) 100%)',
           }}
         />
       </div>
 
-      {/* Desktop/tablet keeps the elegant partial-image composition. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden overflow-hidden bg-[#071226] sm:block">
-        {HERO_IMAGES.map((src, index) => renderHeroImage(src, index))}
-      </div>
-
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] sm:block lg:w-[55%]"
-        style={{
-          background:
-            'linear-gradient(270deg, #071226 0%, rgba(7,18,38,.99) 45%, rgba(11,24,51,.94) 68%, rgba(11,24,51,.58) 88%, rgba(11,24,51,0) 100%)',
-        }}
-      />
-
+      {/* Desktop/tablet: the wide image already leaves breathing room on the right; the gradient protects Arabic copy. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 hidden sm:block"
         style={{
           background:
-            'linear-gradient(270deg, rgba(7,18,38,.10) 0%, rgba(7,18,38,.08) 48%, rgba(7,18,38,.10) 62%, rgba(7,18,38,.24) 76%, rgba(7,18,38,.06) 100%)',
+            'linear-gradient(270deg, #071226 0%, rgba(7,18,38,.97) 27%, rgba(11,24,51,.86) 43%, rgba(11,24,51,.48) 63%, rgba(11,24,51,.10) 82%, rgba(11,24,51,0) 100%)',
         }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 hidden sm:block"
+        style={{ background: 'linear-gradient(180deg, rgba(7,18,38,.06), rgba(7,18,38,.17))' }}
       />
 
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-20 -right-14 h-64 w-64 rounded-full bg-amber-400/[0.05] blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[600px] max-w-7xl items-start px-4 pb-5 pt-[47vw] min-[430px]:pt-[198px] sm:min-h-[570px] sm:items-center sm:px-6 sm:py-10 lg:min-h-[640px] lg:py-14">
-        <div className="ml-auto w-full text-right sm:w-[70%] lg:w-[58%] xl:w-[56%]">
+      <div className="relative z-10 mx-auto flex min-h-[600px] max-w-7xl items-start px-4 pb-5 pt-[clamp(205px,55vw,235px)] sm:min-h-[570px] sm:items-center sm:px-6 sm:py-10 lg:min-h-[640px] lg:py-14">
+        <div className="ml-auto w-full text-right sm:w-[66%] lg:w-[57%] xl:w-[54%]">
           <div className="mb-3 hidden items-center justify-start gap-3 text-sm font-bold text-amber-400/90 sm:flex">
             <span className="h-px w-16 bg-amber-400/80" />
             <span>المعراج للتعليم</span>
           </div>
 
-          <h1 className="miraj-rise max-w-3xl text-[1.72rem] font-extrabold leading-[1.18] tracking-[-0.02em] drop-shadow-[0_3px_18px_rgba(0,0,0,.46)] min-[390px]:text-[1.92rem] sm:text-4xl sm:leading-tight sm:tracking-normal lg:text-5xl xl:text-[3.25rem]">
+          <h1 className="miraj-rise max-w-3xl text-[1.78rem] font-extrabold leading-[1.17] tracking-[-0.02em] drop-shadow-[0_3px_18px_rgba(0,0,0,.50)] min-[390px]:text-[1.98rem] sm:text-4xl sm:leading-tight sm:tracking-normal lg:text-5xl xl:text-[3.25rem]">
             <span className="block">أدوات تعليمية مبتكرة</span>
             <span className="mt-1 block text-amber-400">لأساتذة المستقبل</span>
           </h1>
 
-          <div className="miraj-rise miraj-delay-1 mt-2.5 flex min-h-7 flex-wrap items-baseline justify-start gap-x-1.5 gap-y-1 text-[0.9rem] font-bold text-blue-100 min-[390px]:text-[0.96rem] sm:mt-4 sm:gap-x-2 sm:text-xl lg:text-2xl">
+          <div className="miraj-rise miraj-delay-1 mt-2.5 flex min-h-7 flex-wrap items-baseline justify-start gap-x-1.5 gap-y-1 text-[0.9rem] font-bold text-blue-100 min-[390px]:text-[0.98rem] sm:mt-4 sm:gap-x-2 sm:text-xl lg:text-2xl">
             <span>كل ما يحتاجه الأستاذ لـ</span>
             <TypewriterPhrase />
           </div>
           <span className="sr-only">كل ما يحتاجه الأستاذ لـ {TYPEWRITER_PHRASES.join('، ')}.</span>
 
-          <p className="miraj-rise miraj-delay-2 mt-2.5 text-[0.8rem] leading-[1.7] text-blue-50/88 drop-shadow-sm sm:hidden">
+          <p className="miraj-rise miraj-delay-2 mt-2.5 text-[0.8rem] leading-[1.72] text-blue-50/90 drop-shadow-sm sm:hidden">
             أدوات تعليمية تفاعلية تساعد الأستاذ على التحضير وتجعل الدرس أكثر وضوحًا وتفاعلًا.
           </p>
-          <p className="miraj-rise miraj-delay-2 mt-6 hidden max-w-xl text-base leading-relaxed text-blue-50/88 drop-shadow-sm sm:block lg:text-lg">
+          <p className="miraj-rise miraj-delay-2 mt-6 hidden max-w-xl text-base leading-relaxed text-blue-50/90 drop-shadow-sm sm:block lg:text-lg">
             نقدّم للأساتذة أدوات تعليمية تفاعلية تساعدهم على تحضير الدروس، وتجعل التلاميذ أكثر تفاعلاً وانخراطًا في العملية التعليمية.
           </p>
 

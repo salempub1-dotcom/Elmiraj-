@@ -1,89 +1,90 @@
-/* Final visual layer for the storefront cart button.
-   Keeps the user's full-color SVG from cart-polish.css and frames it with a
-   subtle brand gradient for a more premium, integrated header treatment. */
+/* Slim premium cart frame with a cleaner cart glyph. */
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative {
-  width: 3rem !important;
-  height: 3rem !important;
-  min-width: 3rem !important;
-  min-height: 3rem !important;
-  padding: 0.22rem !important;
-  border-radius: 1rem !important;
-  border: 1px solid rgba(11, 24, 51, 0.14) !important;
-  background:
-    linear-gradient(145deg, rgba(16, 42, 82, 0.98) 0%, rgba(24, 60, 107, 0.94) 58%, rgba(36, 79, 132, 0.90) 100%) !important;
+  width: 2.82rem !important;
+  height: 2.82rem !important;
+  min-width: 2.82rem !important;
+  min-height: 2.82rem !important;
+  padding: 0.1rem !important;
+  border-radius: 0.9rem !important;
+  border: 1px solid rgba(11, 24, 51, 0.11) !important;
+  background: linear-gradient(145deg, #102a52 0%, #204f86 100%) !important;
   box-shadow:
-    0 7px 18px rgba(11, 24, 51, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+    0 5px 14px rgba(11, 24, 51, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
   position: relative;
   isolation: isolate;
 }
 
-/* Soft inner panel so the full-colour SVG remains readable inside the frame. */
+/* Thin inner panel leaves only a narrow gradient rim visible. */
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::after {
   content: "" !important;
   position: absolute !important;
-  inset: 0.23rem !important;
+  inset: 0.105rem !important;
   z-index: -1 !important;
   border-radius: 0.78rem !important;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 253, 0.96) 55%, rgba(239, 244, 250, 0.96) 100%) !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.72),
-    inset 0 -1px 0 rgba(11, 24, 51, 0.04) !important;
+  background: linear-gradient(145deg, #ffffff 0%, #f7f9fc 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72) !important;
   pointer-events: none;
 }
 
+/* Cleaner cart: simple navy outline with a small gold plus. */
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::before {
-  width: 1.72rem !important;
-  height: 1.34rem !important;
+  content: "" !important;
+  width: 1.48rem !important;
+  height: 1.48rem !important;
   position: relative !important;
   z-index: 1 !important;
+  display: block !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Cpath d='M4.5 6.5h3.1l2.25 11.2a2.6 2.6 0 0 0 2.55 2.1h9.4a2.6 2.6 0 0 0 2.5-1.9l2-7.4H9.1' stroke='%230B1833' stroke-width='2.15' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='13' cy='25' r='1.8' fill='%230B1833'/%3E%3Ccircle cx='22' cy='25' r='1.8' fill='%230B1833'/%3E%3Ccircle cx='24.2' cy='7.2' r='4.4' fill='%23D4AF37'/%3E%3Cpath d='M24.2 4.9v4.6M21.9 7.2h4.6' stroke='white' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  transition: transform 180ms ease, filter 180ms ease !important;
 }
 
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:hover {
-  transform: translateY(-1px) scale(1.015) !important;
-  border-color: rgba(212, 175, 55, 0.56) !important;
-  background:
-    linear-gradient(145deg, #102a52 0%, #1b477d 58%, #285d98 100%) !important;
+  transform: translateY(-1px) !important;
+  border-color: rgba(212, 175, 55, 0.42) !important;
+  background: linear-gradient(145deg, #0b1833 0%, #285d98 100%) !important;
   box-shadow:
-    0 10px 22px rgba(11, 24, 51, 0.19),
-    0 0 0 3px rgba(212, 175, 55, 0.075),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+    0 8px 18px rgba(11, 24, 51, 0.16),
+    0 0 0 2px rgba(212, 175, 55, 0.055) !important;
 }
 
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:hover::before {
-  transform: scale(1.035) !important;
-  filter: saturate(1.05) contrast(1.02) !important;
+  transform: scale(1.04) !important;
+  filter: saturate(1.05) !important;
 }
 
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative:active {
-  transform: translateY(0) scale(0.975) !important;
+  transform: scale(0.97) !important;
 }
 
 header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative > span.absolute[class~="-top-2"][class~="-right-2"] {
-  width: 1.1rem !important;
-  height: 1.1rem !important;
-  top: -0.28rem !important;
-  left: -0.28rem !important;
+  width: 1.02rem !important;
+  height: 1.02rem !important;
+  top: -0.24rem !important;
+  left: -0.24rem !important;
   right: auto !important;
   z-index: 3 !important;
+  font-size: 0.54rem !important;
   background: #d4af37 !important;
   color: #0b1833 !important;
   border: 2px solid #ffffff !important;
-  box-shadow: 0 3px 9px rgba(11, 24, 51, 0.22) !important;
+  box-shadow: 0 2px 7px rgba(11, 24, 51, 0.18) !important;
 }
 
 @media (max-width: 767px) {
   header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative {
-    width: 3.05rem !important;
-    height: 3.05rem !important;
-    min-width: 3.05rem !important;
-    min-height: 3.05rem !important;
-    border-radius: 1.02rem !important;
+    width: 2.92rem !important;
+    height: 2.92rem !important;
+    min-width: 2.92rem !important;
+    min-height: 2.92rem !important;
+    border-radius: 0.94rem !important;
   }
 
   header.bg-white.shadow-md.sticky.top-0.z-50 > div.max-w-7xl > div:last-child > button.relative::before {
-    width: 1.8rem !important;
-    height: 1.4rem !important;
+    width: 1.56rem !important;
+    height: 1.56rem !important;
   }
 }

@@ -16,6 +16,10 @@ const HERO_IMAGES = [
   { src: '/images/hero/al_miraj_hero_3.webp', position: '32% center' },
 ] as const;
 
+const HERO_SLIDE_INTERVAL_MS = 9000;
+const HERO_FADE_DURATION_MS = 2000;
+const HERO_ZOOM_DURATION_MS = 10500;
+
 interface HeroSectionProps {
   onBrowseProducts: () => void;
   onSelectLevel: (category: LevelCategory) => void;
@@ -41,7 +45,7 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
 
     const timer = window.setInterval(() => {
       setActiveImage(current => (current + 1) % HERO_IMAGES.length);
-    }, 6500);
+    }, HERO_SLIDE_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
   }, [reduceMotion]);
@@ -71,10 +75,11 @@ export default function HeroSection({ onBrowseProducts, onSelectLevel }: HeroSec
               style={{
                 objectPosition: image.position,
                 opacity: isActive ? 1 : 0,
-                transform: reduceMotion ? 'scale(1)' : isActive ? 'scale(1.018)' : 'scale(1.002)',
+                transform: reduceMotion ? 'scale(1)' : isActive ? 'scale(1.032)' : 'scale(1)',
                 transition: reduceMotion
                   ? 'none'
-                  : 'opacity 1100ms cubic-bezier(.4,0,.2,1), transform 7000ms ease-out',
+                  : `opacity ${HERO_FADE_DURATION_MS}ms cubic-bezier(.22,1,.36,1), transform ${HERO_ZOOM_DURATION_MS}ms cubic-bezier(.22,1,.36,1)`,
+                willChange: reduceMotion ? 'auto' : 'opacity, transform',
               }}
             />
           );

@@ -8,7 +8,7 @@ function isPublicStorefront() {
   return !path.startsWith('/admin') && !path.startsWith('/dashboard');
 }
 
-function getAudioContext() {
+async function ensureAudioContext() {
   if (typeof window === 'undefined') return null;
 
   const AudioContextCtor =
@@ -18,11 +18,19 @@ function getAudioContext() {
   if (!AudioContextCtor) return null;
 
   if (!audioContext) audioContext = new AudioContextCtor();
-  if (audioContext.state === 'suspended') void audioContext.resume();
-  return audioContext;
+
+  if (audioContext.state === 'suspended') {
+    try {
+      await audioContext.resume();
+    } catch {
+      return null;
+    }
+  }
+
+  return audioContext.state === 'running' ? audioContext : null;
 }
 
-function playTone({
+async function playTone({
   from,
   to,
   duration,
@@ -37,7 +45,7 @@ function playTone({
   type?: OscillatorType;
   delay?: number;
 }) {
-  const context = getAudioContext();
+  const context = await ensureAudioContext();
   if (!context) return;
 
   const start = context.currentTime + delay;
@@ -50,27 +58,28 @@ function playTone({
   oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, to), end);
 
   volume.gain.setValueAtTime(0.0001, start);
-  volume.gain.exponentialRampToValueAtTime(gain, start + Math.min(0.012, duration / 3));
+  volume.gain.exponentialRampToValueAtTime(gain, start + Math.min(0.014, duration / 3));
   volume.gain.exponentialRampToValueAtTime(0.0001, end);
 
   oscillator.connect(volume);
   volume.connect(context.destination);
   oscillator.start(start);
-  oscillator.stop(end + 0.01);
+  oscillator.stop(end + 0.012);
 }
 
-function playClickSound() {
-  // A short, soft two-layer tick. Kept deliberately quiet so it feels tactile,
-  // not like a notification sound.
-  playTone({ from: 430, to: 610, duration: 0.05, gain: 0.010, type: 'triangle' });
-  playTone({ from: 880, to: 740, duration: 0.035, gain: 0.0028, type: 'sine', delay: 0.006 });
+async function playClickSound() {
+  await Promise.all([
+    playTone({ from: 390, to: 560, duration: 0.065, gain: 0.028, type: 'triangle' }),
+    playTone({ from: 920, to: 760, duration: 0.042, gain: 0.008, type: 'sine', delay: 0.008 }),
+  ]);
 }
 
-function playHoverSound() {
+async function playHoverSound() {
   const now = performance.now();
-  if (now - lastHoverAt < 95) return;
+  if (now - lastHoverAt < 120) return;
   lastHoverAt = now;
-  playTone({ from: 720, to: 810, duration: 0.032, gain: 0.0032, type: 'sine' });
+
+  await playTone({ from: 690, to: 820, duration: 0.045, gain: 0.011, type: 'sine' });
 }
 
 function interactiveTarget(event: Event) {
@@ -88,11 +97,11 @@ export function installUiSounds() {
     if (!target || target.closest('[data-ui-sound="off"]')) return;
 
     hoverUnlocked = true;
-    playClickSound();
+    void playClickSound();
   };
 
-  const onPointerOver = (event: PointerEvent) => {
-    if (!hoverUnlocked || !isPublicStorefront() || event.pointerType !== 'mouse') return;
+  const onMouseOver = (event: MouseEvent) => {
+    if (!hoverUnlocked || !isPublicStorefront()) return;
     const origin = event.target;
     if (!(origin instanceof Element)) return;
 
@@ -101,9 +110,9 @@ export function installUiSounds() {
 
     const previous = event.relatedTarget;
     if (previous instanceof Node && target.contains(previous)) return;
-    playHoverSound();
+    void playHoverSound();
   };
 
   document.addEventListener('pointerdown', onPointerDown, true);
-  document.addEventListener('pointerover', onPointerOver, true);
+  document.addEventListener('mouseover', onMouseOver, true);
 }

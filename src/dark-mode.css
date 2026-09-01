@@ -1,0 +1,287 @@
+/* ─────────────────────────────────────────────────────────────
+   Al Miraj storefront theme
+   Light stays the default. Dark mode is opt-in and scoped to the public store
+   through html[data-storefront-theme="dark"], so admin/dashboard screens are
+   intentionally untouched.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --miraj-theme-speed: 280ms;
+}
+
+.miraj-theme-toggle {
+  width: 2.55rem;
+  height: 2.55rem;
+  min-width: 2.55rem;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 0.86rem;
+  border: 1px solid rgba(11, 24, 51, 0.12);
+  background: linear-gradient(145deg, #ffffff 0%, #f4f7fb 100%);
+  color: #0b1833;
+  box-shadow: 0 4px 12px rgba(11, 24, 51, 0.07);
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    background var(--miraj-theme-speed) ease,
+    box-shadow 180ms ease;
+}
+
+.miraj-theme-toggle svg {
+  width: 1.18rem;
+  height: 1.18rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.miraj-theme-toggle:hover {
+  transform: translateY(-1px);
+  color: #c5901f;
+  border-color: rgba(212, 175, 55, 0.52);
+  box-shadow: 0 7px 16px rgba(11, 24, 51, 0.11), 0 0 0 2px rgba(212, 175, 55, 0.06);
+}
+
+.miraj-theme-toggle:active {
+  transform: scale(0.96);
+}
+
+.miraj-theme-toggle:focus-visible {
+  outline: 3px solid rgba(212, 175, 55, 0.26);
+  outline-offset: 2px;
+}
+
+html[data-storefront-theme="dark"] {
+  background: #071226;
+  color-scheme: dark;
+}
+
+html[data-storefront-theme="dark"] body,
+html[data-storefront-theme="dark"] #root {
+  background: #071226;
+  color: #e8eef7;
+}
+
+/* Smooth enough to feel premium, without applying transition to every node. */
+html[data-storefront-theme="dark"] body,
+html[data-storefront-theme="dark"] header,
+html[data-storefront-theme="dark"] section,
+html[data-storefront-theme="dark"] main,
+html[data-storefront-theme="dark"] aside,
+html[data-storefront-theme="dark"] input,
+html[data-storefront-theme="dark"] select,
+html[data-storefront-theme="dark"] textarea,
+html[data-storefront-theme="dark"] .miraj-theme-toggle {
+  transition:
+    background-color var(--miraj-theme-speed) ease,
+    border-color var(--miraj-theme-speed) ease,
+    color var(--miraj-theme-speed) ease,
+    box-shadow var(--miraj-theme-speed) ease;
+}
+
+/* Common Tailwind surfaces used across the storefront. */
+html[data-storefront-theme="dark"] .bg-white {
+  background-color: #0d1b32 !important;
+}
+
+html[data-storefront-theme="dark"] .bg-gray-50 {
+  background-color: #09172b !important;
+}
+
+html[data-storefront-theme="dark"] .bg-gray-100 {
+  background-color: #10213b !important;
+}
+
+html[data-storefront-theme="dark"] [class*="bg-[#F5F3EE]"] {
+  background-color: #0a182c !important;
+}
+
+html[data-storefront-theme="dark"] .border-gray-100,
+html[data-storefront-theme="dark"] .border-gray-200,
+html[data-storefront-theme="dark"] .border-gray-300 {
+  border-color: rgba(159, 177, 202, 0.16) !important;
+}
+
+html[data-storefront-theme="dark"] .text-gray-900,
+html[data-storefront-theme="dark"] .text-gray-800,
+html[data-storefront-theme="dark"] .text-gray-700 {
+  color: #edf2f8 !important;
+}
+
+html[data-storefront-theme="dark"] .text-gray-600 {
+  color: #b9c5d5 !important;
+}
+
+html[data-storefront-theme="dark"] .text-gray-500,
+html[data-storefront-theme="dark"] .text-gray-400 {
+  color: #95a6bc !important;
+}
+
+html[data-storefront-theme="dark"] [class*="text-[#0B1833]"],
+html[data-storefront-theme="dark"] [class*="text-[#102A52]"],
+html[data-storefront-theme="dark"] [class*="text-[#183C6B]"],
+html[data-storefront-theme="dark"] .text-blue-800 {
+  color: #f0f4fa !important;
+}
+
+/* Preserve gold as the visual accent. */
+html[data-storefront-theme="dark"] .text-amber-500 {
+  color: #e1b94e !important;
+}
+
+/* Header */
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 {
+  background: rgba(8, 20, 38, 0.97) !important;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.13);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22) !important;
+  backdrop-filter: blur(14px);
+}
+
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 h1 {
+  color: #f3f6fb !important;
+}
+
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 h1 + p {
+  color: #9fb0c6 !important;
+}
+
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 nav {
+  background: rgba(255, 255, 255, 0.055) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 nav button,
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 nav a {
+  color: #b9c7d9 !important;
+}
+
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 nav button:hover,
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 nav a:hover {
+  color: #ffffff !important;
+}
+
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 input[placeholder="ابحث..."] {
+  background: #0f213b !important;
+  color: #edf3fa !important;
+  border-color: rgba(164, 181, 204, 0.20) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 input[placeholder="ابحث..."]::placeholder {
+  color: #7f91aa !important;
+}
+
+html[data-storefront-theme="dark"] header.bg-white.shadow-md.sticky.top-0.z-50 input[placeholder="ابحث..."]:focus {
+  background: #122741 !important;
+  border-color: rgba(212, 175, 55, 0.62) !important;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.08) !important;
+}
+
+html[data-storefront-theme="dark"] .miraj-theme-toggle {
+  background: linear-gradient(145deg, #10233d 0%, #0b1b31 100%);
+  border-color: rgba(212, 175, 55, 0.23);
+  color: #f0c85b;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.21), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+html[data-storefront-theme="dark"] .miraj-theme-toggle:hover {
+  color: #ffd979;
+  border-color: rgba(212, 175, 55, 0.55);
+  background: linear-gradient(145deg, #142c4a 0%, #0d2038 100%);
+}
+
+/* Homepage editorial sections and cards. */
+html[data-storefront-theme="dark"] section.bg-white {
+  background: #08172a !important;
+}
+
+html[data-storefront-theme="dark"] section.bg-gray-50 {
+  background: #071426 !important;
+}
+
+html[data-storefront-theme="dark"] section.bg-white > div > div > div.bg-white,
+html[data-storefront-theme="dark"] section.bg-gray-50 div.bg-white,
+html[data-storefront-theme="dark"] div.bg-white.rounded-2xl {
+  background: #0f2038 !important;
+  border-color: rgba(155, 176, 205, 0.14) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+}
+
+html[data-storefront-theme="dark"] section [class*="bg-[#0B1833]/5"] {
+  background: rgba(212, 175, 55, 0.10) !important;
+  color: #e4bd55 !important;
+}
+
+html[data-storefront-theme="dark"] section [class*="bg-[#0B1833]/[0.06]"] {
+  background: rgba(99, 137, 191, 0.08) !important;
+}
+
+/* Inputs, selects and textareas used in product/cart/checkout views. */
+html[data-storefront-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-storefront-theme="dark"] select,
+html[data-storefront-theme="dark"] textarea {
+  background-color: #0f2038;
+  color: #eef3f9;
+  border-color: rgba(154, 174, 201, 0.22);
+}
+
+html[data-storefront-theme="dark"] input::placeholder,
+html[data-storefront-theme="dark"] textarea::placeholder {
+  color: #8193ab;
+}
+
+html[data-storefront-theme="dark"] option {
+  background: #0f2038;
+  color: #eef3f9;
+}
+
+/* White dividers and modal surfaces become softer in dark mode. */
+html[data-storefront-theme="dark"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html[data-storefront-theme="dark"] .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(156, 175, 201, 0.14) !important;
+}
+
+html[data-storefront-theme="dark"] .shadow-sm,
+html[data-storefront-theme="dark"] .shadow-md,
+html[data-storefront-theme="dark"] .shadow-lg,
+html[data-storefront-theme="dark"] .shadow-xl {
+  --tw-shadow-color: rgba(0, 0, 0, 0.24) !important;
+}
+
+/* Keep product/classroom photography natural; only the surrounding panel changes. */
+html[data-storefront-theme="dark"] img {
+  color-scheme: normal;
+}
+
+@media (max-width: 767px) {
+  .miraj-theme-toggle {
+    width: 2.62rem;
+    height: 2.62rem;
+    min-width: 2.62rem;
+    border-radius: 0.9rem;
+  }
+
+  .miraj-theme-toggle svg {
+    width: 1.22rem;
+    height: 1.22rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miraj-theme-toggle,
+  html[data-storefront-theme="dark"] body,
+  html[data-storefront-theme="dark"] header,
+  html[data-storefront-theme="dark"] section,
+  html[data-storefront-theme="dark"] main,
+  html[data-storefront-theme="dark"] aside,
+  html[data-storefront-theme="dark"] input,
+  html[data-storefront-theme="dark"] select,
+  html[data-storefront-theme="dark"] textarea {
+    transition: none !important;
+  }
+}

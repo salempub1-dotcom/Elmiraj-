@@ -1,17 +1,7 @@
-// ============================================================
-// Products CRUD — Vercel Serverless Function
-// ============================================================
-// GET:  public — list all products from Supabase
-// POST: action 'save'   — upsert product (admin auth)
-//       action 'delete'  — delete product (admin auth)
-//       action 'seed'    — bulk insert initial products (no auth, only if table empty)
-//
-// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
-// ============================================================
-
 import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { SITE_URL, SITE_NAME, FALLBACK_IMAGE, FALLBACK_TITLE, FALLBACK_DESC, toPreviewText, renderSocialPreviewHtml } from '../lib/socialPreviewHtml.js';
+import { isAllowedSupabasePublicMedia, normalizeProductImagesForStorage, proxyProductImages, toMediaProxyUrl } from '../lib/mediaProxy.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
@@ -34,7 +24,9 @@ function verifyAdminToken(authHeader) {
     const expected = createHmac('sha256', AP).update(`${user}:${ts}`).digest('hex').substring(0, 16);
     if (sig !== expected) return null;
     return { username: user };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function getSupabase() {
@@ -44,11 +36,55 @@ function getSupabase() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
+function publicProducts(rows) {
+  return (rows || []).map((product) => proxyProductImages(product));
+}
+
+async function serveMediaProxy(req, res) {
+  const source = typeof req.query?.src === 'string' ? req.query.src : '';
+  if (!source || !isAllowedSupabasePublicMedia(source)) {
+    return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_SOURCE' });
+  }
+
+  try {
+    const upstream = await fetch(source, {
+      headers: {
+        Accept: req.headers.accept || 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      },
+    });
+
+    if (!upstream.ok) {
+      return res.status(upstream.status).end();
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+    const contentLength = upstream.headers.get('content-length');
+    const body = Buffer.from(await upstream.arrayBuffer());
+
+    res.setHeader('Content-Type', contentType);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=31536000, stale-while-revalidate=604800');
+    res.setHeader('CDN-Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Vercel-CDN-Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.status(200).send(body);
+  } catch (error) {
+    console.error('[MEDIA_PROXY] failed:', error?.message || error);
+    return res.status(502).end();
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Reuse this existing Serverless Function as an image proxy so repeated
+  // public image requests are served from Vercel's CDN instead of Supabase.
+  if (req.method === 'GET' && req.query?.media === '1') {
+    return serveMediaProxy(req, res);
+  }
 
   const supabase = getSupabase();
   if (!supabase) {
@@ -59,17 +95,9 @@ export default async function handler(req, res) {
     });
   }
 
-  // ── GET (social_preview=1): bot-only HTML for one product ──
-  // Reached ONLY via the crawler-User-Agent-gated rewrite for /lp/:id in
-  // vercel.json (Facebook/WhatsApp/Telegram/etc. previews). Kept inside
-  // this same file — instead of a separate api/social-preview.js — because
-  // this project is on Vercel's Hobby plan, which caps a deployment at 12
-  // Serverless Functions; the project was already at that limit, and a
-  // dedicated extra function silently failed every production deployment.
-  // Real visitors never send this query param and are unaffected.
   if (req.method === 'GET' && req.query?.social_preview === '1') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800');
     const id = Number(req.query?.id);
     const url = `${SITE_URL}/lp/${req.query?.id ?? ''}`;
 
@@ -89,7 +117,8 @@ export default async function handler(req, res) {
         return res.send(renderSocialPreviewHtml({ title: FALLBACK_TITLE, description: FALLBACK_DESC, image: FALLBACK_IMAGE, url, type: 'website' }));
       }
 
-      const image = (Array.isArray(product.images) && product.images[0]) || FALLBACK_IMAGE;
+      const sourceImage = (Array.isArray(product.images) && product.images[0]) || FALLBACK_IMAGE;
+      const image = toMediaProxyUrl(sourceImage, SITE_URL);
       return res.status(200).send(renderSocialPreviewHtml({
         title: `${product.name} | ${SITE_NAME}`,
         description: toPreviewText(product.description) || FALLBACK_DESC,
@@ -104,7 +133,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── GET: List all products (public) ────────────────────────
   if (req.method === 'GET') {
     try {
       const { data, error } = await supabase
@@ -115,32 +143,34 @@ export default async function handler(req, res) {
       if (error) {
         console.error('[PRODUCTS] GET error:', error.message, error.code);
         const hint = error.code === '42P01'
-          ? 'Table "products" does not exist. Run the SQL setup in Supabase Dashboard → SQL Editor. Visit /api/health for the full SQL.'
+          ? 'Table "products" does not exist. Run the SQL setup in Supabase Dashboard → SQL Editor.'
           : error.code === '42501'
-            ? 'Permission denied. Check RLS policies: products table needs SELECT policy for anon role with USING (true).'
+            ? 'Permission denied. Check RLS policies.'
             : null;
         return res.status(200).json({ ok: false, error: error.message, code: error.code, hint });
       }
 
-      console.log(`[PRODUCTS] ✅ Fetched ${(data || []).length} products`);
-      return res.status(200).json({ ok: true, data: data || [] });
+      // Cache the catalog at Vercel so homepage/navigation does not query
+      // Supabase on every visitor request. Mutations remain uncached POSTs.
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600');
+      return res.status(200).json({ ok: true, data: publicProducts(data) });
     } catch (e) {
       return res.status(200).json({ ok: false, error: e.message });
     }
   }
 
-  // ── POST: Admin operations ─────────────────────────────────
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
   let body = req.body;
-  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { body = {}; }
+  }
   if (!body || typeof body !== 'object') body = {};
 
   const action = body.action;
 
-  // ── SEED: Bulk insert initial products (only if table is empty) ──
   if (action === 'seed') {
     const products = body.products;
     if (!Array.isArray(products) || products.length === 0) {
@@ -148,28 +178,24 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Check if already has data
       const { count, error: countErr } = await supabase
         .from('products')
         .select('id', { count: 'exact', head: true });
 
       if (countErr) {
-        console.error('[PRODUCTS] Count error:', countErr.message, countErr.code);
         return res.status(200).json({ ok: false, error: countErr.message, code: countErr.code });
       }
-
       if (count && count > 0) {
-        console.log(`[PRODUCTS] Already seeded (${count} rows)`);
         return res.status(200).json({ ok: true, message: 'already_seeded', count });
       }
 
-      const rows = products.map(p => ({
+      const rows = products.map((p) => ({
         id: p.id,
         name: p.name,
         description: p.description || '',
         price: p.price,
         category: p.category,
-        images: p.images || [],
+        images: normalizeProductImagesForStorage(p.images || []),
         stock: p.stock || 0,
         sales: p.sales || 0,
         benefits: p.benefits || [],
@@ -179,25 +205,18 @@ export default async function handler(req, res) {
       }));
 
       const { error } = await supabase.from('products').insert(rows);
-      if (error) {
-        console.error('[PRODUCTS] Seed error:', error.message);
-        return res.status(200).json({ ok: false, error: error.message, code: error.code });
-      }
-
-      console.log(`[PRODUCTS] ✅ Seeded ${rows.length} products`);
+      if (error) return res.status(200).json({ ok: false, error: error.message, code: error.code });
       return res.status(200).json({ ok: true, message: 'seeded', count: rows.length });
     } catch (e) {
       return res.status(200).json({ ok: false, error: e.message });
     }
   }
 
-  // ── All other actions require admin auth ────────────────────
   const admin = verifyAdminToken(req.headers.authorization);
   if (!admin) {
     return res.status(401).json({ ok: false, error: 'Admin authentication required' });
   }
 
-  // ── SAVE: Upsert a product ─────────────────────────────────
   if (action === 'save') {
     const p = body.product;
     if (!p || !p.id) {
@@ -211,7 +230,7 @@ export default async function handler(req, res) {
         description: p.description || '',
         price: p.price,
         category: p.category,
-        images: p.images || [],
+        images: normalizeProductImagesForStorage(p.images || []),
         stock: p.stock || 0,
         sales: p.sales || 0,
         benefits: p.benefits || [],
@@ -221,29 +240,19 @@ export default async function handler(req, res) {
         updated_at: new Date().toISOString(),
       });
 
-      if (error) {
-        console.error('[PRODUCTS] Save error:', error.message);
-        return res.status(200).json({ ok: false, error: error.message });
-      }
-
-      console.log(`[PRODUCTS] ✅ Saved: ${p.name} (id=${p.id})`);
+      if (error) return res.status(200).json({ ok: false, error: error.message });
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(200).json({ ok: false, error: e.message });
     }
   }
 
-  // ── DELETE: Remove a product ───────────────────────────────
   if (action === 'delete') {
     const id = body.id;
     if (!id) return res.status(400).json({ ok: false, error: 'id is required' });
-
     try {
       const { error } = await supabase.from('products').delete().eq('id', id);
-      if (error) {
-        return res.status(200).json({ ok: false, error: error.message });
-      }
-      console.log(`[PRODUCTS] ✅ Deleted product id=${id}`);
+      if (error) return res.status(200).json({ ok: false, error: error.message });
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(200).json({ ok: false, error: e.message });

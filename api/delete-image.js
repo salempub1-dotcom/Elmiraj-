@@ -6,6 +6,7 @@
 
 import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { getAllowedSupabaseMediaPath, unwrapMediaProxyUrl } from '../lib/mediaProxy.js';
 
 export const config = { api: { bodyParser: true } };
 
@@ -22,8 +23,7 @@ function verifyAdminToken(authHeader) {
     const sig = decoded.substring(secondColon + 1);
     const ADMIN_USER = process.env.ADMIN_USERNAME;
     const ADMIN_PASS = process.env.ADMIN_PASSWORD;
-    if (!ADMIN_USER || !ADMIN_PASS) return null;
-    if (user !== ADMIN_USER) return null;
+    if (!ADMIN_USER || !ADMIN_PASS || user !== ADMIN_USER) return null;
     const age = Date.now() - parseInt(ts);
     if (isNaN(age) || age > 24 * 60 * 60 * 1000 || age < 0) return null;
     const expectedSig = createHmac('sha256', ADMIN_PASS)
@@ -41,9 +41,7 @@ function getServiceClient() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
 export default async function handler(req, res) {
@@ -61,32 +59,24 @@ export default async function handler(req, res) {
   if (!body || typeof body !== 'object') body = {};
 
   const supabase = getServiceClient();
-  if (!supabase) {
-    return res.status(503).json({ ok: false, error: 'Supabase غير مُكوّن على الخادم' });
-  }
+  if (!supabase) return res.status(503).json({ ok: false, error: 'Supabase غير مُكوّن على الخادم' });
 
   const BUCKET = process.env.SUPABASE_BUCKET || 'product-images';
   const { path: filePath, url } = body;
 
   try {
-    let resolvedPath = filePath;
+    let resolvedPath = typeof filePath === 'string' && filePath ? filePath : null;
 
-    // Extract path from URL if provided
-    if (!resolvedPath && url) {
-      const bucketMarker = `/storage/v1/object/public/${BUCKET}/`;
-      const idx = url.indexOf(bucketMarker);
-      if (idx === -1) {
-        return res.status(400).json({ ok: false, error: 'ليس رابط Supabase صالح' });
-      }
-      resolvedPath = url.substring(idx + bucketMarker.length);
+    if (!resolvedPath && typeof url === 'string' && url) {
+      const canonical = unwrapMediaProxyUrl(url);
+      resolvedPath = getAllowedSupabaseMediaPath(canonical);
     }
 
-    if (!resolvedPath) {
-      return res.status(400).json({ ok: false, error: 'path or url is required' });
+    if (!resolvedPath || resolvedPath.includes('..')) {
+      return res.status(400).json({ ok: false, error: 'path or valid Supabase URL is required' });
     }
 
     const { error } = await supabase.storage.from(BUCKET).remove([resolvedPath]);
-
     if (error) {
       console.error('[DELETE] ❌', error.message);
       return res.status(200).json({ ok: false, error: error.message });

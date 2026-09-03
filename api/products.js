@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { SITE_URL, SITE_NAME, FALLBACK_IMAGE, FALLBACK_TITLE, FALLBACK_DESC, toPreviewText, renderSocialPreviewHtml } from '../lib/socialPreviewHtml.js';
-import { isAllowedSupabasePublicMedia, normalizeProductImagesForStorage, proxyProductImages, toMediaProxyUrl } from '../lib/mediaProxy.js';
+import { getAllowedSupabaseMediaPath, normalizeProductImagesForStorage, proxyProductImages, toMediaProxyUrl } from '../lib/mediaProxy.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
@@ -40,29 +40,41 @@ function publicProducts(rows) {
   return (rows || []).map((product) => proxyProductImages(product));
 }
 
+function contentTypeForPath(path, blobType) {
+  if (blobType && blobType !== 'application/octet-stream') return blobType;
+  const lower = String(path || '').toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.svg')) return 'image/svg+xml';
+  return 'image/jpeg';
+}
+
 async function serveMediaProxy(req, res) {
   const source = typeof req.query?.src === 'string' ? req.query.src : '';
-  if (!source || !isAllowedSupabasePublicMedia(source)) {
+  const objectPath = source ? getAllowedSupabaseMediaPath(source) : null;
+  if (!objectPath) {
     return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_SOURCE' });
   }
 
-  try {
-    const upstream = await fetch(source, {
-      headers: {
-        Accept: req.headers.accept || 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-      },
-    });
+  const supabase = getSupabase();
+  if (!supabase) {
+    return res.status(503).json({ ok: false, error: 'SUPABASE_NOT_CONFIGURED' });
+  }
 
-    if (!upstream.ok) {
-      return res.status(upstream.status).end();
+  try {
+    const bucket = process.env.SUPABASE_BUCKET || 'product-images';
+    const { data, error } = await supabase.storage.from(bucket).download(objectPath);
+    if (error || !data) {
+      console.error('[MEDIA_PROXY] storage download failed:', error?.message || 'no data');
+      return res.status(error?.status || 404).end();
     }
 
-    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
-    const contentLength = upstream.headers.get('content-length');
-    const body = Buffer.from(await upstream.arrayBuffer());
+    const body = Buffer.from(await data.arrayBuffer());
+    const contentType = contentTypeForPath(objectPath, data.type);
 
     res.setHeader('Content-Type', contentType);
-    if (contentLength) res.setHeader('Content-Length', contentLength);
+    res.setHeader('Content-Length', String(body.length));
     res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=31536000, stale-while-revalidate=604800');
     res.setHeader('CDN-Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('Vercel-CDN-Cache-Control', 'public, max-age=31536000, immutable');
@@ -80,8 +92,6 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Reuse this existing Serverless Function as an image proxy so repeated
-  // public image requests are served from Vercel's CDN instead of Supabase.
   if (req.method === 'GET' && req.query?.media === '1') {
     return serveMediaProxy(req, res);
   }
@@ -150,8 +160,6 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: false, error: error.message, code: error.code, hint });
       }
 
-      // Cache the catalog at Vercel so homepage/navigation does not query
-      // Supabase on every visitor request. Mutations remain uncached POSTs.
       res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600');
       return res.status(200).json({ ok: true, data: publicProducts(data) });
     } catch (e) {
@@ -182,12 +190,8 @@ export default async function handler(req, res) {
         .from('products')
         .select('id', { count: 'exact', head: true });
 
-      if (countErr) {
-        return res.status(200).json({ ok: false, error: countErr.message, code: countErr.code });
-      }
-      if (count && count > 0) {
-        return res.status(200).json({ ok: true, message: 'already_seeded', count });
-      }
+      if (countErr) return res.status(200).json({ ok: false, error: countErr.message, code: countErr.code });
+      if (count && count > 0) return res.status(200).json({ ok: true, message: 'already_seeded', count });
 
       const rows = products.map((p) => ({
         id: p.id,
@@ -213,15 +217,11 @@ export default async function handler(req, res) {
   }
 
   const admin = verifyAdminToken(req.headers.authorization);
-  if (!admin) {
-    return res.status(401).json({ ok: false, error: 'Admin authentication required' });
-  }
+  if (!admin) return res.status(401).json({ ok: false, error: 'Admin authentication required' });
 
   if (action === 'save') {
     const p = body.product;
-    if (!p || !p.id) {
-      return res.status(400).json({ ok: false, error: 'product with id is required' });
-    }
+    if (!p || !p.id) return res.status(400).json({ ok: false, error: 'product with id is required' });
 
     try {
       const { error } = await supabase.from('products').upsert({

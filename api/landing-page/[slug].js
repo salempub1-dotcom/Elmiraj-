@@ -1,14 +1,6 @@
-// ============================================================
-// Public Landing Page — GET by slug
-// ============================================================
-// GET /api/landing-page/:slug — returns active landing page + linked product
-// No auth required (public route for visitors)
-//
-// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-// ============================================================
-
 import { createClient } from '@supabase/supabase-js';
 import { SITE_URL, SITE_NAME, FALLBACK_IMAGE, FALLBACK_TITLE, FALLBACK_DESC, toPreviewText, renderSocialPreviewHtml } from '../../lib/socialPreviewHtml.js';
+import { proxyProductImages, toMediaProxyUrl } from '../../lib/mediaProxy.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -16,9 +8,7 @@ function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
 function extractSlug(req) {
@@ -33,39 +23,21 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-
   if (req.method !== 'GET') {
-    return res.status(405).json({
-      ok: false,
-      error: 'METHOD_NOT_ALLOWED',
-      message: 'فقط GET مدعوم.',
-    });
+    return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED', message: 'فقط GET مدعوم.' });
   }
 
   const supabase = getSupabase();
-  if (!supabase) {
-    return res.status(503).json({
-      ok: false,
-      error: 'SUPABASE_NOT_CONFIGURED',
-    });
-  }
+  if (!supabase) return res.status(503).json({ ok: false, error: 'SUPABASE_NOT_CONFIGURED' });
 
   const slug = extractSlug(req);
 
-  // ── social_preview=1: bot-only HTML for this landing page ─────
-  // Reached ONLY via the crawler-User-Agent-gated rewrite for /l/:slug in
-  // vercel.json (Facebook/WhatsApp/Telegram/etc. previews). Kept inside
-  // this same file — instead of a separate api/social-preview.js — because
-  // this project is on Vercel's Hobby plan, which caps a deployment at 12
-  // Serverless Functions; the project was already at that limit, and a
-  // dedicated extra function silently failed every production deployment.
-  // Real visitors never send this query param and are unaffected.
   if (req.query?.social_preview === '1') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800');
     const url = `${SITE_URL}/l/${slug || ''}`;
 
-    if (!supabase || !slug) {
+    if (!slug) {
       return res.status(200).send(renderSocialPreviewHtml({ title: FALLBACK_TITLE, description: FALLBACK_DESC, image: FALLBACK_IMAGE, url, type: 'website' }));
     }
 
@@ -89,10 +61,12 @@ export default async function handler(req, res) {
       }
 
       const title = page.headline || page.title || FALLBACK_TITLE;
+      const sourceImage = page.image_url || productImage || FALLBACK_IMAGE;
+      const image = toMediaProxyUrl(sourceImage, SITE_URL);
       return res.status(200).send(renderSocialPreviewHtml({
         title: `${title} | ${SITE_NAME}`,
         description: toPreviewText(page.description || page.headline || page.title) || FALLBACK_DESC,
-        image: page.image_url || productImage || FALLBACK_IMAGE,
+        image,
         url,
         type: 'website',
       }));
@@ -102,15 +76,10 @@ export default async function handler(req, res) {
   }
 
   if (!slug) {
-    return res.status(400).json({
-      ok: false,
-      error: 'MISSING_SLUG',
-      message: 'slug مطلوب في المسار: /api/landing-page/:slug',
-    });
+    return res.status(400).json({ ok: false, error: 'MISSING_SLUG', message: 'slug مطلوب في المسار: /api/landing-page/:slug' });
   }
 
   try {
-    // ── Fetch landing page by slug (only active ones) ─────
     const { data: page, error } = await supabase
       .from('landing_pages')
       .select('*')
@@ -119,32 +88,16 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (error) {
-      console.error(`[LANDING_PAGE] GET slug="${slug}" error:`, error.message);
-
       if (error.code === '42P01') {
-        return res.status(200).json({
-          ok: false,
-          error: 'TABLE_NOT_FOUND',
-          message: 'جدول landing_pages غير موجود.',
-        });
+        return res.status(200).json({ ok: false, error: 'TABLE_NOT_FOUND', message: 'جدول landing_pages غير موجود.' });
       }
-
-      return res.status(200).json({
-        ok: false,
-        error: error.message,
-        code: error.code,
-      });
+      return res.status(200).json({ ok: false, error: error.message, code: error.code });
     }
 
     if (!page) {
-      return res.status(404).json({
-        ok: false,
-        error: 'NOT_FOUND',
-        message: `صفحة الهبوط "${slug}" غير موجودة أو غير نشطة.`,
-      });
+      return res.status(404).json({ ok: false, error: 'NOT_FOUND', message: `صفحة الهبوط "${slug}" غير موجودة أو غير نشطة.` });
     }
 
-    // ── If linked to a product, fetch product data too ────
     let product = null;
     if (page.product_id) {
       const { data: prod, error: prodErr } = await supabase
@@ -152,26 +105,20 @@ export default async function handler(req, res) {
         .select('*')
         .eq('id', page.product_id)
         .maybeSingle();
-
-      if (!prodErr && prod) {
-        product = prod;
-      }
+      if (!prodErr && prod) product = proxyProductImages(prod);
     }
 
-    console.log(`[LANDING_PAGE] ✅ Served: slug="${slug}" (id=${page.id})`);
+    // Landing data changes infrequently; edge caching removes repeated DB reads.
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600');
     return res.status(200).json({
       ok: true,
       data: {
         ...page,
+        image_url: page.image_url ? toMediaProxyUrl(page.image_url) : page.image_url,
         product,
       },
     });
   } catch (e) {
-    console.error(`[LANDING_PAGE] Exception:`, e.message);
-    return res.status(500).json({
-      ok: false,
-      error: 'INTERNAL_ERROR',
-      message: e.message,
-    });
+    return res.status(500).json({ ok: false, error: 'INTERNAL_ERROR', message: e.message });
   }
 }

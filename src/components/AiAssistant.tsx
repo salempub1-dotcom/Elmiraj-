@@ -6,6 +6,17 @@ import {
   fetchZrShippingQuote,
   type ZrPickupHub,
 } from '../services/deliveryCheckout';
+import {
+  INITIAL_CONVERSATION_STATE,
+  SMART_QUICK_QUESTIONS,
+  detectProductCode,
+  inferQuestionTypeFromAssistant,
+  isAffirmativeReply,
+  isExplicitCheckoutRequest,
+  quickQuestionResponse,
+  updateConversationFromUser,
+  type ConversationState,
+} from '../services/conversationEngine';
 import './AiAssistant.css';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -43,14 +54,8 @@ type CheckoutState = {
 
 const WELCOME: ChatMessage = {
   role: 'assistant',
-  content: 'السلام عليكم 🌟 أنا مساعد المعراج. نعاونك تعرف المنتجات والأسعار ونختاروا معًا الأنسب ليك.',
+  content: 'السلام عليكم 🌟 أنا مساعد المعراج. نقدر نعاونك تختار الوسيلة المناسبة، تعرف الأسعار والمحتوى، نحسبلك التوصيل، وحتى ننشئلك الطلب من هنا إذا حبيت.',
 };
-const QUICK_QUESTIONS = [
-  'شنو عندكم للسنة الرابعة ابتدائي؟',
-  'واش البطاقات ممغنطة؟',
-  'ساعدني نختار المنتج المناسب',
-  'نحب نشري حقيبة السنوات الثلاثة',
-];
 const SHIPPING = WILAYA_SHIPPING as WilayaShipping[];
 
 function money(value: number) {
@@ -68,25 +73,6 @@ function officeLabel(hub: ZrPickupHub) {
 function generateOrderReference() {
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `AM-${Date.now().toString(36).toUpperCase()}${rand}`;
-}
-function isAffirmative(raw: string) {
-  const n = normalize(raw);
-  return ['نعم', 'ايه', 'ايوه', 'اوك', 'ok', 'okay', 'yes', 'oui'].includes(n);
-}
-function isExplicitCheckoutStart(raw: string) {
-  const n = normalize(raw);
-  return n.includes('انشاء الطلب') || n.includes('اكمل الطلب') || n.includes('كمل الطلب') || n.includes('ابدا الطلب') || n.includes('نبدا الطلب');
-}
-function assistantOfferedCheckout(text: string) {
-  const n = normalize(text);
-  return n.includes('انشاء الطلب')
-    || n.includes('نقدر ننشئ')
-    || n.includes('نقدر ننشي')
-    || n.includes('نكمل الطلب')
-    || n.includes('نبداو طلبيه')
-    || n.includes('نبدا الطلب')
-    || n.includes('تطلبها الآن عبر الدردشه')
-    || n.includes('تطلبها الان عبر الدردشه');
 }
 function findWilaya(raw: string): WilayaShipping | undefined {
   let value = normalize(raw);
@@ -120,10 +106,8 @@ function renderAssistantText(content: string): ReactNode[] {
     return part;
   });
 }
-
 function extractCodes(text: string) {
-  const normalized = text.toUpperCase();
-  const matches = normalized.match(/\b(?:[1-4]MS|[3-5]PS|[3-5]AP)\b/g) || [];
+  const matches = String(text).toUpperCase().match(/\b(?:[1-4]MS|[3-5]PS|[3-5]AP)\b/g) || [];
   return matches.map((code) => code.replace('AP', 'PS'));
 }
 function isFullPrimaryContext(text: string) {
@@ -151,6 +135,7 @@ export default function AiAssistant() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkout, setCheckout] = useState<CheckoutState | null>(null);
+  const [conversation, setConversation] = useState<ConversationState>(INITIAL_CONVERSATION_STATE);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading, checkout?.step]);
@@ -162,6 +147,13 @@ export default function AiAssistant() {
 
   function addAssistant(content: string) {
     setMessages((current) => [...current, { role: 'assistant', content }]);
+    const questionType = inferQuestionTypeFromAssistant(content);
+    const code = detectProductCode(content);
+    setConversation((current) => ({
+      ...current,
+      currentProductCode: code || current.currentProductCode,
+      lastQuestionType: questionType === 'none' ? current.lastQuestionType : questionType,
+    }));
   }
 
   async function loadProducts(): Promise<CheckoutProduct[]> {
@@ -171,20 +163,21 @@ export default function AiAssistant() {
   }
 
   async function resolveDiscussedItems(products: CheckoutProduct[]) {
+    if (conversation.selectedProductIds.length) {
+      const selected = conversation.selectedProductIds.map((id) => products.find((product) => product.id === id)).filter(Boolean) as CheckoutProduct[];
+      if (selected.length) return selected;
+    }
+    if (conversation.currentProductCode) {
+      const matched = products.find((product) => normalize(product.name).includes(normalize(conversation.currentProductCode || '')) || normalize(product.level || '').includes(normalize(conversation.currentProductCode || '')));
+      if (matched) return [matched];
+    }
     const recent = messages.slice(-12).map((message) => message.content).join(' ');
     if (isFullPrimaryContext(recent)) {
-      const bundle = ['3PS', '4PS', '5PS']
-        .map((code) => products.find((product) => normalize(product.name).includes(normalize(code))))
-        .filter(Boolean) as CheckoutProduct[];
+      const bundle = ['3PS', '4PS', '5PS'].map((code) => products.find((product) => normalize(product.name).includes(normalize(code)))).filter(Boolean) as CheckoutProduct[];
       if (bundle.length === 3) return bundle;
     }
-
     for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const text = messages[i].content;
-      const ranked = products
-        .map((product) => ({ product, score: productContextScore(product, text) }))
-        .filter((entry) => entry.score > 0)
-        .sort((a, b) => b.score - a.score);
+      const ranked = products.map((product) => ({ product, score: productContextScore(product, messages[i].content) })).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score);
       if (ranked.length) return [ranked[0].product];
     }
     return [];
@@ -195,6 +188,7 @@ export default function AiAssistant() {
     setMessages((current) => [...current, { role: 'user', content: userText }]);
     setInput('');
     setLoading(true);
+    setConversation((current) => ({ ...current, currentIntent: 'start_checkout', lastQuestionType: 'checkout_field' }));
     try {
       const products = await loadProducts();
       const items = await resolveDiscussedItems(products);
@@ -208,21 +202,18 @@ export default function AiAssistant() {
         return;
       }
       const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
+      setConversation((current) => ({ ...current, selectedProductIds: items.map((item) => item.id), lastQuestionType: 'checkout_field' }));
       setCheckout({ step: 'name', items, subtotal });
-      addAssistant(`تمام 👍 نقدر ننشئ لك الطلب من هنا.\n${items.map((item) => `• ${productShortName(item)} — ${money(item.price)}`).join('\n')}\nالمجموع قبل التوصيل: 💰 ${money(subtotal)}\nاكتب الاسم الكامل.`);
+      addAssistant(`تمام 👍 الطلب فيه:\n${items.map((item) => `• ${productShortName(item)} — ${money(item.price)}`).join('\n')}\nالمجموع قبل التوصيل: 💰 ${money(subtotal)}\nاكتب الاسم الكامل.`);
     } catch (error) {
       console.error('Assistant checkout start error:', error);
       addAssistant('تعذر تجهيز الطلب الآن. جرب مرة أخرى بعد قليل.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   function checkoutSummary(state: CheckoutState) {
     if (!state.wilaya || !state.deliveryType || state.shipping == null) return '';
-    const deliveryLabel = state.deliveryType === 'office'
-      ? `مكتب ZR Express: ${state.officeName || state.commune || ''}`
-      : `ZR Express للمنزل: ${state.address || ''}`;
+    const deliveryLabel = state.deliveryType === 'office' ? `مكتب ZR Express: ${state.officeName || state.commune || ''}` : `ZR Express للمنزل: ${state.address || ''}`;
     return [
       'راجع الطلب قبل التأكيد:',
       `العميل: ${state.customer}`,
@@ -251,12 +242,7 @@ export default function AiAssistant() {
       }
       if (details.length >= 7) break;
     }
-    return [
-      'أكيد، هذه تفاصيل المنتجات الموجودة في طلبك:',
-      ...state.items.map((item) => `• ${productShortName(item)} — ${money(item.price)}`),
-      ...(details.length ? ['أهم المحتويات والمميزات:', ...details.map((detail) => `• ${detail}`)] : []),
-      `المجموع قبل التوصيل: ${money(state.subtotal)}`,
-    ].join('\n');
+    return ['أكيد، هذه تفاصيل المنتجات الموجودة في طلبك:', ...state.items.map((item) => `• ${productShortName(item)} — ${money(item.price)}`), ...(details.length ? ['أهم المحتويات والمميزات:', ...details.map((detail) => `• ${detail}`)] : []), `المجموع قبل التوصيل: ${money(state.subtotal)}`].join('\n');
   }
 
   function checkoutStepReminder(state: CheckoutState) {
@@ -361,6 +347,7 @@ export default function AiAssistant() {
       const result = await response.json();
       if (!response.ok || !result?.ok) throw new Error(result?.error || 'Order save failed');
       setCheckout(null);
+      setConversation((current) => ({ ...current, currentIntent: 'idle', selectedProductIds: [], lastQuestionType: 'none' }));
       addAssistant(`تم إنشاء الطلب بنجاح ✅\nرقم الطلب: ${tracking}\nشركة التوصيل: ZR Express\nالإجمالي: 💰 ${money(order.total)}\nالطلب الآن قيد المراجعة والتأكيد.`);
     } catch (error) {
       console.error('Assistant checkout save error:', error);
@@ -378,6 +365,7 @@ export default function AiAssistant() {
 
     if (/^(الغاء|إلغاء|الغي|cancel)$/i.test(value)) {
       setCheckout(null);
+      setConversation((current) => ({ ...current, currentIntent: 'general_question', selectedProductIds: [], lastQuestionType: 'none' }));
       addAssistant('تم إلغاء عملية الطلب. عادي، نقدر نجاوبك على أي سؤال أو نعاونك تختار منتج آخر.');
       return;
     }
@@ -444,16 +432,36 @@ export default function AiAssistant() {
     }
   }
 
+  function effectiveAffirmativeMessage() {
+    const code = conversation.currentProductCode;
+    if (conversation.lastQuestionType === 'offer_details') return code ? `اعطيني تفاصيل ${code}` : 'اعطيني التفاصيل أكثر';
+    if (conversation.lastQuestionType === 'offer_contents') return code ? `اعطيني محتوى ${code} بالتفصيل` : 'اعطيني المحتوى بالتفصيل';
+    if (conversation.lastQuestionType === 'offer_delivery') return code ? `نحسب التوصيل لـ ${code}` : 'نحسب التوصيل';
+    return null;
+  }
+
   async function sendMessage(raw: string) {
     const message = raw.trim();
     if (!message || loading) return;
     if (checkout) return void await handleCheckoutInput(message);
 
-    const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant')?.content || '';
-    if (isExplicitCheckoutStart(message) || (isAffirmative(message) && assistantOfferedCheckout(lastAssistant))) {
+    const quick = quickQuestionResponse(message);
+    if (quick) {
+      setMessages((current) => [...current, { role: 'user', content: message }, { role: 'assistant', content: quick.answer }]);
+      setInput('');
+      setConversation((current) => ({ ...current, ...quick.patch, lastUserMessage: message }));
+      return;
+    }
+
+    const nextConversation = updateConversationFromUser(conversation, message);
+    setConversation(nextConversation);
+
+    if (isExplicitCheckoutRequest(message) || (isAffirmativeReply(message) && conversation.lastQuestionType === 'offer_checkout')) {
       return void await startCheckoutFromConversation(message);
     }
 
+    const affirmativeReplacement = isAffirmativeReply(message) ? effectiveAffirmativeMessage() : null;
+    const messageForAssistant = affirmativeReplacement || message;
     const previous = messages.filter((messageItem) => messageItem !== WELCOME).slice(-10);
     setMessages((current) => [...current, { role: 'user', content: message }]);
     setInput('');
@@ -461,17 +469,24 @@ export default function AiAssistant() {
     let failureData: AssistantErrorData | null = null;
     try {
       const response = await fetch('/api/products', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ai_assistant', message, history: previous }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ai_assistant', message: messageForAssistant, history: previous }),
       });
       const data = await response.json();
       if (!response.ok || !data?.ok) {
         failureData = data || {};
         throw new Error(data?.error || 'Request failed');
       }
-      setMessages((current) => [...current, { role: 'assistant', content: data.answer }]);
+      addAssistant(data.answer);
+      const code = detectProductCode(data.answer) || detectProductCode(messageForAssistant);
+      const questionType = inferQuestionTypeFromAssistant(data.answer);
+      setConversation((current) => ({
+        ...current,
+        currentProductCode: code || current.currentProductCode,
+        lastQuestionType: questionType === 'none' ? current.lastQuestionType : questionType,
+      }));
     } catch (error) {
       console.error('AI assistant error:', error, failureData);
-      setMessages((current) => [...current, { role: 'assistant', content: 'سمحلي، المساعد غير متاح مؤقتًا. حاول مرة أخرى بعد لحظات.' }]);
+      addAssistant('سمحلي، المساعد غير متاح مؤقتًا. حاول مرة أخرى بعد لحظات.');
     } finally { setLoading(false); }
   }
 
@@ -480,8 +495,7 @@ export default function AiAssistant() {
     void sendMessage(input);
   }
 
-  const lastAssistant = [...messages].reverse().find((message) => message.role === 'assistant')?.content || '';
-  const canOfferCheckout = !checkout && assistantOfferedCheckout(lastAssistant);
+  const canOfferCheckout = !checkout && conversation.lastQuestionType === 'offer_checkout';
 
   return (
     <div className="miraj-ai" dir="rtl">
@@ -492,8 +506,8 @@ export default function AiAssistant() {
             <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق">×</button>
           </header>
           <div className="miraj-ai__messages">
-            {messages.map((message, index) => <div key={`${message.role}-${index}`} className={`miraj-ai__message miraj-ai__message--${message.role}`}>{message.role === 'assistant' ? renderAssistantText(message.content) : message.content}</div>)}
-            {messages.length === 1 && <div className="miraj-ai__quick">{QUICK_QUESTIONS.map((question) => <button key={question} type="button" onClick={() => void sendMessage(question)}>{question}</button>)}</div>}
+            {messages.map((messageItem, index) => <div key={`${messageItem.role}-${index}`} className={`miraj-ai__message miraj-ai__message--${messageItem.role}`}>{messageItem.role === 'assistant' ? renderAssistantText(messageItem.content) : messageItem.content}</div>)}
+            {messages.length === 1 && <div className="miraj-ai__quick">{SMART_QUICK_QUESTIONS.map((question) => <button key={question} type="button" onClick={() => void sendMessage(question)}>{question}</button>)}</div>}
             {canOfferCheckout && <div className="miraj-ai__checkout-actions"><button type="button" onClick={() => void startCheckoutFromConversation()}>🛒 إنشاء الطلب من هنا</button></div>}
             {checkout?.step === 'delivery' && <div className="miraj-ai__checkout-actions"><button type="button" onClick={() => void handleCheckoutInput('للمكتب')}>📦 مكتب ZR Express</button><button type="button" onClick={() => void handleCheckoutInput('للمنزل')}>🏠 ZR Express للمنزل</button></div>}
             {checkout?.step === 'office' && checkout.offices && <div className="miraj-ai__checkout-actions miraj-ai__office-list">{checkout.offices.map((hub) => <button key={hub.id} type="button" onClick={() => chooseOffice(hub)}>📍 {officeLabel(hub)}</button>)}</div>}

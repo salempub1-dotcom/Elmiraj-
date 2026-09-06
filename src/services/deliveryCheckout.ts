@@ -3,7 +3,7 @@ export type DeliveryProvider = 'noest' | 'zrexpress';
 export interface DeliveryProviderSettings {
   noest: boolean;
   zrexpress: boolean;
-  assistant: boolean;
+  assistant?: boolean;
 }
 
 export interface ZrPickupHub {

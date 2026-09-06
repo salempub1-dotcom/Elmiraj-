@@ -96,9 +96,9 @@ function findWilaya(raw: string): WilayaShipping | undefined {
 function isPurchaseIntent(message: string, history: ChatMessage[]) {
   const current = normalize(message);
   const context = normalize(history.slice(-6).map((item) => item.content).join(' '));
-  const wantsOrder = /(نحب نشري|حاب نشري|اريد شراء|اريد الشراء|نحب نطلب|حاب نطلب|اريد الطلب|اكمل الطلب|كمل الطلب|اطلبها|نطلبها)/.test(current);
+  const explicitOrder = /(اكمل الطلب|كمل الطلب|ابدا الطلب|نبدا الطلب|اطلبها|نطلبها)/.test(current);
   const fullPrimary = /(السنوات الثلاثه|الحقيبه كامله|حقيبه السنوات الثلاثه|3ps.*4ps.*5ps)/.test(`${context} ${current}`);
-  return wantsOrder && fullPrimary;
+  return explicitOrder && fullPrimary;
 }
 
 function generateOrderReference() {
@@ -108,6 +108,76 @@ function generateOrderReference() {
 
 function officeLabel(hub: ZrPickupHub) {
   return hub.name || hub.address || hub.communeName || 'مكتب ZR Express';
+}
+
+function productShortName(product: CheckoutProduct) {
+  return product.name.split('|')[0].trim();
+}
+
+function uniqueCheckoutDetails(state: CheckoutState) {
+  const values = state.items.flatMap((item) => [
+    ...(Array.isArray(item.benefits) ? item.benefits : []),
+    ...(Array.isArray(item.contents) ? item.contents : []),
+  ]);
+  const seen = new Set<string>();
+  const details: string[] = [];
+  for (const value of values) {
+    const text = String(value || '').trim();
+    const key = normalize(text);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    details.push(text);
+    if (details.length >= 6) break;
+  }
+  return details;
+}
+
+function asksProductInfo(raw: string) {
+  const n = normalize(raw);
+  return n.includes('واش فيهم')
+    || n.includes('واش فيها')
+    || n.includes('شنو فيهم')
+    || n.includes('شنو فيها')
+    || n.includes('محتوي')
+    || n.includes('المحتوي')
+    || n.includes('مميزات')
+    || n.includes('المميزات')
+    || n.includes('وش فيها')
+    || n.includes('وش فيهم');
+}
+
+function asksCurrentDelivery(raw: string) {
+  const n = normalize(raw);
+  return (n.includes('توصيل') || n.includes('شحن') || n.includes('livraison'))
+    && (n.includes('كم') || n.includes('سعر') || n.includes('ثمن'));
+}
+
+function checkoutStepReminder(state: CheckoutState) {
+  switch (state.step) {
+    case 'name': return 'إذا حبيت تكمل الطلب، اكتب الاسم الكامل.';
+    case 'phone': return 'إذا حبيت تكمل، اكتب رقم الهاتف (10 أرقام).';
+    case 'wilaya': return 'إذا حبيت تكمل، اكتب الولاية.';
+    case 'commune': return 'إذا حبيت تكمل، اكتب البلدية.';
+    case 'delivery': return 'إذا حبيت تكمل، اختر التوصيل للمكتب أو للمنزل.';
+    case 'office': return 'إذا حبيت تكمل، اختر مكتب ZR Express من القائمة.';
+    case 'address': return 'إذا حبيت تكمل، اكتب عنوان التوصيل.';
+    case 'confirm': return 'طلبك يبقى محفوظ هنا. إذا كل شيء مناسب اضغط «تأكيد الطلب»، أو اسألني أي سؤال قبل التأكيد.';
+    default: return '';
+  }
+}
+
+function checkoutProductInfo(state: CheckoutState) {
+  const lines = [
+    'أكيد، نخليك تعرف واش راه داخل الطلب قبل ما تقرر:',
+    ...state.items.map((item) => `• ${productShortName(item)} — ${money(item.price)}`),
+  ];
+  const details = uniqueCheckoutDetails(state);
+  if (details.length) {
+    lines.push('أهم المحتويات والمميزات:');
+    lines.push(...details.map((detail) => `• ${detail}`));
+  }
+  lines.push(`مجموع المنتجات قبل التوصيل: ${money(state.subtotal)}`);
+  return lines.join('\n');
 }
 
 function renderAssistantText(content: string): ReactNode[] {
@@ -149,7 +219,7 @@ export default function AiAssistant() {
     setMessages((current) => [...current, { role: 'assistant', content }]);
   }
 
-  async function startPrimaryCheckout(userText = 'إكمال الطلب هنا') {
+  async function startPrimaryCheckout(userText = 'إنشاء الطلب من هنا') {
     if (loading) return;
     setMessages((current) => [...current, { role: 'user', content: userText }]);
     setLoading(true);
@@ -174,7 +244,7 @@ export default function AiAssistant() {
       }
       const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
       setCheckout({ step: 'name', items, subtotal });
-      addAssistant(`نكمّل الطلب هنا ✅\n3PS + 4PS + 5PS\nالمجموع قبل التوصيل: 💰 ${money(subtotal)}\nاكتب الاسم الكامل للعميل.`);
+      addAssistant(`تمام 👍 نقدر ننشئ لك الطلب من هنا.\n3PS + 4PS + 5PS\nالمجموع قبل التوصيل: 💰 ${money(subtotal)}\nاكتب الاسم الكامل للعميل.`);
     } catch (error) {
       console.error('Assistant checkout products error:', error);
       addAssistant('تعذر تجهيز الحقيبة للطلب الآن. جرب مرة أخرى بعد قليل.');
@@ -296,7 +366,7 @@ export default function AiAssistant() {
       step: 'confirm',
     };
     setCheckout(next);
-    addAssistant(`${checkoutSummary(next)}\n\nاضغط «تأكيد الطلب» لإنشائه.`);
+    addAssistant(`${checkoutSummary(next)}\n\nإذا حبيت تأكد الطلب اضغط «تأكيد الطلب». وإذا عندك أي سؤال قبل التأكيد اسألني عادي.`);
   }
 
   async function createCheckoutOrder(state: CheckoutState) {
@@ -363,9 +433,20 @@ export default function AiAssistant() {
 
     if (/^(الغاء|إلغاء|الغي|cancel)$/i.test(value)) {
       setCheckout(null);
-      addAssistant('تم إلغاء عملية الطلب. نقدر نعاونك في أي منتج آخر.');
+      addAssistant('تم إلغاء عملية الطلب. عادي، نقدر نجاوبك على أي سؤال أو نعاونك تختار منتج آخر.');
       return;
     }
+
+    if (asksProductInfo(value)) {
+      addAssistant(`${checkoutProductInfo(checkout)}\n\n${checkoutStepReminder(checkout)}`);
+      return;
+    }
+
+    if (asksCurrentDelivery(value) && checkout.shipping != null) {
+      addAssistant(`سعر التوصيل المحدد في طلبك هو: 💰 ${money(checkout.shipping)}\n${checkoutStepReminder(checkout)}`);
+      return;
+    }
+
     if (checkout.step === 'name') {
       if (value.length < 3) return addAssistant('اكتب الاسم الكامل من فضلك.');
       setCheckout({ ...checkout, customer: value, step: 'phone' });
@@ -381,7 +462,7 @@ export default function AiAssistant() {
     }
     if (checkout.step === 'wilaya') {
       const wilaya = findWilaya(value);
-      if (!wilaya) return addAssistant('ما تعرفتش على الولاية. اكتب اسم الولاية فقط، مثال: الجزائر أو غرداية.');
+      if (!wilaya) return addAssistant('ما تعرفتش على الولاية. تقدر تكتبها بالعربية أو الفرنسية، مثال: الجزائر / Alger.');
       setCheckout({ ...checkout, wilaya, step: 'commune' });
       addAssistant(`تمام، ${wilaya.name}. اكتب البلدية.`);
       return;
@@ -422,7 +503,7 @@ export default function AiAssistant() {
       if (value.length < 5) return addAssistant('اكتب عنوانًا أوضح من فضلك.');
       const next = { ...checkout, address: value, step: 'confirm' as const };
       setCheckout(next);
-      addAssistant(`${checkoutSummary(next)}\n\nاضغط «تأكيد الطلب» لإنشائه.`);
+      addAssistant(`${checkoutSummary(next)}\n\nإذا حبيت تأكد الطلب اضغط «تأكيد الطلب». وإذا عندك سؤال قبل التأكيد اسألني.`);
       return;
     }
     if (checkout.step === 'confirm') {
@@ -430,7 +511,7 @@ export default function AiAssistant() {
       if (normalized.includes('تاكيد') || normalized === 'نعم' || normalized === 'وافق') {
         await createCheckoutOrder(checkout);
       } else {
-        addAssistant('لإنشاء الطلب اضغط «تأكيد الطلب»، أو «إلغاء».');
+        addAssistant('أكيد، ما لازمش تأكد الآن. تقدر تسألني على المحتوى، المميزات أو التوصيل، وطلبك يبقى محفوظ هنا.');
       }
     }
   }
@@ -470,15 +551,10 @@ export default function AiAssistant() {
       setMessages((current) => [...current, { role: 'assistant', content: data.answer }]);
     } catch (error) {
       console.error('AI assistant error:', error, failureData);
-      const diagnostic = failureData
-        ? [
-            failureData.error,
-            failureData.provider_status ? `${failureData.provider || 'provider'} ${failureData.provider_status}` : null,
-            failureData.provider_message,
-            failureData.model ? `model: ${failureData.model}` : null,
-          ].filter(Boolean).join(' | ')
-        : 'NETWORK_OR_PARSE_ERROR';
-      setMessages((current) => [...current, { role: 'assistant', content: `سمحلي، المساعد غير متاح مؤقتًا.\n\nرمز التشخيص: ${diagnostic}` }]);
+      setMessages((current) => [...current, {
+        role: 'assistant',
+        content: 'سمحلي، المساعد غير متاح مؤقتًا. حاول مرة أخرى بعد لحظات.',
+      }]);
     } finally {
       setLoading(false);
     }
@@ -490,7 +566,7 @@ export default function AiAssistant() {
   }
 
   const lastAssistant = [...messages].reverse().find((message) => message.role === 'assistant')?.content || '';
-  const canOfferCheckout = !checkout && /الحقيبة الكاملة للسنوات الثلاثة|السنوات الثلاثة/.test(lastAssistant);
+  const canOfferCheckout = !checkout && /نقدر ننشئ لك الطلب|نقدر ننشئ لك الطلب كامل|إنشاء الطلب من داخل البوت/.test(lastAssistant);
 
   return (
     <div className="miraj-ai" dir="rtl">
@@ -519,7 +595,7 @@ export default function AiAssistant() {
 
             {canOfferCheckout && (
               <div className="miraj-ai__checkout-actions">
-                <button type="button" onClick={() => void startPrimaryCheckout()}>🛒 إكمال الطلب هنا</button>
+                <button type="button" onClick={() => void startPrimaryCheckout()}>🛒 إنشاء الطلب من هنا</button>
               </div>
             )}
 
@@ -560,7 +636,7 @@ export default function AiAssistant() {
                   : event.target.value;
                 setInput(next);
               }}
-              placeholder={checkout?.step === 'phone' ? '05xxxxxxxx' : checkout?.step === 'office' ? 'اختر مكتب ZR Express من القائمة…' : checkout ? 'اكتب المعلومة المطلوبة…' : 'اكتب سؤالك حول المنتجات…'}
+              placeholder={checkout?.step === 'phone' ? '05xxxxxxxx' : checkout?.step === 'office' ? 'اختر مكتب ZR Express من القائمة…' : checkout ? 'اكتب المعلومة أو اسأل أي سؤال…' : 'اكتب سؤالك حول المنتجات…'}
               maxLength={checkout?.step === 'phone' ? 10 : 1200}
               disabled={loading || checkout?.step === 'office'}
               inputMode={checkout?.step === 'phone' ? 'tel' : 'text'}

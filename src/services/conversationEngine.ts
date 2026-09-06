@@ -28,6 +28,7 @@ export type ConversationState = {
   currentIntent: ConversationIntent;
   currentProductCode?: string;
   currentLevel?: string;
+  currentStage?: 'تحضيري' | 'ابتدائي' | 'متوسط';
   selectedProductIds: number[];
   lastQuestionType: LastQuestionType;
   lastUserMessage?: string;
@@ -46,6 +47,8 @@ export const SMART_QUICK_QUESTIONS = [
   '🛒 نحب نطلب منتج',
 ];
 
+export const STAGE_CHOICES = ['تحضيري', 'ابتدائي', 'متوسط'] as const;
+
 function normalize(text = '') {
   return String(text)
     .toLowerCase()
@@ -58,6 +61,41 @@ function normalize(text = '') {
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+export function normalizeStage(text: string): ConversationState['currentStage'] {
+  const value = normalize(text);
+  if (value.includes('تحضيري') || value.includes('prep')) return 'تحضيري';
+  if (value.includes('ابتدايي') || value.includes('ابتدائي') || value.includes('primary')) return 'ابتدائي';
+  if (value.includes('متوسط') || value.includes('middle')) return 'متوسط';
+  return undefined;
+}
+
+export function sortLevels(levels: string[]) {
+  const rank = (level: string) => {
+    const upper = String(level).toUpperCase();
+    if (upper === 'PREP') return 0;
+    const primary = upper.match(/^(\d+)AP$/);
+    if (primary) return 10 + Number(primary[1]);
+    const ps = upper.match(/^(\d+)PS$/);
+    if (ps) return 10 + Number(ps[1]);
+    const middle = upper.match(/^(\d+)MS$/);
+    if (middle) return 30 + Number(middle[1]);
+    return 99;
+  };
+  return [...new Set(levels.filter(Boolean))].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+export function displayLevel(level: string) {
+  const upper = String(level || '').toUpperCase();
+  if (upper === 'PREP') return 'تحضيري';
+  const ap = upper.match(/^(\d+)AP$/);
+  if (ap) return `${ap[1]}AP`;
+  const ps = upper.match(/^(\d+)PS$/);
+  if (ps) return `${ps[1]}PS`;
+  const ms = upper.match(/^(\d+)MS$/);
+  if (ms) return `${ms[1]}MS`;
+  return level;
 }
 
 export function isAffirmativeReply(text: string) {
@@ -117,11 +155,13 @@ export function classifyIntent(text: string, state: ConversationState): Conversa
 export function updateConversationFromUser(state: ConversationState, message: string): ConversationState {
   const code = detectProductCode(message);
   const level = detectLevel(message);
+  const stage = normalizeStage(message);
   return {
     ...state,
     currentIntent: classifyIntent(message, state),
     currentProductCode: code || state.currentProductCode,
     currentLevel: level || state.currentLevel,
+    currentStage: stage || state.currentStage,
     lastUserMessage: message,
   };
 }
@@ -131,6 +171,7 @@ export function clearProductContext(state: ConversationState): ConversationState
     ...state,
     currentProductCode: undefined,
     currentLevel: undefined,
+    currentStage: undefined,
     selectedProductIds: [],
     lastQuestionType: 'none',
   };
@@ -141,13 +182,13 @@ export function quickQuestionResponse(label: string): { answer: string; patch: P
   if (clean.includes('اختارلي حسب السنة')) {
     return {
       answer: 'أكيد 👍 اختار الطور أولًا: تحضيري، ابتدائي ولا متوسط؟',
-      patch: { currentIntent: 'discover_products', lastQuestionType: 'choose_stage' },
+      patch: { currentIntent: 'discover_products', lastQuestionType: 'choose_stage', currentStage: undefined, currentLevel: undefined },
     };
   }
   if (clean.includes('شوف المنتجات والمحتوى')) {
     return {
-      answer: 'أكيد 📚 قولي الطور اللي حاب تشوف منتجاته: تحضيري، ابتدائي ولا متوسط؟',
-      patch: { currentIntent: 'discover_products', lastQuestionType: 'choose_stage' },
+      answer: 'أكيد 📚 اختار الطور اللي حاب تشوف منتجاته.',
+      patch: { currentIntent: 'discover_products', lastQuestionType: 'choose_stage', currentStage: undefined, currentLevel: undefined },
     };
   }
   if (clean.includes('السعر والتوصيل')) {
@@ -168,6 +209,7 @@ export function quickQuestionResponse(label: string): { answer: string; patch: P
 export function inferQuestionTypeFromAssistant(text: string): LastQuestionType {
   const value = normalize(text);
   if (value.includes('تحضيري') && value.includes('ابتدايي') && value.includes('متوسط')) return 'choose_stage';
+  if (value.includes('اختار الطور')) return 'choose_stage';
   if (value.includes('اي سنه') || value.includes('السنه اللي') || value.includes('المستوي')) return 'choose_level';
   if (value.includes('تفاصيل اكثر') || value.includes('تفاصيل اكثر عليها') || value.includes('تحب تفاصيل')) return 'offer_details';
   if (value.includes('محتوي كل') || value.includes('المحتوي بالتفصيل')) return 'offer_contents';

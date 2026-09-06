@@ -8,7 +8,7 @@ type ChatMessage = {
 
 const WELCOME: ChatMessage = {
   role: 'assistant',
-  content: 'مرحبًا 👋 أنا مساعد المعراج. نقدر نعاونك تختار المنتج المناسب ونجيبك على الأسئلة المتعلقة بمنتجات المتجر.',
+  content: 'السلام عليكم 🌟 أنا مساعد المعراج. نقدر نعاونك تعرف منتجات المتجر، الأسعار، المحتويات ونختاروا معًا المنتج المناسب ليك.',
 };
 
 const QUICK_QUESTIONS = [
@@ -76,9 +76,12 @@ export default function AiAssistant() {
       {open && (
         <section className="miraj-ai__panel" aria-label="مساعد المعراج">
           <header className="miraj-ai__header">
-            <div>
-              <strong>مساعد المعراج ✨</strong>
-              <span>مساعد المنتجات الذكي</span>
+            <div className="miraj-ai__identity">
+              <div className="miraj-ai__avatar" aria-hidden="true">🤖</div>
+              <div>
+                <strong>مساعد المعراج</strong>
+                <span>مساعد المنتجات الذكي</span>
+              </div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق">
               ×
@@ -132,10 +135,10 @@ export default function AiAssistant() {
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        aria-label="فتح مساعد المعراج"
+        aria-label={open ? 'إغلاق مساعد المعراج' : 'فتح مساعد المعراج'}
+        title="مساعد المعراج"
       >
-        <span>✨</span>
-        <b>اسأل مساعد المعراج</b>
+        <span aria-hidden="true">🤖</span>
       </button>
     </div>
   );

@@ -1,5 +1,7 @@
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { WILAYA_SHIPPING, normalizeRuleText } from '../../lib/aiRules.js';
+import { getDesks, getWilayaCodeFromDeskCode, type NoestDesk } from '../services/noestApi';
+import { encodeCheckoutDeliverySelection } from '../services/deliveryCheckout';
 import './AiAssistant.css';
 
 type ChatMessage = {
@@ -47,6 +49,8 @@ type CheckoutState = {
   wilaya?: WilayaShipping;
   commune?: string;
   deliveryType?: 'home' | 'office';
+  offices?: NoestDesk[];
+  officeCode?: string;
   officeName?: string;
   address?: string;
 };
@@ -75,12 +79,9 @@ function normalize(text = '') {
 
 function findWilaya(raw: string): WilayaShipping | undefined {
   let value = normalize(raw);
-
-  // Common aliases after the same normalization used by the backend rules.
   if (value === 'الجزاير' || value === 'الجزائر العاصمه' || value === 'الجزاير العاصمه') {
     value = normalize('الجزائر');
   }
-
   return SHIPPING.find((wilaya) => {
     const name = normalize(wilaya.name);
     return value === name || value.includes(name) || name.includes(value);
@@ -100,41 +101,29 @@ function generateOrderReference() {
   return `AM-${Date.now().toString(36).toUpperCase()}${rand}`;
 }
 
+function officeLabel(desk: NoestDesk) {
+  return desk.name_ar || desk.name || desk.code;
+}
+
 function renderAssistantText(content: string): ReactNode[] {
   const tokenRegex = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s]+|\*\*[^*]+\*\*|\b\d{1,3}(?:[\s,.]\d{3})*(?:[.,]\d+)?\s*(?:دج|DA|DZD)\b)/gi;
   const parts = content.split(tokenRegex);
 
   return parts.map((part, index) => {
     if (!part) return null;
-
     const markdownLink = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/i);
     if (markdownLink) {
-      return (
-        <a key={`md-link-${index}`} className="miraj-ai__product-link" href={markdownLink[2]} target="_blank" rel="noreferrer">
-          فتح المنتج ↗
-        </a>
-      );
+      return <a key={`md-link-${index}`} className="miraj-ai__product-link" href={markdownLink[2]} target="_blank" rel="noreferrer">فتح المنتج ↗</a>;
     }
-
     if (/^https?:\/\//i.test(part)) {
       const cleanUrl = part.replace(/[.,،؛]+$/, '');
       const trailing = part.slice(cleanUrl.length);
-      return (
-        <span key={`raw-link-${index}`}>
-          <a className="miraj-ai__product-link" href={cleanUrl} target="_blank" rel="noreferrer">فتح المنتج ↗</a>
-          {trailing}
-        </span>
-      );
+      return <span key={`raw-link-${index}`}><a className="miraj-ai__product-link" href={cleanUrl} target="_blank" rel="noreferrer">فتح المنتج ↗</a>{trailing}</span>;
     }
-
-    if (/^\*\*[^*]+\*\*$/.test(part)) {
-      return <strong key={`bold-${index}`}>{part.slice(2, -2)}</strong>;
-    }
-
+    if (/^\*\*[^*]+\*\*$/.test(part)) return <strong key={`bold-${index}`}>{part.slice(2, -2)}</strong>;
     if (/\b\d{1,3}(?:[\s,.]\d{3})*(?:[.,]\d+)?\s*(?:دج|DA|DZD)\b/i.test(part)) {
       return <span key={`price-${index}`} className="miraj-ai__price">{part}</span>;
     }
-
     return part;
   });
 }
@@ -157,10 +146,8 @@ export default function AiAssistant() {
 
   async function startPrimaryCheckout(userText = 'إكمال الطلب هنا') {
     if (loading) return;
-
     setMessages((current) => [...current, { role: 'user', content: userText }]);
     setLoading(true);
-
     try {
       const response = await fetch('/api/products');
       const payload = await response.json();
@@ -171,18 +158,15 @@ export default function AiAssistant() {
           : Array.isArray(payload?.data)
             ? payload.data
             : [];
-
       const items = ['3PS', '4PS', '5PS']
         .map((code) => list.find((product) => normalize(product.name || '').includes(code.toLowerCase())))
         .filter(Boolean) as CheckoutProduct[];
 
       if (items.length !== 3) throw new Error('Primary bundle products not found');
-
       if (items.some((item) => Number(item.stock ?? 1) <= 0)) {
         addAssistant('واحدة من حقائب السنوات الثلاثة غير متوفرة حاليًا، لذلك ما نقدرش نكمل الطلب تلقائيًا.');
         return;
       }
-
       const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
       setCheckout({ step: 'name', items, subtotal });
       addAssistant(`نكمّل الطلب هنا ✅\n3PS + 4PS + 5PS\nالمجموع قبل التوصيل: 💰 ${money(subtotal)}\nاكتب الاسم الكامل للعميل.`);
@@ -196,12 +180,10 @@ export default function AiAssistant() {
 
   function checkoutSummary(state: CheckoutState) {
     if (!state.wilaya || !state.deliveryType) return '';
-
     const shipping = state.deliveryType === 'office' ? state.wilaya.office : state.wilaya.home;
     const deliveryLabel = state.deliveryType === 'office'
       ? `المكتب: ${state.officeName || state.commune || ''}`
       : `المنزل: ${state.address || ''}`;
-
     return [
       'راجع الطلب قبل التأكيد:',
       `العميل: ${state.customer}`,
@@ -215,12 +197,65 @@ export default function AiAssistant() {
     ].join('\n');
   }
 
+  async function prepareOfficeSelection(state: CheckoutState) {
+    if (!state.wilaya || !state.commune) return;
+    setLoading(true);
+    try {
+      const result = await getDesks();
+      const all = result.ok && Array.isArray(result.data) ? result.data : [];
+      const commune = normalize(state.commune);
+      const offices = all
+        .filter((desk) => getWilayaCodeFromDeskCode(desk.code) === state.wilaya?.code)
+        .sort((a, b) => {
+          const aMatch = normalize(`${a.name_ar || ''} ${a.name || ''}`).includes(commune) ? 1 : 0;
+          const bMatch = normalize(`${b.name_ar || ''} ${b.name || ''}`).includes(commune) ? 1 : 0;
+          return bMatch - aMatch;
+        })
+        .slice(0, 12);
+
+      if (!offices.length) {
+        setCheckout({ ...state, deliveryType: undefined, step: 'delivery', offices: [] });
+        addAssistant('ما قدرناش نحمّل مكاتب الاستلام لهذه الولاية الآن. تقدر تختار التوصيل للمنزل أو تحاول «للمكتب» مرة أخرى.');
+        return;
+      }
+
+      setCheckout({ ...state, deliveryType: 'office', step: 'office', offices });
+      addAssistant('اختر مكتب الاستلام من المكاتب المتوفرة أدناه.');
+    } catch (error) {
+      console.error('Assistant NOEST desks error:', error);
+      setCheckout({ ...state, deliveryType: undefined, step: 'delivery', offices: [] });
+      addAssistant('تعذر تحميل مكاتب الاستلام الآن. تقدر تختار التوصيل للمنزل أو تعاود المحاولة.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function chooseOffice(desk: NoestDesk) {
+    if (!checkout || checkout.step !== 'office') return;
+    const label = officeLabel(desk);
+    setMessages((current) => [...current, { role: 'user', content: label }]);
+    const next: CheckoutState = {
+      ...checkout,
+      officeCode: desk.code,
+      officeName: label,
+      step: 'confirm',
+    };
+    setCheckout(next);
+    addAssistant(`${checkoutSummary(next)}\n\nاضغط «تأكيد الطلب» لإنشائه.`);
+  }
+
   async function createCheckoutOrder(state: CheckoutState) {
     if (!state.customer || !state.phone || !state.wilaya || !state.commune || !state.deliveryType) return;
-
+    if (state.deliveryType === 'office' && !state.officeCode) {
+      addAssistant('اختر مكتب استلام صحيح قبل تأكيد الطلب.');
+      return;
+    }
     const shipping = state.deliveryType === 'office' ? state.wilaya.office : state.wilaya.home;
     const tracking = generateOrderReference();
     const now = new Date().toISOString();
+    const selectedOffice = state.deliveryType === 'office' && state.officeCode
+      ? encodeCheckoutDeliverySelection({ provider: 'noest', officeId: state.officeCode, officeName: state.officeName })
+      : undefined;
 
     const order = {
       id: `ORD-${Date.now()}`,
@@ -237,14 +272,13 @@ export default function AiAssistant() {
       total: state.subtotal + shipping,
       shipping,
       deliveryType: state.deliveryType,
-      selectedOffice: state.deliveryType === 'office' ? state.officeName || undefined : undefined,
+      selectedOffice,
       status: 'pending',
       date: now,
       archived: false,
     };
 
     setLoading(true);
-
     try {
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -253,7 +287,6 @@ export default function AiAssistant() {
       });
       const result = await response.json();
       if (!response.ok || !result?.ok) throw new Error(result?.error || 'Order save failed');
-
       setCheckout(null);
       addAssistant(`تم إنشاء الطلب بنجاح ✅\nرقم الطلب: ${tracking}\nالإجمالي: 💰 ${money(order.total)}\nالطلب الآن قيد المراجعة والتأكيد.`);
     } catch (error) {
@@ -266,10 +299,8 @@ export default function AiAssistant() {
 
   async function handleCheckoutInput(raw: string) {
     if (!checkout) return;
-
     const value = raw.trim();
     if (!value || loading) return;
-
     setMessages((current) => [...current, { role: 'user', content: value }]);
     setInput('');
 
@@ -278,64 +309,59 @@ export default function AiAssistant() {
       addAssistant('تم إلغاء عملية الطلب. نقدر نعاونك في أي منتج آخر.');
       return;
     }
-
     if (checkout.step === 'name') {
       if (value.length < 3) return addAssistant('اكتب الاسم الكامل من فضلك.');
       setCheckout({ ...checkout, customer: value, step: 'phone' });
       addAssistant('ممتاز. اكتب رقم الهاتف.');
       return;
     }
-
     if (checkout.step === 'phone') {
       const digits = value.replace(/\D/g, '');
-      if (digits.length < 9 || digits.length > 12) {
-        return addAssistant('رقم الهاتف غير واضح. اكتب رقمًا صحيحًا مثل 05xxxxxxxx.');
-      }
+      if (digits.length < 9 || digits.length > 12) return addAssistant('رقم الهاتف غير واضح. اكتب رقمًا صحيحًا مثل 05xxxxxxxx.');
       setCheckout({ ...checkout, phone: value, step: 'wilaya' });
       addAssistant('اكتب الولاية للتوصيل.');
       return;
     }
-
     if (checkout.step === 'wilaya') {
       const wilaya = findWilaya(value);
-      if (!wilaya) {
-        return addAssistant('ما تعرفتش على الولاية. اكتب اسم الولاية فقط، مثال: الجزائر أو غرداية.');
-      }
+      if (!wilaya) return addAssistant('ما تعرفتش على الولاية. اكتب اسم الولاية فقط، مثال: الجزائر أو غرداية.');
       setCheckout({ ...checkout, wilaya, step: 'commune' });
       addAssistant(`تمام، ${wilaya.name}. اكتب البلدية.`);
       return;
     }
-
     if (checkout.step === 'commune') {
       if (value.length < 2) return addAssistant('اكتب اسم البلدية من فضلك.');
       setCheckout({ ...checkout, commune: value, step: 'delivery' });
       addAssistant('كيف تحب التوصيل؟ للمكتب أو للمنزل؟');
       return;
     }
-
     if (checkout.step === 'delivery') {
       const normalized = normalize(value);
       if (normalized.includes('مكتب') || normalized.includes('bureau') || normalized.includes('office')) {
-        setCheckout({ ...checkout, deliveryType: 'office', step: 'office' });
-        addAssistant('اكتب اسم مكتب الاستلام الذي تفضله.');
+        await prepareOfficeSelection({ ...checkout, commune: checkout.commune });
         return;
       }
       if (normalized.includes('منزل') || normalized.includes('بيت') || normalized.includes('home') || normalized.includes('domicile')) {
-        setCheckout({ ...checkout, deliveryType: 'home', step: 'address' });
+        setCheckout({ ...checkout, deliveryType: 'home', step: 'address', offices: undefined, officeCode: undefined, officeName: undefined });
         addAssistant('اكتب عنوان التوصيل بالتفصيل.');
         return;
       }
       addAssistant('اختر «للمكتب» أو «للمنزل».');
       return;
     }
-
     if (checkout.step === 'office') {
-      const next = { ...checkout, officeName: value, step: 'confirm' as const };
-      setCheckout(next);
-      addAssistant(`${checkoutSummary(next)}\n\nاضغط «تأكيد الطلب» لإنشائه.`);
+      const matched = checkout.offices?.find((desk) => {
+        const label = normalize(`${desk.code} ${desk.name_ar || ''} ${desk.name || ''}`);
+        const wanted = normalize(value);
+        return label.includes(wanted) || wanted.includes(normalize(desk.code));
+      });
+      if (!matched) {
+        addAssistant('اختار مكتب من الأزرار الظاهرة باش نحفظ كود المكتب الصحيح.');
+        return;
+      }
+      chooseOffice(matched);
       return;
     }
-
     if (checkout.step === 'address') {
       if (value.length < 5) return addAssistant('اكتب عنوانًا أوضح من فضلك.');
       const next = { ...checkout, address: value, step: 'confirm' as const };
@@ -343,7 +369,6 @@ export default function AiAssistant() {
       addAssistant(`${checkoutSummary(next)}\n\nاضغط «تأكيد الطلب» لإنشائه.`);
       return;
     }
-
     if (checkout.step === 'confirm') {
       const normalized = normalize(value);
       if (normalized.includes('تاكيد') || normalized === 'نعم' || normalized === 'وافق') {
@@ -357,14 +382,11 @@ export default function AiAssistant() {
   async function sendMessage(raw: string) {
     const message = raw.trim();
     if (!message || loading) return;
-
     if (checkout) {
       await handleCheckoutInput(message);
       return;
     }
-
     const previous = messages.filter((m) => m !== WELCOME).slice(-10);
-
     if (isPurchaseIntent(message, previous)) {
       setInput('');
       await startPrimaryCheckout(message);
@@ -375,9 +397,7 @@ export default function AiAssistant() {
     setMessages((current) => [...current, userMessage]);
     setInput('');
     setLoading(true);
-
     let failureData: AssistantErrorData | null = null;
-
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -400,10 +420,7 @@ export default function AiAssistant() {
             failureData.model ? `model: ${failureData.model}` : null,
           ].filter(Boolean).join(' | ')
         : 'NETWORK_OR_PARSE_ERROR';
-      setMessages((current) => [
-        ...current,
-        { role: 'assistant', content: `سمحلي، المساعد غير متاح مؤقتًا.\n\nرمز التشخيص: ${diagnostic}` },
-      ]);
+      setMessages((current) => [...current, { role: 'assistant', content: `سمحلي، المساعد غير متاح مؤقتًا.\n\nرمز التشخيص: ${diagnostic}` }]);
     } finally {
       setLoading(false);
     }
@@ -424,10 +441,7 @@ export default function AiAssistant() {
           <header className="miraj-ai__header">
             <div className="miraj-ai__identity">
               <div className="miraj-ai__avatar" aria-hidden="true">🤖</div>
-              <div>
-                <strong>مساعد المعراج</strong>
-                <span>مساعد المنتجات الذكي</span>
-              </div>
+              <div><strong>مساعد المعراج</strong><span>مساعد المنتجات الذكي</span></div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق">×</button>
           </header>
@@ -441,9 +455,7 @@ export default function AiAssistant() {
 
             {messages.length === 1 && (
               <div className="miraj-ai__quick">
-                {QUICK_QUESTIONS.map((question) => (
-                  <button key={question} type="button" onClick={() => void sendMessage(question)}>{question}</button>
-                ))}
+                {QUICK_QUESTIONS.map((question) => <button key={question} type="button" onClick={() => void sendMessage(question)}>{question}</button>)}
               </div>
             )}
 
@@ -457,6 +469,16 @@ export default function AiAssistant() {
               <div className="miraj-ai__checkout-actions">
                 <button type="button" onClick={() => void handleCheckoutInput('للمكتب')}>📦 للمكتب</button>
                 <button type="button" onClick={() => void handleCheckoutInput('للمنزل')}>🏠 للمنزل</button>
+              </div>
+            )}
+
+            {checkout?.step === 'office' && checkout.offices && checkout.offices.length > 0 && (
+              <div className="miraj-ai__checkout-actions miraj-ai__office-list">
+                {checkout.offices.map((desk) => (
+                  <button key={desk.code} type="button" onClick={() => chooseOffice(desk)}>
+                    📍 {officeLabel(desk)}
+                  </button>
+                ))}
               </div>
             )}
 
@@ -475,27 +497,20 @@ export default function AiAssistant() {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={checkout?.step === 'phone' ? '05xxxxxxxx' : checkout ? 'اكتب المعلومة المطلوبة…' : 'اكتب سؤالك حول المنتجات…'}
+              placeholder={checkout?.step === 'phone' ? '05xxxxxxxx' : checkout?.step === 'office' ? 'اختر مكتبًا من القائمة…' : checkout ? 'اكتب المعلومة المطلوبة…' : 'اكتب سؤالك حول المنتجات…'}
               maxLength={1200}
-              disabled={loading}
+              disabled={loading || checkout?.step === 'office'}
               inputMode={checkout?.step === 'phone' ? 'tel' : 'text'}
               aria-label="رسالتك"
             />
-            <button type="submit" disabled={loading || !input.trim()} aria-label="إرسال">إرسال</button>
+            <button type="submit" disabled={loading || checkout?.step === 'office' || !input.trim()} aria-label="إرسال">إرسال</button>
           </form>
 
           <p className="miraj-ai__note">الأسعار والطلب تُحسب من بيانات متجر المعراج مباشرة.</p>
         </section>
       )}
 
-      <button
-        className="miraj-ai__launcher"
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-label={open ? 'إغلاق مساعد المعراج' : 'فتح مساعد المعراج'}
-        title="مساعد المعراج"
-      >
+      <button className="miraj-ai__launcher" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={open ? 'إغلاق مساعد المعراج' : 'فتح مساعد المعراج'} title="مساعد المعراج">
         <span aria-hidden="true">🤖</span>
       </button>
     </div>

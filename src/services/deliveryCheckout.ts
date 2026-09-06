@@ -3,6 +3,7 @@ export type DeliveryProvider = 'noest' | 'zrexpress';
 export interface DeliveryProviderSettings {
   noest: boolean;
   zrexpress: boolean;
+  assistant: boolean;
 }
 
 export interface ZrPickupHub {
@@ -38,7 +39,7 @@ export interface CheckoutDeliverySelection {
 }
 
 const PREFIX = '@DP1:';
-const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true };
+const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true, assistant: true };
 
 const ZR_COMMUNE_ALIASES: Record<string, string> = {
   'الرغاية': 'Reghaia',
@@ -97,8 +98,9 @@ export async function fetchDeliveryProviderSettings(): Promise<DeliveryProviderS
     if (result?.ok && result?.data) {
       const noest = result.data.noest !== false;
       const zrexpress = result.data.zrexpress !== false;
-      if (!noest && !zrexpress) return { ...DEFAULTS };
-      return { noest, zrexpress };
+      const assistant = result.data.assistant !== false;
+      if (!noest && !zrexpress) return { ...DEFAULTS, assistant };
+      return { noest, zrexpress, assistant };
     }
   } catch { /* fallback below */ }
   return { ...DEFAULTS };
@@ -115,7 +117,7 @@ export async function saveDeliveryProviderSettings(next: DeliveryProviderSetting
     if (response.status === 401) return { ok: false, message: 'انتهت جلسة الإدارة. سجّل الدخول من جديد.' };
     return result;
   } catch {
-    return { ok: false, message: 'تعذر حفظ إعدادات شركات التوصيل.' };
+    return { ok: false, message: 'تعذر حفظ إعدادات المتجر.' };
   }
 }
 
@@ -129,7 +131,7 @@ export async function fetchZrCheckoutOptions(wilayaId: number, commune: string):
         commune: candidate,
       });
       lastResult = result;
-      if (result?.ok && result?.data) return result;
+      if (result?.ok && result?.data && Array.isArray(result.data.pickup_hubs) && result.data.pickup_hubs.length > 0) return result;
     }
     return lastResult;
   } catch {
@@ -147,7 +149,7 @@ export async function fetchZrShippingQuote(wilayaId: number, commune: string): P
         commune: candidate,
       });
       lastResult = result;
-      if (result?.ok && result?.data) return result;
+      if (result?.ok && result?.data && (result.data.home != null || result.data.office != null)) return result;
     }
     return lastResult;
   } catch {

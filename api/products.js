@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { SITE_URL, SITE_NAME, FALLBACK_IMAGE, FALLBACK_TITLE, FALLBACK_DESC, toPreviewText, renderSocialPreviewHtml } from '../lib/socialPreviewHtml.js';
 import { getAllowedSupabaseMediaPath, normalizeProductImagesForStorage, proxyProductImages, toMediaProxyUrl } from '../lib/mediaProxy.js';
+import { handleAiAssistant } from '../lib/aiAssistant.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
@@ -178,6 +179,10 @@ export default async function handler(req, res) {
   if (!body || typeof body !== 'object') body = {};
 
   const action = body.action;
+
+  if (action === 'ai_assistant') {
+    return handleAiAssistant(res, supabase, body);
+  }
 
   if (action === 'seed') {
     const products = body.products;

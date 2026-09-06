@@ -2,6 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "regions": ["iad1"],
   "rewrites": [
     { "source": "/api/noest", "destination": "/api/noest" },
     { "source": "/api/auth", "destination": "/api/auth" },

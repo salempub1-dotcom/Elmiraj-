@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import './AiAssistant.css';
 
 type ChatMessage = {
@@ -8,6 +8,7 @@ type ChatMessage = {
 
 type AssistantErrorData = {
   error?: string;
+  provider?: string;
   provider_status?: number;
   provider_message?: string;
   model?: string;
@@ -15,7 +16,7 @@ type AssistantErrorData = {
 
 const WELCOME: ChatMessage = {
   role: 'assistant',
-  content: 'السلام عليكم 🌟 أنا مساعد المعراج. نقدر نعاونك تعرف منتجات المتجر، الأسعار، المحتويات ونختاروا معًا المنتج المناسب ليك.',
+  content: 'السلام عليكم 🌟 أنا مساعد المعراج. نعاونك تعرف المنتجات والأسعار ونختاروا معًا الأنسب ليك.',
 };
 
 const QUICK_QUESTIONS = [
@@ -23,6 +24,35 @@ const QUICK_QUESTIONS = [
   'واش البطاقات ممغنطة؟',
   'ساعدني نختار المنتج المناسب',
 ];
+
+function renderAssistantText(content: string): ReactNode[] {
+  const tokenRegex = /(https?:\/\/[^\s]+|\b\d{1,3}(?:[\s,.]\d{3})*(?:[.,]\d+)?\s*(?:دج|DA|DZD)\b)/gi;
+  const parts = content.split(tokenRegex);
+
+  return parts.map((part, index) => {
+    if (!part) return null;
+
+    if (/^https?:\/\//i.test(part)) {
+      return (
+        <a
+          key={`link-${index}`}
+          className="miraj-ai__product-link"
+          href={part}
+          target="_blank"
+          rel="noreferrer"
+        >
+          فتح المنتج ↗
+        </a>
+      );
+    }
+
+    if (/\b\d{1,3}(?:[\s,.]\d{3})*(?:[.,]\d+)?\s*(?:دج|DA|DZD)\b/i.test(part)) {
+      return <span key={`price-${index}`} className="miraj-ai__price">{part}</span>;
+    }
+
+    return part;
+  });
+}
 
 export default function AiAssistant() {
   const [open, setOpen] = useState(false);
@@ -39,7 +69,7 @@ export default function AiAssistant() {
     const message = raw.trim();
     if (!message || loading) return;
 
-    const previous = messages.filter((m) => m !== WELCOME).slice(-8);
+    const previous = messages.filter((m) => m !== WELCOME).slice(-10);
     const userMessage: ChatMessage = { role: 'user', content: message };
     setMessages((current) => [...current, userMessage]);
     setInput('');
@@ -69,7 +99,7 @@ export default function AiAssistant() {
       const diagnostic = failureData
         ? [
             failureData.error,
-            failureData.provider_status ? `NVIDIA ${failureData.provider_status}` : null,
+            failureData.provider_status ? `${failureData.provider || 'provider'} ${failureData.provider_status}` : null,
             failureData.provider_message,
             failureData.model ? `model: ${failureData.model}` : null,
           ].filter(Boolean).join(' | ')
@@ -115,7 +145,7 @@ export default function AiAssistant() {
                 key={`${message.role}-${index}`}
                 className={`miraj-ai__message miraj-ai__message--${message.role}`}
               >
-                {message.content}
+                {message.role === 'assistant' ? renderAssistantText(message.content) : message.content}
               </div>
             ))}
 

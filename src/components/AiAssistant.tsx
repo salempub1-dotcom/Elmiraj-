@@ -369,13 +369,13 @@ export default function AiAssistant() {
     if (checkout.step === 'name') {
       if (value.length < 3) return addAssistant('اكتب الاسم الكامل من فضلك.');
       setCheckout({ ...checkout, customer: value, step: 'phone' });
-      addAssistant('ممتاز. اكتب رقم الهاتف.');
+      addAssistant('ممتاز. اكتب رقم الهاتف (10 أرقام).');
       return;
     }
     if (checkout.step === 'phone') {
       const digits = value.replace(/\D/g, '');
-      if (digits.length < 9 || digits.length > 12) return addAssistant('رقم الهاتف غير واضح. اكتب رقمًا صحيحًا مثل 05xxxxxxxx.');
-      setCheckout({ ...checkout, phone: value, step: 'wilaya' });
+      if (digits.length !== 10) return addAssistant('رقم الهاتف يجب أن يكون 10 أرقام بالضبط، مثال: 05xxxxxxxx.');
+      setCheckout({ ...checkout, phone: digits, step: 'wilaya' });
       addAssistant('اكتب الولاية للتوصيل.');
       return;
     }
@@ -554,9 +554,14 @@ export default function AiAssistant() {
           <form className="miraj-ai__form" onSubmit={submit}>
             <input
               value={input}
-              onChange={(event) => setInput(event.target.value)}
+              onChange={(event) => {
+                const next = checkout?.step === 'phone'
+                  ? event.target.value.replace(/\D/g, '').slice(0, 10)
+                  : event.target.value;
+                setInput(next);
+              }}
               placeholder={checkout?.step === 'phone' ? '05xxxxxxxx' : checkout?.step === 'office' ? 'اختر مكتب ZR Express من القائمة…' : checkout ? 'اكتب المعلومة المطلوبة…' : 'اكتب سؤالك حول المنتجات…'}
-              maxLength={1200}
+              maxLength={checkout?.step === 'phone' ? 10 : 1200}
               disabled={loading || checkout?.step === 'office'}
               inputMode={checkout?.step === 'phone' ? 'tel' : 'text'}
               aria-label="رسالتك"

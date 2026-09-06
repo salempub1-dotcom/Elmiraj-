@@ -181,16 +181,28 @@
 
 @media (max-width: 520px) {
   .miraj-ai {
-    inset-inline: 12px;
-    bottom: 12px;
+    inset-inline-end: 12px;
+    inset-inline-start: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   }
 
   .miraj-ai__panel {
-    width: 100%;
-    height: min(72vh, 620px);
+    width: min(390px, calc(100vw - 24px));
+    height: min(68vh, 560px);
   }
 
   .miraj-ai__launcher {
     margin-inline-start: auto;
+    min-height: 48px;
+    padding: 11px 14px;
+    box-shadow: 0 10px 28px rgba(11, 24, 51, 0.24);
+  }
+
+  .miraj-ai__launcher span {
+    font-size: 18px;
+  }
+
+  .miraj-ai__launcher b {
+    font-size: 13px;
   }
 }

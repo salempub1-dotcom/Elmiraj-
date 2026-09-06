@@ -1,7 +1,11 @@
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { WILAYA_SHIPPING, normalizeRuleText } from '../../lib/aiRules.js';
-import { getDesks, getWilayaCodeFromDeskCode, type NoestDesk } from '../services/noestApi';
-import { encodeCheckoutDeliverySelection } from '../services/deliveryCheckout';
+import {
+  encodeCheckoutDeliverySelection,
+  fetchZrCheckoutOptions,
+  fetchZrShippingQuote,
+  type ZrPickupHub,
+} from '../services/deliveryCheckout';
 import './AiAssistant.css';
 
 type ChatMessage = {
@@ -49,8 +53,9 @@ type CheckoutState = {
   wilaya?: WilayaShipping;
   commune?: string;
   deliveryType?: 'home' | 'office';
-  offices?: NoestDesk[];
-  officeCode?: string;
+  shipping?: number;
+  offices?: ZrPickupHub[];
+  officeId?: string;
   officeName?: string;
   address?: string;
 };
@@ -101,8 +106,8 @@ function generateOrderReference() {
   return `AM-${Date.now().toString(36).toUpperCase()}${rand}`;
 }
 
-function officeLabel(desk: NoestDesk) {
-  return desk.name_ar || desk.name || desk.code;
+function officeLabel(hub: ZrPickupHub) {
+  return hub.name || hub.address || hub.communeName || 'مكتب ZR Express';
 }
 
 function renderAssistantText(content: string): ReactNode[] {
@@ -179,11 +184,10 @@ export default function AiAssistant() {
   }
 
   function checkoutSummary(state: CheckoutState) {
-    if (!state.wilaya || !state.deliveryType) return '';
-    const shipping = state.deliveryType === 'office' ? state.wilaya.office : state.wilaya.home;
+    if (!state.wilaya || !state.deliveryType || state.shipping == null) return '';
     const deliveryLabel = state.deliveryType === 'office'
-      ? `المكتب: ${state.officeName || state.commune || ''}`
-      : `المنزل: ${state.address || ''}`;
+      ? `مكتب ZR Express: ${state.officeName || state.commune || ''}`
+      : `ZR Express للمنزل: ${state.address || ''}`;
     return [
       'راجع الطلب قبل التأكيد:',
       `العميل: ${state.customer}`,
@@ -192,51 +196,102 @@ export default function AiAssistant() {
       `التوصيل: ${deliveryLabel}`,
       'المنتجات: 3PS + 4PS + 5PS',
       `المنتجات: 💰 ${money(state.subtotal)}`,
-      `التوصيل: 💰 ${money(shipping)}`,
-      `الإجمالي: 💰 ${money(state.subtotal + shipping)}`,
+      `توصيل ZR Express: 💰 ${money(state.shipping)}`,
+      `الإجمالي: 💰 ${money(state.subtotal + state.shipping)}`,
     ].join('\n');
+  }
+
+  async function loadZrQuote(state: CheckoutState) {
+    if (!state.wilaya || !state.commune) return null;
+    const result = await fetchZrShippingQuote(state.wilaya.code, state.commune);
+    return result.ok && result.data ? result.data : null;
   }
 
   async function prepareOfficeSelection(state: CheckoutState) {
     if (!state.wilaya || !state.commune) return;
     setLoading(true);
     try {
-      const result = await getDesks();
-      const all = result.ok && Array.isArray(result.data) ? result.data : [];
-      const commune = normalize(state.commune);
-      const offices = all
-        .filter((desk) => getWilayaCodeFromDeskCode(desk.code) === state.wilaya?.code)
-        .sort((a, b) => {
-          const aMatch = normalize(`${a.name_ar || ''} ${a.name || ''}`).includes(commune) ? 1 : 0;
-          const bMatch = normalize(`${b.name_ar || ''} ${b.name || ''}`).includes(commune) ? 1 : 0;
-          return bMatch - aMatch;
-        })
-        .slice(0, 12);
+      const [optionsResult, quote] = await Promise.all([
+        fetchZrCheckoutOptions(state.wilaya.code, state.commune),
+        loadZrQuote(state),
+      ]);
+
+      const offices = optionsResult.ok && optionsResult.data
+        ? (optionsResult.data.pickup_hubs || []).filter((hub) => hub.isPickupPoint !== false)
+        : [];
+      const officePrice = quote?.office;
 
       if (!offices.length) {
         setCheckout({ ...state, deliveryType: undefined, step: 'delivery', offices: [] });
-        addAssistant('ما قدرناش نحمّل مكاتب الاستلام لهذه الولاية الآن. تقدر تختار التوصيل للمنزل أو تحاول «للمكتب» مرة أخرى.');
+        addAssistant('ما لقيتش مكاتب ZR Express متوفرة لهذه البلدية حاليًا. تقدر تختار التوصيل للمنزل أو تعاود المحاولة.');
+        return;
+      }
+      if (officePrice == null) {
+        setCheckout({ ...state, deliveryType: undefined, step: 'delivery', offices: [] });
+        addAssistant('تعذر جلب تسعيرة ZR Express للمكتب الآن. ما راحش نحسب سعر تقريبي؛ عاود المحاولة بعد قليل.');
         return;
       }
 
-      setCheckout({ ...state, deliveryType: 'office', step: 'office', offices });
-      addAssistant('اختر مكتب الاستلام من المكاتب المتوفرة أدناه.');
+      const commune = normalize(state.commune);
+      const sorted = [...offices].sort((a, b) => {
+        const aMatch = normalize(`${a.name} ${a.communeName} ${a.address}`).includes(commune) ? 1 : 0;
+        const bMatch = normalize(`${b.name} ${b.communeName} ${b.address}`).includes(commune) ? 1 : 0;
+        return bMatch - aMatch;
+      }).slice(0, 12);
+
+      setCheckout({
+        ...state,
+        deliveryType: 'office',
+        shipping: officePrice,
+        step: 'office',
+        offices: sorted,
+        officeId: undefined,
+        officeName: undefined,
+      });
+      addAssistant(`اختر مكتب ZR Express من القائمة.\nسعر التوصيل للمكتب: 💰 ${money(officePrice)}`);
     } catch (error) {
-      console.error('Assistant NOEST desks error:', error);
+      console.error('Assistant ZR Express offices error:', error);
       setCheckout({ ...state, deliveryType: undefined, step: 'delivery', offices: [] });
-      addAssistant('تعذر تحميل مكاتب الاستلام الآن. تقدر تختار التوصيل للمنزل أو تعاود المحاولة.');
+      addAssistant('تعذر تحميل مكاتب ZR Express الآن. عاود المحاولة بعد قليل.');
     } finally {
       setLoading(false);
     }
   }
 
-  function chooseOffice(desk: NoestDesk) {
+  async function prepareHomeDelivery(state: CheckoutState) {
+    if (!state.wilaya || !state.commune) return;
+    setLoading(true);
+    try {
+      const quote = await loadZrQuote(state);
+      if (quote?.home == null) {
+        addAssistant('تعذر جلب تسعيرة ZR Express للمنزل الآن. ما راحش نحسب سعر تقريبي؛ عاود المحاولة بعد قليل.');
+        return;
+      }
+      setCheckout({
+        ...state,
+        deliveryType: 'home',
+        shipping: quote.home,
+        step: 'address',
+        offices: undefined,
+        officeId: undefined,
+        officeName: undefined,
+      });
+      addAssistant(`سعر توصيل ZR Express للمنزل: 💰 ${money(quote.home)}\nاكتب عنوان التوصيل بالتفصيل.`);
+    } catch (error) {
+      console.error('Assistant ZR Express home quote error:', error);
+      addAssistant('تعذر تحميل تسعيرة ZR Express الآن. عاود المحاولة بعد قليل.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function chooseOffice(hub: ZrPickupHub) {
     if (!checkout || checkout.step !== 'office') return;
-    const label = officeLabel(desk);
+    const label = officeLabel(hub);
     setMessages((current) => [...current, { role: 'user', content: label }]);
     const next: CheckoutState = {
       ...checkout,
-      officeCode: desk.code,
+      officeId: hub.id,
       officeName: label,
       step: 'confirm',
     };
@@ -245,17 +300,19 @@ export default function AiAssistant() {
   }
 
   async function createCheckoutOrder(state: CheckoutState) {
-    if (!state.customer || !state.phone || !state.wilaya || !state.commune || !state.deliveryType) return;
-    if (state.deliveryType === 'office' && !state.officeCode) {
-      addAssistant('اختر مكتب استلام صحيح قبل تأكيد الطلب.');
+    if (!state.customer || !state.phone || !state.wilaya || !state.commune || !state.deliveryType || state.shipping == null) return;
+    if (state.deliveryType === 'office' && !state.officeId) {
+      addAssistant('اختر مكتب ZR Express صحيح قبل تأكيد الطلب.');
       return;
     }
-    const shipping = state.deliveryType === 'office' ? state.wilaya.office : state.wilaya.home;
+
     const tracking = generateOrderReference();
     const now = new Date().toISOString();
-    const selectedOffice = state.deliveryType === 'office' && state.officeCode
-      ? encodeCheckoutDeliverySelection({ provider: 'noest', officeId: state.officeCode, officeName: state.officeName })
-      : undefined;
+    const selectedOffice = encodeCheckoutDeliverySelection({
+      provider: 'zrexpress',
+      officeId: state.deliveryType === 'office' ? state.officeId : undefined,
+      officeName: state.deliveryType === 'office' ? state.officeName : undefined,
+    });
 
     const order = {
       id: `ORD-${Date.now()}`,
@@ -266,11 +323,11 @@ export default function AiAssistant() {
       wilayaId: state.wilaya.code,
       commune: state.commune,
       address: state.deliveryType === 'office'
-        ? `${state.commune} - ${state.officeName || 'مكتب الاستلام'}`
+        ? `${state.commune} - ${state.officeName || 'مكتب ZR Express'}`
         : state.address || state.commune,
       items: state.items.map((item) => ({ ...item, quantity: 1 })),
-      total: state.subtotal + shipping,
-      shipping,
+      total: state.subtotal + state.shipping,
+      shipping: state.shipping,
       deliveryType: state.deliveryType,
       selectedOffice,
       status: 'pending',
@@ -288,7 +345,7 @@ export default function AiAssistant() {
       const result = await response.json();
       if (!response.ok || !result?.ok) throw new Error(result?.error || 'Order save failed');
       setCheckout(null);
-      addAssistant(`تم إنشاء الطلب بنجاح ✅\nرقم الطلب: ${tracking}\nالإجمالي: 💰 ${money(order.total)}\nالطلب الآن قيد المراجعة والتأكيد.`);
+      addAssistant(`تم إنشاء الطلب بنجاح ✅\nرقم الطلب: ${tracking}\nشركة التوصيل: ZR Express\nالإجمالي: 💰 ${money(order.total)}\nالطلب الآن قيد المراجعة والتأكيد.`);
     } catch (error) {
       console.error('Assistant checkout save error:', error);
       addAssistant('ما قدرناش نحفظ الطلب الآن. بياناتك ما تضيعش، اضغط «تأكيد الطلب» وجرب مرة أخرى.');
@@ -332,31 +389,30 @@ export default function AiAssistant() {
     if (checkout.step === 'commune') {
       if (value.length < 2) return addAssistant('اكتب اسم البلدية من فضلك.');
       setCheckout({ ...checkout, commune: value, step: 'delivery' });
-      addAssistant('كيف تحب التوصيل؟ للمكتب أو للمنزل؟');
+      addAssistant('كيف تحب توصيل ZR Express؟ للمكتب أو للمنزل؟');
       return;
     }
     if (checkout.step === 'delivery') {
       const normalized = normalize(value);
       if (normalized.includes('مكتب') || normalized.includes('bureau') || normalized.includes('office')) {
-        await prepareOfficeSelection({ ...checkout, commune: checkout.commune });
+        await prepareOfficeSelection(checkout);
         return;
       }
       if (normalized.includes('منزل') || normalized.includes('بيت') || normalized.includes('home') || normalized.includes('domicile')) {
-        setCheckout({ ...checkout, deliveryType: 'home', step: 'address', offices: undefined, officeCode: undefined, officeName: undefined });
-        addAssistant('اكتب عنوان التوصيل بالتفصيل.');
+        await prepareHomeDelivery(checkout);
         return;
       }
       addAssistant('اختر «للمكتب» أو «للمنزل».');
       return;
     }
     if (checkout.step === 'office') {
-      const matched = checkout.offices?.find((desk) => {
-        const label = normalize(`${desk.code} ${desk.name_ar || ''} ${desk.name || ''}`);
-        const wanted = normalize(value);
-        return label.includes(wanted) || wanted.includes(normalize(desk.code));
+      const wanted = normalize(value);
+      const matched = checkout.offices?.find((hub) => {
+        const label = normalize(`${hub.id} ${hub.name} ${hub.communeName} ${hub.address}`);
+        return label.includes(wanted) || wanted.includes(normalize(hub.id));
       });
       if (!matched) {
-        addAssistant('اختار مكتب من الأزرار الظاهرة باش نحفظ كود المكتب الصحيح.');
+        addAssistant('اختار مكتب ZR Express من الأزرار الظاهرة باش نحفظ معرف المكتب الصحيح.');
         return;
       }
       chooseOffice(matched);
@@ -386,6 +442,7 @@ export default function AiAssistant() {
       await handleCheckoutInput(message);
       return;
     }
+
     const previous = messages.filter((m) => m !== WELCOME).slice(-10);
     if (isPurchaseIntent(message, previous)) {
       setInput('');
@@ -398,6 +455,7 @@ export default function AiAssistant() {
     setInput('');
     setLoading(true);
     let failureData: AssistantErrorData | null = null;
+
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -467,16 +525,16 @@ export default function AiAssistant() {
 
             {checkout?.step === 'delivery' && (
               <div className="miraj-ai__checkout-actions">
-                <button type="button" onClick={() => void handleCheckoutInput('للمكتب')}>📦 للمكتب</button>
-                <button type="button" onClick={() => void handleCheckoutInput('للمنزل')}>🏠 للمنزل</button>
+                <button type="button" onClick={() => void handleCheckoutInput('للمكتب')}>📦 مكتب ZR Express</button>
+                <button type="button" onClick={() => void handleCheckoutInput('للمنزل')}>🏠 ZR Express للمنزل</button>
               </div>
             )}
 
             {checkout?.step === 'office' && checkout.offices && checkout.offices.length > 0 && (
               <div className="miraj-ai__checkout-actions miraj-ai__office-list">
-                {checkout.offices.map((desk) => (
-                  <button key={desk.code} type="button" onClick={() => chooseOffice(desk)}>
-                    📍 {officeLabel(desk)}
+                {checkout.offices.map((hub) => (
+                  <button key={hub.id} type="button" onClick={() => chooseOffice(hub)}>
+                    📍 {officeLabel(hub)}
                   </button>
                 ))}
               </div>
@@ -497,7 +555,7 @@ export default function AiAssistant() {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={checkout?.step === 'phone' ? '05xxxxxxxx' : checkout?.step === 'office' ? 'اختر مكتبًا من القائمة…' : checkout ? 'اكتب المعلومة المطلوبة…' : 'اكتب سؤالك حول المنتجات…'}
+              placeholder={checkout?.step === 'phone' ? '05xxxxxxxx' : checkout?.step === 'office' ? 'اختر مكتب ZR Express من القائمة…' : checkout ? 'اكتب المعلومة المطلوبة…' : 'اكتب سؤالك حول المنتجات…'}
               maxLength={1200}
               disabled={loading || checkout?.step === 'office'}
               inputMode={checkout?.step === 'phone' ? 'tel' : 'text'}
@@ -506,7 +564,7 @@ export default function AiAssistant() {
             <button type="submit" disabled={loading || checkout?.step === 'office' || !input.trim()} aria-label="إرسال">إرسال</button>
           </form>
 
-          <p className="miraj-ai__note">الأسعار والطلب تُحسب من بيانات متجر المعراج مباشرة.</p>
+          <p className="miraj-ai__note">الأسعار والطلب والتوصيل تُحسب من بيانات المتجر وZR Express مباشرة.</p>
         </section>
       )}
 

@@ -39,10 +39,10 @@ export default function AiAssistant() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/ai-assistant', {
+      const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, history: previous }),
+        body: JSON.stringify({ action: 'ai_assistant', message, history: previous }),
       });
 
       const data = await response.json();

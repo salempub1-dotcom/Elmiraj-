@@ -8,7 +8,7 @@ import "./brand-polish.css";
 import "./dark-mode.css";
 import "./bilingual.css";
 import { App } from "./App";
-import AiAssistant from "./components/AiAssistant";
+import AiAssistantGate from "./components/AiAssistantGate";
 import DeliveryProviderDialog from "./components/admin/DeliveryProviderDialog";
 import DeliveryProviderLabels from "./components/admin/DeliveryProviderLabels";
 import { installDeliveryFetchBridge } from "./services/deliveryBridge";
@@ -41,7 +41,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <App />
-      <AiAssistant />
+      <AiAssistantGate />
       <DeliveryProviderDialog />
       <DeliveryProviderLabels />
     </BrowserRouter>

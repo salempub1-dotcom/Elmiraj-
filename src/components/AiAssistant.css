@@ -7,25 +7,33 @@
 }
 
 .miraj-ai__launcher {
+  width: 58px;
+  height: 58px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  border: 0;
-  border-radius: 999px;
-  padding: 13px 17px;
+  justify-content: center;
+  border: 2px solid rgba(212, 175, 55, 0.7);
+  border-radius: 50%;
+  padding: 0;
   background: #0b1833;
   color: #fff;
-  box-shadow: 0 12px 34px rgba(11, 24, 51, 0.26);
+  box-shadow: 0 12px 34px rgba(11, 24, 51, 0.28);
   cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.miraj-ai__launcher:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 38px rgba(11, 24, 51, 0.34);
+}
+
+.miraj-ai__launcher:active {
+  transform: scale(0.96);
 }
 
 .miraj-ai__launcher span {
-  font-size: 20px;
-}
-
-.miraj-ai__launcher b {
-  font-size: 14px;
-  white-space: nowrap;
+  font-size: 29px;
+  line-height: 1;
 }
 
 .miraj-ai__panel {
@@ -45,15 +53,34 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 17px;
+  padding: 14px 16px;
   background: #0b1833;
   color: #fff;
 }
 
-.miraj-ai__header div {
+.miraj-ai__identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.miraj-ai__identity > div:last-child {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.miraj-ai__avatar {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  font-size: 21px;
 }
 
 .miraj-ai__header strong {
@@ -65,7 +92,7 @@
   color: rgba(255, 255, 255, 0.72);
 }
 
-.miraj-ai__header button {
+.miraj-ai__header > button {
   width: 34px;
   height: 34px;
   border: 0;
@@ -192,17 +219,12 @@
   }
 
   .miraj-ai__launcher {
-    margin-inline-start: auto;
-    min-height: 48px;
-    padding: 11px 14px;
+    width: 52px;
+    height: 52px;
     box-shadow: 0 10px 28px rgba(11, 24, 51, 0.24);
   }
 
   .miraj-ai__launcher span {
-    font-size: 18px;
-  }
-
-  .miraj-ai__launcher b {
-    font-size: 13px;
+    font-size: 25px;
   }
 }

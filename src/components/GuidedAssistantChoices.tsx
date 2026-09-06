@@ -46,8 +46,13 @@ function normalizedLevel(level = '') {
 export default function GuidedAssistantChoices({ conversation, disabled, onSelect }: Props) {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
   const needsProducts = conversation.lastQuestionType === 'choose_level' || conversation.lastQuestionType === 'choose_product';
+
+  useEffect(() => {
+    if (conversation.lastQuestionType !== 'choose_product') setSelectedProductId(null);
+  }, [conversation.lastQuestionType, conversation.currentLevel]);
 
   useEffect(() => {
     if (!needsProducts || products.length) return;
@@ -115,11 +120,19 @@ export default function GuidedAssistantChoices({ conversation, disabled, onSelec
 
   if (conversation.lastQuestionType === 'choose_product' && conversation.currentLevel) {
     if (loading) return <div className="miraj-ai__typing">نجيبلك المنتجات المتوفرة…</div>;
-    if (!levelProducts.length) return null;
+    if (!levelProducts.length || selectedProductId !== null) return null;
     return (
       <div className="miraj-ai__checkout-actions miraj-ai__office-list" aria-label="اختيار المنتج">
         {levelProducts.slice(0, 8).map((product) => (
-          <button key={product.id} type="button" disabled={disabled} onClick={() => onSelect(productShortName(product.name))}>
+          <button
+            key={product.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setSelectedProductId(product.id);
+              onSelect(productShortName(product.name));
+            }}
+          >
             📚 {productShortName(product.name)}
           </button>
         ))}

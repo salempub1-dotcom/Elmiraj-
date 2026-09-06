@@ -6,6 +6,13 @@ type ChatMessage = {
   content: string;
 };
 
+type AssistantErrorData = {
+  error?: string;
+  provider_status?: number;
+  provider_message?: string;
+  model?: string;
+};
+
 const WELCOME: ChatMessage = {
   role: 'assistant',
   content: 'السلام عليكم 🌟 أنا مساعد المعراج. نقدر نعاونك تعرف منتجات المتجر، الأسعار، المحتويات ونختاروا معًا المنتج المناسب ليك.',
@@ -38,6 +45,8 @@ export default function AiAssistant() {
     setInput('');
     setLoading(true);
 
+    let failureData: AssistantErrorData | null = null;
+
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -46,19 +55,31 @@ export default function AiAssistant() {
       });
 
       const data = await response.json();
-      if (!response.ok || !data?.ok) throw new Error(data?.error || 'Request failed');
+      if (!response.ok || !data?.ok) {
+        failureData = data || {};
+        throw new Error(data?.error || 'Request failed');
+      }
 
       setMessages((current) => [
         ...current,
         { role: 'assistant', content: data.answer },
       ]);
     } catch (error) {
-      console.error('AI assistant error:', error);
+      console.error('AI assistant error:', error, failureData);
+      const diagnostic = failureData
+        ? [
+            failureData.error,
+            failureData.provider_status ? `NVIDIA ${failureData.provider_status}` : null,
+            failureData.provider_message,
+            failureData.model ? `model: ${failureData.model}` : null,
+          ].filter(Boolean).join(' | ')
+        : 'NETWORK_OR_PARSE_ERROR';
+
       setMessages((current) => [
         ...current,
         {
           role: 'assistant',
-          content: 'سمحلي، المساعد غير متاح مؤقتًا. تقدر تعاود المحاولة بعد قليل أو تتواصل مع فريق المعراج.',
+          content: `سمحلي، المساعد غير متاح مؤقتًا.\n\nرمز التشخيص: ${diagnostic}`,
         },
       ]);
     } finally {

@@ -1,4 +1,5 @@
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
+import { WILAYA_SHIPPING, normalizeRuleText } from '../../lib/aiRules.js';
 import './AiAssistant.css';
 
 type ChatMessage = {
@@ -62,96 +63,33 @@ const QUICK_QUESTIONS = [
   'نحب نشري حقيبة السنوات الثلاثة',
 ];
 
-const WILAYA_SHIPPING: WilayaShipping[] = [
-  { code: 16, name: 'الجزائر', home: 500, office: 300 },
-  { code: 35, name: 'بومرداس', home: 600, office: 400 },
-  { code: 9, name: 'البليدة', home: 600, office: 400 },
-  { code: 42, name: 'تيبازة', home: 600, office: 400 },
-  { code: 15, name: 'تيزي وزو', home: 700, office: 450 },
-  { code: 10, name: 'البويرة', home: 700, office: 450 },
-  { code: 26, name: 'المدية', home: 700, office: 450 },
-  { code: 6, name: 'بجاية', home: 800, office: 500 },
-  { code: 34, name: 'برج بوعريريج', home: 800, office: 500 },
-  { code: 44, name: 'عين الدفلى', home: 800, office: 500 },
-  { code: 46, name: 'عين تيموشنت', home: 800, office: 500 },
-  { code: 23, name: 'عنابة', home: 800, office: 500 },
-  { code: 5, name: 'باتنة', home: 800, office: 500 },
-  { code: 2, name: 'الشلف', home: 800, office: 500 },
-  { code: 25, name: 'قسنطينة', home: 800, office: 500 },
-  { code: 29, name: 'معسكر', home: 800, office: 500 },
-  { code: 43, name: 'ميلة', home: 800, office: 500 },
-  { code: 27, name: 'مستغانم', home: 800, office: 500 },
-  { code: 28, name: 'المسيلة', home: 800, office: 500 },
-  { code: 31, name: 'وهران', home: 800, office: 500 },
-  { code: 4, name: 'أم البواقي', home: 800, office: 500 },
-  { code: 48, name: 'غليزان', home: 800, office: 500 },
-  { code: 38, name: 'تيسمسيلت', home: 800, office: 500 },
-  { code: 13, name: 'تلمسان', home: 800, office: 500 },
-  { code: 19, name: 'سطيف', home: 800, office: 500 },
-  { code: 22, name: 'سيدي بلعباس', home: 800, office: 500 },
-  { code: 21, name: 'سكيكدة', home: 800, office: 500 },
-  { code: 18, name: 'جيجل', home: 800, office: 500 },
-  { code: 36, name: 'الطارف', home: 900, office: 600 },
-  { code: 24, name: 'قالمة', home: 900, office: 600 },
-  { code: 40, name: 'خنشلة', home: 900, office: 600 },
-  { code: 20, name: 'سعيدة', home: 900, office: 600 },
-  { code: 41, name: 'سوق أهراس', home: 900, office: 600 },
-  { code: 12, name: 'تبسة', home: 900, office: 600 },
-  { code: 14, name: 'تيارت', home: 900, office: 600 },
-  { code: 51, name: 'أولاد جلال', home: 1000, office: 1000 },
-  { code: 17, name: 'الجلفة', home: 1000, office: 600 },
-  { code: 3, name: 'الأغواط', home: 1000, office: 600 },
-  { code: 7, name: 'بسكرة', home: 1000, office: 600 },
-  { code: 47, name: 'غرداية', home: 1100, office: 700 },
-  { code: 39, name: 'الوادي', home: 1100, office: 700 },
-  { code: 57, name: 'المغير', home: 1100, office: 1100 },
-  { code: 30, name: 'ورقلة', home: 1100, office: 700 },
-  { code: 55, name: 'تقرت', home: 1100, office: 700 },
-  { code: 58, name: 'المنيعة', home: 1200, office: 800 },
-  { code: 32, name: 'البيض', home: 1200, office: 800 },
-  { code: 45, name: 'النعامة', home: 1200, office: 800 },
-  { code: 8, name: 'بشار', home: 1200, office: 800 },
-  { code: 52, name: 'بني عباس', home: 1200, office: 1200 },
-  { code: 1, name: 'أدرار', home: 1500, office: 1000 },
-  { code: 49, name: 'تيميمون', home: 1500, office: 1000 },
-  { code: 37, name: 'تندوف', home: 1700, office: 1000 },
-  { code: 53, name: 'عين صالح', home: 1800, office: 1200 },
-  { code: 33, name: 'إليزي', home: 1900, office: 1500 },
-  { code: 11, name: 'تمنراست', home: 2000, office: 1500 },
-  { code: 56, name: 'جانت', home: 2200, office: 2200 },
-];
-
-function normalizeArabic(text = '') {
-  return text
-    .toLowerCase()
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ى/g, 'ي')
-    .replace(/ة/g, 'ه')
-    .replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي')
-    .replace(/[\u064B-\u065F]/g, '')
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const SHIPPING = WILAYA_SHIPPING as WilayaShipping[];
 
 function money(value: number) {
   return `${Number(value || 0).toLocaleString('en-US')} دج`;
 }
 
+function normalize(text = '') {
+  return normalizeRuleText(text);
+}
+
 function findWilaya(raw: string): WilayaShipping | undefined {
-  const value = normalizeArabic(raw)
-    .replace('الجزاير', 'الجزائر')
-    .replace('الجزائر العاصمه', 'الجزائر');
-  return WILAYA_SHIPPING.find((wilaya) => {
-    const name = normalizeArabic(wilaya.name);
+  let value = normalize(raw);
+
+  // Common aliases after the same normalization used by the backend rules.
+  if (value === 'الجزاير' || value === 'الجزائر العاصمه' || value === 'الجزاير العاصمه') {
+    value = normalize('الجزائر');
+  }
+
+  return SHIPPING.find((wilaya) => {
+    const name = normalize(wilaya.name);
     return value === name || value.includes(name) || name.includes(value);
   });
 }
 
 function isPurchaseIntent(message: string, history: ChatMessage[]) {
-  const current = normalizeArabic(message);
-  const context = normalizeArabic(history.slice(-6).map((item) => item.content).join(' '));
+  const current = normalize(message);
+  const context = normalize(history.slice(-6).map((item) => item.content).join(' '));
   const wantsOrder = /(نحب نشري|حاب نشري|اريد شراء|اريد الشراء|نحب نطلب|حاب نطلب|اريد الطلب|اكمل الطلب|كمل الطلب|اطلبها|نطلبها)/.test(current);
   const fullPrimary = /(السنوات الثلاثه|الحقيبه كامله|حقيبه السنوات الثلاثه|3ps.*4ps.*5ps)/.test(`${context} ${current}`);
   return wantsOrder && fullPrimary;
@@ -168,19 +106,35 @@ function renderAssistantText(content: string): ReactNode[] {
 
   return parts.map((part, index) => {
     if (!part) return null;
+
     const markdownLink = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/i);
     if (markdownLink) {
-      return <a key={`md-link-${index}`} className="miraj-ai__product-link" href={markdownLink[2]} target="_blank" rel="noreferrer">فتح المنتج ↗</a>;
+      return (
+        <a key={`md-link-${index}`} className="miraj-ai__product-link" href={markdownLink[2]} target="_blank" rel="noreferrer">
+          فتح المنتج ↗
+        </a>
+      );
     }
+
     if (/^https?:\/\//i.test(part)) {
       const cleanUrl = part.replace(/[.,،؛]+$/, '');
       const trailing = part.slice(cleanUrl.length);
-      return <span key={`raw-link-${index}`}><a className="miraj-ai__product-link" href={cleanUrl} target="_blank" rel="noreferrer">فتح المنتج ↗</a>{trailing}</span>;
+      return (
+        <span key={`raw-link-${index}`}>
+          <a className="miraj-ai__product-link" href={cleanUrl} target="_blank" rel="noreferrer">فتح المنتج ↗</a>
+          {trailing}
+        </span>
+      );
     }
-    if (/^\*\*[^*]+\*\*$/.test(part)) return <strong key={`bold-${index}`}>{part.slice(2, -2)}</strong>;
+
+    if (/^\*\*[^*]+\*\*$/.test(part)) {
+      return <strong key={`bold-${index}`}>{part.slice(2, -2)}</strong>;
+    }
+
     if (/\b\d{1,3}(?:[\s,.]\d{3})*(?:[.,]\d+)?\s*(?:دج|DA|DZD)\b/i.test(part)) {
       return <span key={`price-${index}`} className="miraj-ai__price">{part}</span>;
     }
+
     return part;
   });
 }
@@ -203,8 +157,10 @@ export default function AiAssistant() {
 
   async function startPrimaryCheckout(userText = 'إكمال الطلب هنا') {
     if (loading) return;
+
     setMessages((current) => [...current, { role: 'user', content: userText }]);
     setLoading(true);
+
     try {
       const response = await fetch('/api/products');
       const payload = await response.json();
@@ -215,11 +171,13 @@ export default function AiAssistant() {
           : Array.isArray(payload?.data)
             ? payload.data
             : [];
+
       const items = ['3PS', '4PS', '5PS']
-        .map((code) => list.find((product) => normalizeArabic(product.name || '').includes(code.toLowerCase())))
+        .map((code) => list.find((product) => normalize(product.name || '').includes(code.toLowerCase())))
         .filter(Boolean) as CheckoutProduct[];
 
       if (items.length !== 3) throw new Error('Primary bundle products not found');
+
       if (items.some((item) => Number(item.stock ?? 1) <= 0)) {
         addAssistant('واحدة من حقائب السنوات الثلاثة غير متوفرة حاليًا، لذلك ما نقدرش نكمل الطلب تلقائيًا.');
         return;
@@ -238,17 +196,19 @@ export default function AiAssistant() {
 
   function checkoutSummary(state: CheckoutState) {
     if (!state.wilaya || !state.deliveryType) return '';
+
     const shipping = state.deliveryType === 'office' ? state.wilaya.office : state.wilaya.home;
     const deliveryLabel = state.deliveryType === 'office'
       ? `المكتب: ${state.officeName || state.commune || ''}`
       : `المنزل: ${state.address || ''}`;
+
     return [
       'راجع الطلب قبل التأكيد:',
       `العميل: ${state.customer}`,
       `الهاتف: ${state.phone}`,
       `الولاية: ${state.wilaya.name} — ${state.commune}`,
       `التوصيل: ${deliveryLabel}`,
-      `المنتجات: 3PS + 4PS + 5PS`,
+      'المنتجات: 3PS + 4PS + 5PS',
       `المنتجات: 💰 ${money(state.subtotal)}`,
       `التوصيل: 💰 ${money(shipping)}`,
       `الإجمالي: 💰 ${money(state.subtotal + shipping)}`,
@@ -257,9 +217,11 @@ export default function AiAssistant() {
 
   async function createCheckoutOrder(state: CheckoutState) {
     if (!state.customer || !state.phone || !state.wilaya || !state.commune || !state.deliveryType) return;
+
     const shipping = state.deliveryType === 'office' ? state.wilaya.office : state.wilaya.home;
     const tracking = generateOrderReference();
     const now = new Date().toISOString();
+
     const order = {
       id: `ORD-${Date.now()}`,
       tracking,
@@ -282,6 +244,7 @@ export default function AiAssistant() {
     };
 
     setLoading(true);
+
     try {
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -290,6 +253,7 @@ export default function AiAssistant() {
       });
       const result = await response.json();
       if (!response.ok || !result?.ok) throw new Error(result?.error || 'Order save failed');
+
       setCheckout(null);
       addAssistant(`تم إنشاء الطلب بنجاح ✅\nرقم الطلب: ${tracking}\nالإجمالي: 💰 ${money(order.total)}\nالطلب الآن قيد المراجعة والتأكيد.`);
     } catch (error) {
@@ -302,8 +266,10 @@ export default function AiAssistant() {
 
   async function handleCheckoutInput(raw: string) {
     if (!checkout) return;
+
     const value = raw.trim();
     if (!value || loading) return;
+
     setMessages((current) => [...current, { role: 'user', content: value }]);
     setInput('');
 
@@ -322,7 +288,9 @@ export default function AiAssistant() {
 
     if (checkout.step === 'phone') {
       const digits = value.replace(/\D/g, '');
-      if (digits.length < 9 || digits.length > 12) return addAssistant('رقم الهاتف غير واضح. اكتب رقمًا صحيحًا مثل 05xxxxxxxx.');
+      if (digits.length < 9 || digits.length > 12) {
+        return addAssistant('رقم الهاتف غير واضح. اكتب رقمًا صحيحًا مثل 05xxxxxxxx.');
+      }
       setCheckout({ ...checkout, phone: value, step: 'wilaya' });
       addAssistant('اكتب الولاية للتوصيل.');
       return;
@@ -330,7 +298,9 @@ export default function AiAssistant() {
 
     if (checkout.step === 'wilaya') {
       const wilaya = findWilaya(value);
-      if (!wilaya) return addAssistant('ما تعرفتش على الولاية. اكتب اسم الولاية فقط، مثال: الجزائر أو غرداية.');
+      if (!wilaya) {
+        return addAssistant('ما تعرفتش على الولاية. اكتب اسم الولاية فقط، مثال: الجزائر أو غرداية.');
+      }
       setCheckout({ ...checkout, wilaya, step: 'commune' });
       addAssistant(`تمام، ${wilaya.name}. اكتب البلدية.`);
       return;
@@ -344,7 +314,7 @@ export default function AiAssistant() {
     }
 
     if (checkout.step === 'delivery') {
-      const normalized = normalizeArabic(value);
+      const normalized = normalize(value);
       if (normalized.includes('مكتب') || normalized.includes('bureau') || normalized.includes('office')) {
         setCheckout({ ...checkout, deliveryType: 'office', step: 'office' });
         addAssistant('اكتب اسم مكتب الاستلام الذي تفضله.');
@@ -375,7 +345,7 @@ export default function AiAssistant() {
     }
 
     if (checkout.step === 'confirm') {
-      const normalized = normalizeArabic(value);
+      const normalized = normalize(value);
       if (normalized.includes('تاكيد') || normalized === 'نعم' || normalized === 'وافق') {
         await createCheckoutOrder(checkout);
       } else {
@@ -394,6 +364,7 @@ export default function AiAssistant() {
     }
 
     const previous = messages.filter((m) => m !== WELCOME).slice(-10);
+
     if (isPurchaseIntent(message, previous)) {
       setInput('');
       await startPrimaryCheckout(message);
@@ -404,6 +375,7 @@ export default function AiAssistant() {
     setMessages((current) => [...current, userMessage]);
     setInput('');
     setLoading(true);
+
     let failureData: AssistantErrorData | null = null;
 
     try {
@@ -428,7 +400,10 @@ export default function AiAssistant() {
             failureData.model ? `model: ${failureData.model}` : null,
           ].filter(Boolean).join(' | ')
         : 'NETWORK_OR_PARSE_ERROR';
-      setMessages((current) => [...current, { role: 'assistant', content: `سمحلي، المساعد غير متاح مؤقتًا.\n\nرمز التشخيص: ${diagnostic}` }]);
+      setMessages((current) => [
+        ...current,
+        { role: 'assistant', content: `سمحلي، المساعد غير متاح مؤقتًا.\n\nرمز التشخيص: ${diagnostic}` },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -449,7 +424,10 @@ export default function AiAssistant() {
           <header className="miraj-ai__header">
             <div className="miraj-ai__identity">
               <div className="miraj-ai__avatar" aria-hidden="true">🤖</div>
-              <div><strong>مساعد المعراج</strong><span>مساعد المنتجات الذكي</span></div>
+              <div>
+                <strong>مساعد المعراج</strong>
+                <span>مساعد المنتجات الذكي</span>
+              </div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق">×</button>
           </header>
@@ -463,7 +441,9 @@ export default function AiAssistant() {
 
             {messages.length === 1 && (
               <div className="miraj-ai__quick">
-                {QUICK_QUESTIONS.map((question) => <button key={question} type="button" onClick={() => void sendMessage(question)}>{question}</button>)}
+                {QUICK_QUESTIONS.map((question) => (
+                  <button key={question} type="button" onClick={() => void sendMessage(question)}>{question}</button>
+                ))}
               </div>
             )}
 
@@ -508,7 +488,14 @@ export default function AiAssistant() {
         </section>
       )}
 
-      <button className="miraj-ai__launcher" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={open ? 'إغلاق مساعد المعراج' : 'فتح مساعد المعراج'} title="مساعد المعراج">
+      <button
+        className="miraj-ai__launcher"
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label={open ? 'إغلاق مساعد المعراج' : 'فتح مساعد المعراج'}
+        title="مساعد المعراج"
+      >
         <span aria-hidden="true">🤖</span>
       </button>
     </div>

@@ -70,8 +70,10 @@ function verifyAdminToken(authHeader) {
 }
 
 function getSupabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    || process.env.SUPABASE_ANON_KEY
+    || process.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
@@ -138,7 +140,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: false,
       error: 'SUPABASE_NOT_CONFIGURED',
-      message: 'أضف SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY في Vercel',
+      message: 'أضف SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY أو مفاتيح Supabase العامة في Vercel',
     });
   }
 

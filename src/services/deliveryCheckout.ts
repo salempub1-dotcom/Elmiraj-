@@ -40,6 +40,44 @@ export interface CheckoutDeliverySelection {
 const PREFIX = '@DP1:';
 const DEFAULTS: DeliveryProviderSettings = { noest: true, zrexpress: true };
 
+const ZR_COMMUNE_ALIASES: Record<string, string> = {
+  'الرغاية': 'Reghaia',
+  'رغاية': 'Reghaia',
+  'الرويبة': 'Rouiba',
+  'رويبة': 'Rouiba',
+  'براقي': 'Baraki',
+  'الحراش': 'El Harrach',
+  'باب الزوار': 'Bab Ezzouar',
+  'الدار البيضاء': 'Dar El Beida',
+  'برج الكيفان': 'Bordj El Kiffan',
+  'درارية': 'Draria',
+  'زرالدة': 'Zeralda',
+  'الشراقة': 'Cheraga',
+  'حيدرة': 'Hydra',
+};
+
+function normalizePlace(value = '') {
+  return String(value)
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/[\u064B-\u065F]/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function communeCandidates(commune: string): string[] {
+  const raw = String(commune || '').trim();
+  const normalized = normalizePlace(raw);
+  const aliasEntry = Object.entries(ZR_COMMUNE_ALIASES).find(([name]) => normalizePlace(name) === normalized);
+  const alias = aliasEntry?.[1];
+  return [...new Set([raw, alias].filter((value): value is string => Boolean(value)))];
+}
+
 async function jsonPost(payload: Record<string, unknown>, auth = '') {
   const response = await fetch('/api/noest', {
     method: 'POST',
@@ -82,28 +120,38 @@ export async function saveDeliveryProviderSettings(next: DeliveryProviderSetting
 }
 
 export async function fetchZrCheckoutOptions(wilayaId: number, commune: string): Promise<{ ok: boolean; data?: ZrCheckoutOptions; message?: string }> {
+  let lastResult: { ok: boolean; data?: ZrCheckoutOptions; message?: string } = { ok: false, message: 'تعذر تحميل مكاتب ZR Express.' };
   try {
-    const { result } = await jsonPost({
-      action: 'checkout_zr_options',
-      wilaya_id: wilayaId,
-      commune,
-    });
-    return result;
+    for (const candidate of communeCandidates(commune)) {
+      const { result } = await jsonPost({
+        action: 'checkout_zr_options',
+        wilaya_id: wilayaId,
+        commune: candidate,
+      });
+      lastResult = result;
+      if (result?.ok && result?.data) return result;
+    }
+    return lastResult;
   } catch {
-    return { ok: false, message: 'تعذر تحميل مكاتب ZR Express.' };
+    return lastResult;
   }
 }
 
 export async function fetchZrShippingQuote(wilayaId: number, commune: string): Promise<{ ok: boolean; data?: ZrShippingQuote; message?: string }> {
+  let lastResult: { ok: boolean; data?: ZrShippingQuote; message?: string } = { ok: false, message: 'تعذر تحميل تسعيرة ZR Express.' };
   try {
-    const { result } = await jsonPost({
-      action: 'checkout_zr_quote',
-      wilaya_id: wilayaId,
-      commune,
-    });
-    return result;
+    for (const candidate of communeCandidates(commune)) {
+      const { result } = await jsonPost({
+        action: 'checkout_zr_quote',
+        wilaya_id: wilayaId,
+        commune: candidate,
+      });
+      lastResult = result;
+      if (result?.ok && result?.data) return result;
+    }
+    return lastResult;
   } catch {
-    return { ok: false, message: 'تعذر تحميل تسعيرة ZR Express.' };
+    return lastResult;
   }
 }
 

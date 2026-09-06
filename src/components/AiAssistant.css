@@ -113,12 +113,12 @@
 
 .miraj-ai__message {
   width: fit-content;
-  max-width: 86%;
+  max-width: 88%;
   margin-bottom: 10px;
   padding: 11px 13px;
   border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.75;
+  font-size: 14.5px;
+  line-height: 1.65;
   white-space: pre-wrap;
 }
 
@@ -134,6 +134,33 @@
   background: #0b1833;
   color: #fff;
   border-bottom-right-radius: 5px;
+}
+
+.miraj-ai__price {
+  display: inline-block;
+  margin-inline: 2px;
+  color: #a87900;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.miraj-ai__product-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: #0b1833;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.miraj-ai__product-link:hover {
+  background: #14264c;
 }
 
 .miraj-ai__quick {
@@ -226,5 +253,14 @@
 
   .miraj-ai__launcher span {
     font-size: 25px;
+  }
+
+  .miraj-ai__message {
+    max-width: 92%;
+    font-size: 14px;
+  }
+
+  .miraj-ai__price {
+    font-size: 16.5px;
   }
 }

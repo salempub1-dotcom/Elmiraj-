@@ -26,24 +26,50 @@ const QUICK_QUESTIONS = [
 ];
 
 function renderAssistantText(content: string): ReactNode[] {
-  const tokenRegex = /(https?:\/\/[^\s]+|\b\d{1,3}(?:[\s,.]\d{3})*(?:[.,]\d+)?\s*(?:دج|DA|DZD)\b)/gi;
+  // Free models occasionally return light Markdown even when asked for plain text.
+  // Render the few useful constructs safely instead of exposing ** or [text](url)
+  // syntax to customers.
+  const tokenRegex = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s]+|\*\*[^*]+\*\*|\b\d{1,3}(?:[\s,.]\d{3})*(?:[.,]\d+)?\s*(?:دج|DA|DZD)\b)/gi;
   const parts = content.split(tokenRegex);
 
   return parts.map((part, index) => {
     if (!part) return null;
 
-    if (/^https?:\/\//i.test(part)) {
+    const markdownLink = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/i);
+    if (markdownLink) {
       return (
         <a
-          key={`link-${index}`}
+          key={`md-link-${index}`}
           className="miraj-ai__product-link"
-          href={part}
+          href={markdownLink[2]}
           target="_blank"
           rel="noreferrer"
         >
           فتح المنتج ↗
         </a>
       );
+    }
+
+    if (/^https?:\/\//i.test(part)) {
+      const cleanUrl = part.replace(/[.,،؛]+$/, '');
+      const trailing = part.slice(cleanUrl.length);
+      return (
+        <span key={`raw-link-${index}`}>
+          <a
+            className="miraj-ai__product-link"
+            href={cleanUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            فتح المنتج ↗
+          </a>
+          {trailing}
+        </span>
+      );
+    }
+
+    if (/^\*\*[^*]+\*\*$/.test(part)) {
+      return <strong key={`bold-${index}`}>{part.slice(2, -2)}</strong>;
     }
 
     if (/\b\d{1,3}(?:[\s,.]\d{3})*(?:[.,]\d+)?\s*(?:دج|DA|DZD)\b/i.test(part)) {

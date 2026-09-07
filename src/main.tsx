@@ -7,6 +7,7 @@ import "./cart-frame.css";
 import "./brand-polish.css";
 import "./dark-mode.css";
 import "./bilingual.css";
+import "./components/AiAssistantRobot.css";
 import { App } from "./App";
 import AiAssistantGate from "./components/AiAssistantGate";
 import DeliveryProviderDialog from "./components/admin/DeliveryProviderDialog";

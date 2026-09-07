@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { SITE_URL, SITE_NAME, FALLBACK_IMAGE, FALLBACK_TITLE, FALLBACK_DESC, toPreviewText, renderSocialPreviewHtml } from '../lib/socialPreviewHtml.js';
 import { getAllowedSupabaseMediaPath, normalizeProductImagesForStorage, proxyProductImages, toMediaProxyUrl } from '../lib/mediaProxy.js';
 import { handleAiAssistant } from '../lib/aiAssistant.js';
+import { handleAiLandingGenerator } from '../lib/aiLandingGenerator.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
@@ -211,6 +212,11 @@ export default async function handler(req, res) {
 
   const action = body.action;
   if (action === 'ai_assistant') return handleAiAssistant(res, supabase, body);
+
+  if (action === 'generate_landing_content') {
+    const admin = verifyAdminToken(req.headers.authorization);
+    return handleAiLandingGenerator(res, supabase, body, admin);
+  }
 
   if (action === 'seed') {
     const products = body.products;

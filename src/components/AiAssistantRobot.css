@@ -21,11 +21,38 @@
   filter: drop-shadow(0 5px 7px rgba(5, 22, 45, 0.24)) brightness(0.98) !important;
 }
 
+/* Open state: stop floating and switch to a smaller smiling robot face. */
+.miraj-ai__launcher[aria-expanded="true"] {
+  width: 54px !important;
+  height: 54px !important;
+  background-image: url('/images/assistant-robot-face.svg') !important;
+  background-position: center !important;
+  animation: none !important;
+  transform: none !important;
+  filter: drop-shadow(0 6px 8px rgba(5, 22, 45, 0.22)) !important;
+}
+
+.miraj-ai__launcher[aria-expanded="true"]::after {
+  display: none !important;
+  animation: none !important;
+}
+
+.miraj-ai__launcher[aria-expanded="true"]:hover {
+  animation: none !important;
+  transform: none !important;
+  filter: drop-shadow(0 7px 9px rgba(5, 22, 45, 0.26)) brightness(1.03) !important;
+}
+
 @media (max-width: 520px) {
   .miraj-ai__launcher {
     width: 50px !important;
     height: 57px !important;
     background-size: contain !important;
+  }
+
+  .miraj-ai__launcher[aria-expanded="true"] {
+    width: 44px !important;
+    height: 44px !important;
   }
 }
 

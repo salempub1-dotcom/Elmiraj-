@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { fetchDeliveryProviderSettings } from '../services/deliveryCheckout';
 import AiAssistant from './AiAssistant';
 
 const REFRESH_INTERVAL_MS = 30_000;
 
 export default function AiAssistantGate() {
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
   const [enabled, setEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
+    if (isAdmin) {
+      setEnabled(false);
+      return;
+    }
+
     let cancelled = false;
 
     const refresh = async () => {
@@ -35,8 +43,8 @@ export default function AiAssistantGate() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('miraj:storefront-settings-changed', onSettingsChanged);
     };
-  }, []);
+  }, [isAdmin]);
 
-  if (enabled !== true) return null;
+  if (isAdmin || enabled !== true) return null;
   return <AiAssistant />;
 }

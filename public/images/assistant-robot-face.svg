@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Smiling assistant robot face">
+  <defs>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#cfd9e8"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#153b68"/>
+      <stop offset="1" stop-color="#071a33"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#06162c" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <circle cx="60" cy="60" r="48" fill="url(#shell)" stroke="#2c78c7" stroke-width="3"/>
+    <rect x="25" y="34" width="70" height="48" rx="22" fill="url(#screen)" stroke="#67c5ff" stroke-width="2"/>
+    <ellipse cx="45" cy="55" rx="6" ry="7" fill="#8ee8ff"/>
+    <ellipse cx="75" cy="55" rx="6" ry="7" fill="#8ee8ff"/>
+    <path d="M43 66c5 8 12 11 17 11s12-3 17-11" fill="none" stroke="#8ee8ff" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="60" cy="15" r="5" fill="#2d99ff"/>
+    <path d="M60 19v10" stroke="#2c78c7" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="16" cy="58" r="8" fill="#d8e5f4" stroke="#2c78c7" stroke-width="3"/>
+    <circle cx="104" cy="58" r="8" fill="#d8e5f4" stroke="#2c78c7" stroke-width="3"/>
+  </g>
+</svg>

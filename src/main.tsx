@@ -12,6 +12,7 @@ import { App } from "./App";
 import AiAssistantGate from "./components/AiAssistantGate";
 import DeliveryProviderDialog from "./components/admin/DeliveryProviderDialog";
 import DeliveryProviderLabels from "./components/admin/DeliveryProviderLabels";
+import AiLandingGenerator from "./components/admin/AiLandingGenerator";
 import { installDeliveryFetchBridge } from "./services/deliveryBridge";
 import { installUiSounds } from "./utils/uiSounds";
 import { installStorefrontTheme } from "./utils/storefrontTheme";
@@ -51,6 +52,7 @@ createRoot(document.getElementById("root")!).render(
       <AiAssistantGate />
       <DeliveryProviderDialog />
       <DeliveryProviderLabels />
+      <AiLandingGenerator />
     </BrowserRouter>
   </StrictMode>
 );

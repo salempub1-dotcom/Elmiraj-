@@ -1,0 +1,36 @@
+.miraj-ai__launcher {
+  width: 64px !important;
+  height: 72px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  background-image: url('/images/assistant-robot.svg') !important;
+  background-size: contain !important;
+  background-position: center bottom !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  filter: drop-shadow(0 8px 10px rgba(5, 22, 45, 0.28));
+}
+
+.miraj-ai__launcher:hover {
+  filter: drop-shadow(0 10px 12px rgba(5, 22, 45, 0.34)) brightness(1.04) !important;
+}
+
+.miraj-ai__launcher:active {
+  filter: drop-shadow(0 5px 7px rgba(5, 22, 45, 0.24)) brightness(0.98) !important;
+}
+
+@media (max-width: 520px) {
+  .miraj-ai__launcher {
+    width: 50px !important;
+    height: 57px !important;
+    background-size: contain !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miraj-ai__launcher {
+    animation: none !important;
+  }
+}

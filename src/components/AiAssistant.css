@@ -1,0 +1,307 @@
+.miraj-ai {
+  position: fixed;
+  inset-inline-end: 18px;
+  bottom: 18px;
+  z-index: 9999;
+  font-family: inherit;
+}
+
+.miraj-ai__launcher {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(212, 175, 55, 0.74);
+  border-radius: 19px;
+  padding: 0;
+  background-color: #081936;
+  background-image: url("data:image/webp;base64,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");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: transparent;
+  box-shadow: 0 10px 28px rgba(8, 25, 54, 0.32), 0 0 0 5px rgba(45, 153, 255, 0.08);
+  cursor: pointer;
+  transition: box-shadow 180ms ease, filter 180ms ease;
+  animation: mirajRobotFloat 3.4s ease-in-out infinite;
+}
+
+.miraj-ai__launcher span {
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.miraj-ai__launcher::after {
+  content: 'نعاونك تختار؟';
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: calc(100% + 10px);
+  width: max-content;
+  max-width: 190px;
+  padding: 8px 11px;
+  border: 1px solid rgba(11, 24, 51, 0.1);
+  border-radius: 13px 13px 4px 13px;
+  background: #fff;
+  color: #0b1833;
+  box-shadow: 0 10px 28px rgba(11, 24, 51, 0.16);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(5px) scale(0.96);
+  transform-origin: bottom right;
+  animation: mirajAssistantHint 7.2s ease 1.7s 1 both;
+}
+
+.miraj-ai__launcher:hover {
+  animation-play-state: paused;
+  filter: brightness(1.06);
+  box-shadow: 0 14px 34px rgba(8, 25, 54, 0.38), 0 0 0 6px rgba(45, 153, 255, 0.11);
+}
+
+.miraj-ai__launcher:active { filter: brightness(0.96); }
+
+@keyframes mirajRobotFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(0.8deg); }
+}
+
+@keyframes mirajAssistantHint {
+  0%, 12%, 76%, 100% { opacity: 0; transform: translateY(5px) scale(0.96); }
+  20%, 66% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.miraj-ai__panel {
+  width: min(390px, calc(100vw - 24px));
+  height: min(610px, calc(100vh - 105px));
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(11, 24, 51, 0.1);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(11, 24, 51, 0.24);
+  display: flex;
+  flex-direction: column;
+}
+
+.miraj-ai__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: #0b1833;
+  color: #fff;
+}
+
+.miraj-ai__identity { display: flex; align-items: center; gap: 10px; }
+.miraj-ai__identity > div:last-child { display: flex; flex-direction: column; gap: 2px; }
+
+.miraj-ai__avatar {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  font-size: 21px;
+}
+
+.miraj-ai__header strong { font-size: 16px; }
+.miraj-ai__header span { font-size: 11px; color: rgba(255, 255, 255, 0.72); }
+
+.miraj-ai__header > button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.miraj-ai__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: #f7f4ed;
+}
+
+.miraj-ai__message {
+  width: fit-content;
+  max-width: 88%;
+  margin-bottom: 10px;
+  padding: 11px 13px;
+  border-radius: 16px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.miraj-ai__message--assistant {
+  margin-inline-end: auto;
+  background: #fff;
+  color: #18233a;
+  border-bottom-left-radius: 5px;
+}
+
+.miraj-ai__message--user {
+  margin-inline-start: auto;
+  background: #0b1833;
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+
+.miraj-ai__price {
+  display: inline-block;
+  margin-inline: 2px;
+  color: #a87900;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.miraj-ai__product-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: #0b1833;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.miraj-ai__product-link:hover { background: #14264c; }
+
+.miraj-ai__quick,
+.miraj-ai__checkout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+
+.miraj-ai__quick button,
+.miraj-ai__checkout-actions button {
+  border: 1px solid rgba(11, 24, 51, 0.12);
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: #fff;
+  color: #0b1833;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.miraj-ai__checkout-actions button {
+  border-color: rgba(212, 175, 55, 0.55);
+  background: #fffaf0;
+}
+
+.miraj-ai__checkout-actions--confirm button:first-child {
+  background: #0b1833;
+  color: #fff;
+  border-color: #0b1833;
+}
+
+.miraj-ai__checkout-actions .miraj-ai__cancel {
+  background: #fff;
+  color: #7a2730;
+  border-color: rgba(122, 39, 48, 0.22);
+}
+
+.miraj-ai__typing { color: #6b7280; font-size: 12px; padding: 3px 4px 9px; }
+
+.miraj-ai__form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 11px;
+  background: #fff;
+  border-top: 1px solid #ece8df;
+}
+
+.miraj-ai__form input {
+  min-width: 0;
+  border: 1px solid #d9d5cb;
+  border-radius: 13px;
+  padding: 11px 12px;
+  outline: none;
+  font: inherit;
+}
+
+.miraj-ai__form input:focus {
+  border-color: #d4af37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.13);
+}
+
+.miraj-ai__form button {
+  border: 0;
+  border-radius: 12px;
+  padding: 0 15px;
+  background: #d4af37;
+  color: #0b1833;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.miraj-ai__form button:disabled { opacity: 0.5; cursor: default; }
+
+.miraj-ai__note {
+  margin: 0;
+  padding: 0 12px 10px;
+  background: #fff;
+  color: #8a8f99;
+  font-size: 10px;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .miraj-ai {
+    inset-inline-end: 12px;
+    inset-inline-start: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .miraj-ai__panel {
+    width: min(390px, calc(100vw - 24px));
+    height: min(68vh, 560px);
+  }
+
+  .miraj-ai__launcher {
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+    box-shadow: 0 9px 24px rgba(8, 25, 54, 0.3), 0 0 0 4px rgba(45, 153, 255, 0.07);
+  }
+
+  .miraj-ai__launcher::after {
+    content: 'نعاونك؟';
+    max-width: 140px;
+    padding: 7px 9px;
+    font-size: 11px;
+  }
+
+  .miraj-ai__message { max-width: 92%; font-size: 14px; }
+  .miraj-ai__price { font-size: 16.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miraj-ai__launcher,
+  .miraj-ai__launcher::after {
+    animation: none;
+  }
+}

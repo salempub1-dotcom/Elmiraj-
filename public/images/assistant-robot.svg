@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="مساعد المعراج">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#e9f3ff"/>
+      <stop offset="1" stop-color="#bdd8f4"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#183b68"/>
+      <stop offset="1" stop-color="#071a35"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="42%" r="58%">
+      <stop offset="0" stop-color="#2a9cff" stop-opacity=".6"/>
+      <stop offset="1" stop-color="#071a35" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#031225" flood-opacity=".34"/>
+    </filter>
+  </defs>
+
+  <ellipse cx="80" cy="145" rx="40" ry="8" fill="#071a35" opacity=".28"/>
+  <circle cx="80" cy="78" r="70" fill="url(#glow)" opacity=".45"/>
+
+  <g filter="url(#shadow)">
+    <!-- antenna -->
+    <path d="M80 26V15" stroke="#d8e9fb" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="80" cy="11" r="6" fill="#2498ff" stroke="#75c7ff" stroke-width="2"/>
+
+    <!-- ears -->
+    <rect x="25" y="53" width="18" height="35" rx="9" fill="#dbeeff" stroke="#8fb9df" stroke-width="3"/>
+    <rect x="117" y="53" width="18" height="35" rx="9" fill="#dbeeff" stroke="#8fb9df" stroke-width="3"/>
+    <rect x="22" y="60" width="8" height="21" rx="4" fill="#248edf"/>
+    <rect x="130" y="60" width="8" height="21" rx="4" fill="#248edf"/>
+
+    <!-- head -->
+    <rect x="38" y="31" width="84" height="69" rx="31" fill="url(#body)" stroke="#8eb3d6" stroke-width="3"/>
+    <rect x="48" y="43" width="64" height="43" rx="20" fill="url(#face)"/>
+    <ellipse cx="80" cy="55" rx="26" ry="10" fill="#2b9fff" opacity=".08"/>
+
+    <!-- eyes -->
+    <path d="M61 63c3-4 8-4 11 0" fill="none" stroke="#79e6ff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M88 63c3-4 8-4 11 0" fill="none" stroke="#79e6ff" stroke-width="4" stroke-linecap="round"/>
+    <!-- smile -->
+    <path d="M68 72c7 8 17 8 24 0" fill="none" stroke="#79e6ff" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- body -->
+    <ellipse cx="80" cy="117" rx="32" ry="34" fill="url(#body)" stroke="#8eb3d6" stroke-width="3"/>
+    <ellipse cx="80" cy="114" rx="12" ry="9" fill="#f7fbff" opacity=".7"/>
+
+    <!-- left arm -->
+    <path d="M51 104c-13 4-20 15-17 26 2 7 8 8 13 2 7-8 10-17 11-25z" fill="url(#body)" stroke="#8eb3d6" stroke-width="3"/>
+    <!-- waving right arm -->
+    <path d="M108 104c10-1 16-8 18-18 1-6 7-8 11-4 5 5 0 18-7 25-7 7-14 11-21 10z" fill="url(#body)" stroke="#8eb3d6" stroke-width="3"/>
+    <circle cx="137" cy="79" r="7" fill="#eef7ff" stroke="#8eb3d6" stroke-width="3"/>
+
+    <!-- feet -->
+    <ellipse cx="64" cy="145" rx="14" ry="7" fill="#d6e8f8" stroke="#8eb3d6" stroke-width="2"/>
+    <ellipse cx="96" cy="145" rx="14" ry="7" fill="#d6e8f8" stroke="#8eb3d6" stroke-width="2"/>
+  </g>
+</svg>

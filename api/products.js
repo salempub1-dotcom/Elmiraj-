@@ -2,8 +2,49 @@ import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { SITE_URL, SITE_NAME, FALLBACK_IMAGE, FALLBACK_TITLE, FALLBACK_DESC, toPreviewText, renderSocialPreviewHtml } from '../lib/socialPreviewHtml.js';
 import { getAllowedSupabaseMediaPath, normalizeProductImagesForStorage, proxyProductImages, toMediaProxyUrl } from '../lib/mediaProxy.js';
+import { handleAiAssistant } from '../lib/aiAssistant.js';
+import { handleAiLandingGenerator } from '../lib/aiLandingGenerator.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
+
+function createAdminToken(username, secret) {
+  const ts = Date.now().toString();
+  const sig = createHmac('sha256', secret).update(`${username}:${ts}`).digest('hex').substring(0, 16);
+  return Buffer.from(`${username}:${ts}:${sig}`).toString('base64');
+}
+
+async function handleAdminAuth(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { body = {}; }
+  }
+  if (!body || typeof body !== 'object') body = {};
+
+  const { username, password } = body;
+  if (!username || !password) {
+    return res.status(400).json({ ok: false, error: 'يرجى إدخال اسم المستخدم وكلمة المرور' });
+  }
+
+  const ADMIN_USER = process.env.ADMIN_USERNAME;
+  const ADMIN_PASS = process.env.ADMIN_PASSWORD;
+  if (!ADMIN_USER || !ADMIN_PASS) {
+    return res.status(503).json({
+      ok: false,
+      error: 'بيانات الاعتماد غير مُكوّنة على الخادم. يرجى إضافة ADMIN_USERNAME و ADMIN_PASSWORD في إعدادات Vercel.',
+    });
+  }
+
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    return res.status(200).json({
+      ok: true,
+      token: createAdminToken(username, ADMIN_PASS),
+      message: 'تم تسجيل الدخول بنجاح',
+    });
+  }
+
+  return res.status(401).json({ ok: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+}
 
 function verifyAdminToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
@@ -30,8 +71,10 @@ function verifyAdminToken(authHeader) {
 }
 
 function getSupabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    || process.env.SUPABASE_ANON_KEY
+    || process.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
@@ -53,14 +96,10 @@ function contentTypeForPath(path, blobType) {
 async function serveMediaProxy(req, res) {
   const source = typeof req.query?.src === 'string' ? req.query.src : '';
   const objectPath = source ? getAllowedSupabaseMediaPath(source) : null;
-  if (!objectPath) {
-    return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_SOURCE' });
-  }
+  if (!objectPath) return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_SOURCE' });
 
   const supabase = getSupabase();
-  if (!supabase) {
-    return res.status(503).json({ ok: false, error: 'SUPABASE_NOT_CONFIGURED' });
-  }
+  if (!supabase) return res.status(503).json({ ok: false, error: 'SUPABASE_NOT_CONFIGURED' });
 
   try {
     const bucket = process.env.SUPABASE_BUCKET || 'product-images';
@@ -72,7 +111,6 @@ async function serveMediaProxy(req, res) {
 
     const body = Buffer.from(await data.arrayBuffer());
     const contentType = contentTypeForPath(objectPath, data.type);
-
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', String(body.length));
     res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=31536000, stale-while-revalidate=604800');
@@ -92,6 +130,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  if (req.query?.auth === '1') return handleAdminAuth(req, res);
+
   if (req.method === 'GET' && req.query?.media === '1') {
     return serveMediaProxy(req, res);
   }
@@ -101,7 +141,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: false,
       error: 'SUPABASE_NOT_CONFIGURED',
-      message: 'أضف SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY في Vercel',
+      message: 'أضف SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY أو مفاتيح Supabase العامة في Vercel',
     });
   }
 
@@ -145,11 +185,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('id', { ascending: true });
-
+      const { data, error } = await supabase.from('products').select('*').order('id', { ascending: true });
       if (error) {
         console.error('[PRODUCTS] GET error:', error.message, error.code);
         const hint = error.code === '42P01'
@@ -159,7 +195,6 @@ export default async function handler(req, res) {
             : null;
         return res.status(200).json({ ok: false, error: error.message, code: error.code, hint });
       }
-
       res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600');
       return res.status(200).json({ ok: true, data: publicProducts(data) });
     } catch (e) {
@@ -167,9 +202,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
   let body = req.body;
   if (typeof body === 'string') {
@@ -178,18 +211,20 @@ export default async function handler(req, res) {
   if (!body || typeof body !== 'object') body = {};
 
   const action = body.action;
+  if (action === 'ai_assistant') return handleAiAssistant(res, supabase, body);
+
+  if (action === 'generate_landing_content') {
+    const admin = verifyAdminToken(req.headers.authorization);
+    return handleAiLandingGenerator(res, supabase, body, admin);
+  }
 
   if (action === 'seed') {
     const products = body.products;
     if (!Array.isArray(products) || products.length === 0) {
       return res.status(400).json({ ok: false, error: 'products array is required' });
     }
-
     try {
-      const { count, error: countErr } = await supabase
-        .from('products')
-        .select('id', { count: 'exact', head: true });
-
+      const { count, error: countErr } = await supabase.from('products').select('id', { count: 'exact', head: true });
       if (countErr) return res.status(200).json({ ok: false, error: countErr.message, code: countErr.code });
       if (count && count > 0) return res.status(200).json({ ok: true, message: 'already_seeded', count });
 
@@ -222,7 +257,6 @@ export default async function handler(req, res) {
   if (action === 'save') {
     const p = body.product;
     if (!p || !p.id) return res.status(400).json({ ok: false, error: 'product with id is required' });
-
     try {
       const { error } = await supabase.from('products').upsert({
         id: p.id,
@@ -239,7 +273,6 @@ export default async function handler(req, res) {
         badge: p.badge || null,
         updated_at: new Date().toISOString(),
       });
-
       if (error) return res.status(200).json({ ok: false, error: error.message });
       return res.status(200).json({ ok: true });
     } catch (e) {

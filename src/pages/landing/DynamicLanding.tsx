@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-// ── Types ────────────────────────────────────────────────────
 interface LandingPageData {
   id: string;
   title: string;
@@ -24,11 +23,12 @@ interface LandingPageData {
     stock: number;
     sales: number;
     benefits: string[];
+    contents?: string[];
+    level?: string;
     badge?: string;
   } | null;
 }
 
-// ── Facebook Pixel ───────────────────────────────────────────
 declare global {
   interface Window {
     fbq: (action: string, event: string, data?: object) => void;
@@ -39,17 +39,15 @@ const fbTrack = (event: string, data?: object) => {
   try {
     if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
       window.fbq('track', event, data);
-      console.log(`[FB Pixel] ✅ ${event}`, data || '');
     }
-  } catch { /* silent */ }
+  } catch {
+    // Analytics must never block the landing page.
+  }
 };
 
-// ── SEO helper ───────────────────────────────────────────────
 function setSEO(title: string, description: string, image?: string) {
-  // Title
   document.title = title;
 
-  // Meta description
   let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
   if (!metaDesc) {
     metaDesc = document.createElement('meta');
@@ -58,7 +56,6 @@ function setSEO(title: string, description: string, image?: string) {
   }
   metaDesc.content = description;
 
-  // Canonical — كل صفحة Landing لها رابطها الخاص، وليس رابط الصفحة الرئيسية
   let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
   if (!canonical) {
     canonical = document.createElement('link');
@@ -67,7 +64,6 @@ function setSEO(title: string, description: string, image?: string) {
   }
   canonical.href = window.location.href;
 
-  // Open Graph tags for Facebook/social sharing
   const ogTags: Record<string, string> = {
     'og:title': title,
     'og:description': description,
@@ -86,7 +82,6 @@ function setSEO(title: string, description: string, image?: string) {
     tag.content = content;
   });
 
-  // Twitter card
   const twitterTags: Record<string, string> = {
     'twitter:card': 'summary_large_image',
     'twitter:title': title,
@@ -105,7 +100,6 @@ function setSEO(title: string, description: string, image?: string) {
   });
 }
 
-// ── Shared Components ────────────────────────────────────────
 const Logo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
   const sizes = { sm: 'h-8 w-8', md: 'h-10 w-10', lg: 'h-16 w-16' };
   return (
@@ -113,20 +107,22 @@ const Logo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
       src="https://i.ibb.co/jkq94GGC/logo.jpg"
       alt="المعراج"
       className={`${sizes[size]} rounded-full object-contain`}
-      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      onError={(event) => { (event.target as HTMLImageElement).style.display = 'none'; }}
     />
   );
 };
 
-const socialLinks = [
-  { href: 'https://www.facebook.com/profile.php?id=100068623115888', bg: 'bg-#183C6B hover:bg-blue-700', label: 'فيسبوك', icon: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' },
-  { href: 'https://wa.me/213782272080', bg: 'bg-#183C6B hover:bg-#183C6B', label: 'واتساب', icon: 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z' },
-  { href: 'https://t.me/PrintinginAlgeria', bg: 'bg-sky-500 hover:bg-sky-600', label: 'تيليغرام', icon: 'M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z' },
-];
+function SectionTitle({ eyebrow, title, description }: { eyebrow?: string; title: string; description?: string }) {
+  return (
+    <div className="mx-auto mb-7 max-w-2xl text-center">
+      {eyebrow && <p className="mb-2 text-xs font-extrabold tracking-wide text-[#B88916]">{eyebrow}</p>}
+      <h2 className="text-2xl font-black text-[#0B1833] sm:text-3xl">{title}</h2>
+      {description && <p className="mt-2 text-sm leading-7 text-slate-500 sm:text-base">{description}</p>}
+      <span className="mx-auto mt-4 block h-1 w-14 rounded-full bg-[#D4AF37]" />
+    </div>
+  );
+}
 
-// ============================================================
-// DYNAMIC LANDING PAGE COMPONENT
-// ============================================================
 export default function DynamicLanding() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -135,9 +131,10 @@ export default function DynamicLanding() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [currentImage, setCurrentImage] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
   const pixelFired = useRef(false);
 
-  // ── Fetch landing page from API ────────────────────────────
   useEffect(() => {
     if (!slug) {
       setNotFound(true);
@@ -153,28 +150,20 @@ export default function DynamicLanding() {
 
     (async () => {
       try {
-        console.log(`[LP] 🔄 Fetching landing page: /api/landing-page/${slug}`);
-        const r = await fetch(`/api/landing-page/${encodeURIComponent(slug)}`);
-        const data = await r.json();
-
+        const response = await fetch(`/api/landing-page/${encodeURIComponent(slug)}`);
+        const data = await response.json();
         if (cancelled) return;
 
-        if (r.status === 404 || data.error === 'NOT_FOUND') {
-          console.log(`[LP] ❌ Not found: ${slug}`);
+        if (response.status === 404 || data.error === 'NOT_FOUND') {
           setNotFound(true);
           setSEO('صفحة غير موجودة | المعراج', 'عذراً، الصفحة المطلوبة غير موجودة');
         } else if (!data.ok) {
-          console.error(`[LP] ❌ API error:`, data.error);
           setError(data.message || data.error || 'فشل تحميل الصفحة');
         } else {
-          console.log(`[LP] ✅ Loaded:`, data.data.title);
           setPage(data.data);
         }
-      } catch (e) {
-        if (!cancelled) {
-          console.error(`[LP] 💥 Fetch error:`, e);
-          setError('تعذر الاتصال بالخادم — تحقق من اتصال الإنترنت');
-        }
+      } catch {
+        if (!cancelled) setError('تعذر الاتصال بالخادم — تحقق من اتصال الإنترنت');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -183,17 +172,13 @@ export default function DynamicLanding() {
     return () => { cancelled = true; };
   }, [slug]);
 
-  // ── Set SEO + Fire Pixel when page loaded ──────────────────
   useEffect(() => {
     if (!page) return;
-
-    // SEO
     const seoTitle = `${page.headline || page.title} | المعراج`;
     const seoDesc = page.description || page.headline || page.title;
     const seoImage = page.image_url || page.product?.images?.[0] || '';
     setSEO(seoTitle, seoDesc, seoImage);
 
-    // Facebook Pixel — ViewContent
     if (!pixelFired.current) {
       pixelFired.current = true;
       const pixelData: Record<string, unknown> = {
@@ -211,12 +196,11 @@ export default function DynamicLanding() {
     }
   }, [page]);
 
-  // ── Scroll to top ──────────────────────────────────────────
   useEffect(() => {
     window.scrollTo(0, 0);
+    setCurrentImage(0);
   }, [slug]);
 
-  // ── Resolve CTA URL ────────────────────────────────────────
   const resolveCTAUrl = (): string => {
     if (!page) return '/';
     if (page.cta_url && page.cta_url.trim()) return page.cta_url;
@@ -226,417 +210,378 @@ export default function DynamicLanding() {
 
   const handleCTAClick = () => {
     if (!page) return;
-
-    // Track CTA click
     const pixelData: Record<string, unknown> = {
       content_name: page.title,
       value: page.product?.price || 0,
       currency: 'DZD',
     };
-    if (page.product) {
-      pixelData.content_ids = [String(page.product.id)];
-    }
+    if (page.product) pixelData.content_ids = [String(page.product.id)];
     fbTrack('AddToWishlist', pixelData);
 
     const url = resolveCTAUrl();
-    if (url.startsWith('http')) {
-      window.open(url, '_blank');
-    } else {
-      navigate(url);
-    }
+    if (url.startsWith('http')) window.open(url, '_blank');
+    else navigate(url);
   };
 
-  // ── Determine display values (page overrides or product fallback) ──
-  const displayImage = page?.image_url || page?.product?.images?.[0] || '';
-  const displayHeadline = page?.headline || page?.product?.name || page?.title || '';
-  const displayDescription = page?.description || page?.product?.description || '';
-  const displayPrice = page?.product?.price;
-  const displayCTA = page?.cta_text || 'اشتري الآن';
   const product = page?.product;
+  const displayHeadline = page?.headline || product?.name || page?.title || '';
+  const displayDescription = page?.description || product?.description || '';
+  const displayPrice = product?.price;
+  const displayCTA = page?.cta_text || 'اطلب الآن';
+  const catEmoji = product?.category === 'تحضيري' ? '🎨' : product?.category === 'ابتدائي' ? '📚' : product?.category === 'متوسط' ? '🎓' : '📦';
 
-  // ════════════════════════════════════════════════════════════
-  // LOADING STATE
-  // ════════════════════════════════════════════════════════════
+  const gallery = useMemo(() => {
+    const values = [page?.image_url, ...(product?.images || [])].filter(Boolean) as string[];
+    return [...new Set(values)];
+  }, [page?.image_url, product?.images]);
+
+  const benefits = (product?.benefits || []).filter(Boolean).slice(0, 8);
+  const contents = (product?.contents || []).filter(Boolean).slice(0, 16);
+
+  const faqs = [
+    {
+      q: 'هل الدفع يكون عند الاستلام؟',
+      a: 'نعم، يمكنك إتمام الطلب والدفع عند استلامه. لا تحتاج إلى دفع قيمة المنتج مسبقًا.',
+    },
+    {
+      q: 'هل التوصيل متوفر لجميع الولايات؟',
+      a: 'نعم، التوصيل متوفر عبر شبكة التوصيل المعتمدة، وتظهر تكلفة التوصيل أثناء إتمام الطلب حسب الولاية والبلدية.',
+    },
+    {
+      q: 'هل هذا المنتج مناسب للمستوى المذكور؟',
+      a: product?.category
+        ? `المنتج مصنف في متجر المعراج ضمن طور ${product.category}${product.level ? ` (${product.level})` : ''}. راجع المحتوى الظاهر في الصفحة للتأكد من أنه يناسب احتياجك.`
+        : 'راجع اسم المنتج والمحتوى الظاهر في الصفحة، وإذا احتجت مساعدة يمكنك التواصل معنا قبل الطلب.',
+    },
+    {
+      q: 'كيف أطلب المنتج؟',
+      a: 'اضغط على زر «اطلب الآن» وسيتم نقلك مباشرة إلى مسار الطلب الخاص بالمنتج لإكمال بيانات التوصيل.',
+    },
+  ];
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center" dir="rtl">
-        <div className="text-center space-y-6">
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F8FA]" dir="rtl">
+        <div className="text-center">
           <Logo size="lg" />
-          <div className="flex items-center justify-center gap-3">
-            <div className="w-8 h-8 border-4 border-blue-200 border-t-#102A52rounded-full animate-spin" />
-            <span className="text-#102A52font-bold text-lg">جاري تحميل الصفحة...</span>
-          </div>
+          <div className="mx-auto mt-6 h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-[#D4AF37]" />
+          <p className="mt-4 font-bold text-[#0B1833]">جاري تحميل الصفحة...</p>
         </div>
       </div>
     );
   }
 
-  // ════════════════════════════════════════════════════════════
-  // 404 NOT FOUND
-  // ════════════════════════════════════════════════════════════
   if (notFound) {
     return (
-      <div className="min-h-screen bg-gray-50" dir="rtl">
-        {/* Header */}
-        <header className="bg-white shadow-md">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <button onClick={() => navigate('/')} className="flex items-center gap-3 hover:opacity-80 transition-all">
+      <div className="min-h-screen bg-[#F7F8FA]" dir="rtl">
+        <header className="border-b border-slate-100 bg-white">
+          <div className="mx-auto flex max-w-6xl items-center px-4 py-3">
+            <button onClick={() => navigate('/')} className="flex items-center gap-3">
               <Logo size="md" />
-              <div>
-                <h1 className="text-xl font-bold text-blue-800">المعراج</h1>
-                <p className="text-xs text-#183C6B">متجر تعليمي للأساتذة</p>
+              <div className="text-right">
+                <p className="font-black text-[#0B1833]">المعراج</p>
+                <p className="text-[11px] text-slate-500">متجر تعليمي للأساتذة</p>
               </div>
             </button>
           </div>
         </header>
-
-        <div className="flex items-center justify-center min-h-[70vh]">
-          <div className="text-center p-8 max-w-md">
-            <p className="text-8xl mb-6">🔍</p>
-            <h1 className="text-3xl font-bold text-gray-800 mb-3">404</h1>
-            <h2 className="text-xl font-bold text-gray-600 mb-2">صفحة غير موجودة</h2>
-            <p className="text-gray-500 mb-8">
-              عذراً، الصفحة <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-sm" dir="ltr">/l/{slug}</span> غير موجودة أو تم تعطيلها
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                onClick={() => navigate('/')}
-                className="bg-#102A52hover:bg-#0B1833text-white px-8 py-3 rounded-xl font-bold transition-all"
-              >
-                🏠 العودة للمتجر
-              </button>
-              <a
-                href="https://wa.me/213782272080"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-#183C6B hover:bg-#183C6B text-white px-8 py-3 rounded-xl font-bold transition-all text-center"
-              >
-                📱 تواصل معنا
-              </a>
-            </div>
+        <div className="flex min-h-[75vh] items-center justify-center px-4">
+          <div className="max-w-md text-center">
+            <p className="text-7xl">🔍</p>
+            <h1 className="mt-5 text-3xl font-black text-[#0B1833]">404</h1>
+            <h2 className="mt-2 text-xl font-bold text-slate-700">صفحة غير موجودة</h2>
+            <p className="mt-3 leading-7 text-slate-500">الصفحة المطلوبة غير موجودة أو تم تعطيلها من لوحة التحكم.</p>
+            <button onClick={() => navigate('/')} className="mt-7 rounded-xl bg-[#0B1833] px-7 py-3 font-bold text-white">العودة للمتجر</button>
           </div>
         </div>
-
-        {/* Minimal Footer */}
-        <footer className="bg-#071226 text-white py-6 px-4 text-center">
-          <p className="text-blue-400 text-sm">2024 المعراج - جميع الحقوق محفوظة 🇩🇿</p>
-        </footer>
       </div>
     );
   }
 
-  // ════════════════════════════════════════════════════════════
-  // ERROR STATE
-  // ════════════════════════════════════════════════════════════
   if (error || !page) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
-        <div className="text-center p-8 max-w-md">
-          <p className="text-6xl mb-4">⚠️</p>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">خطأ في تحميل الصفحة</h1>
-          <p className="text-gray-500 mb-6">{error || 'حدث خطأ غير متوقع'}</p>
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-#102A52hover:bg-#0B1833text-white px-8 py-3 rounded-xl font-bold transition-all"
-            >
-              🔄 إعادة المحاولة
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="border-2 border-gray-200 text-gray-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all"
-            >
-              🏠 العودة للمتجر
-            </button>
-          </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F8FA] px-4" dir="rtl">
+        <div className="max-w-md text-center">
+          <p className="text-6xl">⚠️</p>
+          <h1 className="mt-4 text-2xl font-black text-[#0B1833]">تعذر تحميل الصفحة</h1>
+          <p className="mt-2 text-slate-500">{error || 'حدث خطأ غير متوقع'}</p>
+          <button onClick={() => window.location.reload()} className="mt-6 rounded-xl bg-[#0B1833] px-7 py-3 font-bold text-white">إعادة المحاولة</button>
         </div>
       </div>
     );
   }
 
-  // ════════════════════════════════════════════════════════════
-  // LANDING PAGE RENDER
-  // ════════════════════════════════════════════════════════════
-  const catEmoji = product?.category === 'تحضيري' ? '🎨' : product?.category === 'ابتدائي' ? '📚' : product?.category === 'متوسط' ? '🎓' : '📦';
+  const heroImage = gallery[currentImage] || '';
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-
-      {/* ── HEADER ──────────────────────────────────────────── */}
-      <header className="bg-white shadow-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button onClick={() => navigate('/')} className="flex items-center gap-3 hover:opacity-80 transition-all">
+    <div className="min-h-screen bg-[#F7F8FA] pb-20 font-sans text-[#0B1833] md:pb-0" dir="rtl">
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:py-3">
+          <button onClick={() => navigate('/')} className="flex items-center gap-2.5">
             <Logo size="md" />
-            <div>
-              <h1 className="text-xl font-bold text-blue-800">المعراج</h1>
-              <p className="text-xs text-#183C6B">متجر تعليمي للأساتذة</p>
+            <div className="text-right leading-tight">
+              <p className="text-lg font-black text-[#0B1833]">المعراج</p>
+              <p className="text-[10px] text-slate-500 sm:text-xs">Al Miraj Education</p>
             </div>
           </button>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/')}
-              className="hidden md:flex items-center gap-2 text-gray-600 hover:text-#102A52font-bold text-sm transition-colors"
-            >
-              🛍️ تصفح المنتجات
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="bg-#102A52hover:bg-#0B1833text-white p-3 rounded-xl transition-all"
-            >
-              🛒
-            </button>
-          </div>
+          <button onClick={() => navigate('/')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[#0B1833] shadow-sm sm:px-4 sm:text-sm">
+            🛍️ تصفح المنتجات
+          </button>
         </div>
       </header>
 
-      {/* ── ANNOUNCEMENT BAR ──────────────────────────────────── */}
-      <div className="bg-#0B1833text-white text-center py-2 text-sm font-medium">
-        🎓 أداة تعليمية مبتكرة للأساتذة | 🚚 توصيل لجميع الولايات | 💵 الدفع عند الاستلام
+      <div className="bg-[#0B1833] px-3 py-2 text-center text-[11px] font-bold text-white sm:text-sm">
+        🚚 توصيل لجميع الولايات <span className="mx-2 text-[#D4AF37]">•</span> 💵 الدفع عند الاستلام
       </div>
 
-      {/* ── HERO SECTION ──────────────────────────────────────── */}
-      <section className="relative">
-        {/* Hero Image */}
-        {displayImage && (
-          <div className="relative h-[50vh] md:h-[60vh] overflow-hidden">
-            <img
-              src={displayImage}
-              alt={displayHeadline}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+      <main>
+        <section className="overflow-hidden bg-white">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 lg:grid-cols-2 lg:min-h-[610px]">
+            <div className="order-1 flex items-center px-4 py-7 sm:px-8 sm:py-10 lg:order-2 lg:px-14 lg:py-14">
+              <div className="w-full">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
+                  {product?.category && (
+                    <span className="rounded-full bg-[#FFF7DE] px-3 py-1.5 text-xs font-extrabold text-[#956A00]">
+                      {catEmoji} {product.category}
+                    </span>
+                  )}
+                  {product?.badge && (
+                    <span className="rounded-full bg-[#0B1833] px-3 py-1.5 text-xs font-bold text-white">{product.badge}</span>
+                  )}
+                </div>
 
-            {/* Overlay Content */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-              <div className="max-w-4xl mx-auto">
-                {product?.category && (
-                  <span className="inline-block bg-#183C6B text-white text-sm px-4 py-1.5 rounded-full font-bold mb-4">
-                    {catEmoji} {product.category}
-                  </span>
-                )}
-                <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight mb-4">
+                <h1 className="max-w-xl text-3xl font-black leading-[1.25] text-[#0B1833] sm:text-4xl lg:text-5xl">
                   {displayHeadline}
                 </h1>
-                {displayPrice && (
-                  <p className="text-2xl md:text-3xl font-bold text-amber-400">
-                    {displayPrice.toLocaleString()} <span className="text-lg">دج</span>
+
+                {displayDescription && (
+                  <p className="mt-5 line-clamp-5 max-w-xl whitespace-pre-line text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">
+                    {displayDescription}
                   </p>
                 )}
-              </div>
-            </div>
 
-            {/* Badges */}
-            {product?.badge && (
-              <span className="absolute top-6 right-6 bg-amber-500 text-white text-sm px-4 py-2 rounded-full font-bold shadow-lg">
-                {product.badge}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* No image — text-only hero */}
-        {!displayImage && (
-          <div className="bg-gradient-to-br from-#071226 via-#0B1833to-#102A52text-white py-20 px-4">
-            <div className="max-w-4xl mx-auto text-center">
-              {product?.category && (
-                <span className="inline-block bg-white/20 text-white text-sm px-4 py-1.5 rounded-full font-bold mb-4">
-                  {catEmoji} {product.category}
-                </span>
-              )}
-              <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-4">
-                {displayHeadline}
-              </h1>
-              {displayPrice && (
-                <p className="text-2xl md:text-3xl font-bold text-amber-400">
-                  {displayPrice.toLocaleString()} <span className="text-lg">دج</span>
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ── MAIN CONTENT ──────────────────────────────────────── */}
-      <section className="max-w-4xl mx-auto px-4 py-12">
-        <div className="space-y-8">
-
-          {/* Description */}
-          {displayDescription && (
-            <div className="bg-white rounded-2xl shadow-md p-6 md:p-8">
-              <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line">
-                {displayDescription}
-              </p>
-            </div>
-          )}
-
-          {/* Product Details (if linked) */}
-          {product && (
-            <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-              <div className="grid grid-cols-1 md:grid-cols-2">
-                {/* Product Image */}
-                {product.images?.[0] && product.images[0] !== displayImage && (
-                  <div className="h-64 md:h-auto">
-                    <img
-                      src={product.images[0]}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
+                {displayPrice != null && (
+                  <div className="mt-6 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-2xl border border-[#E7D7A8] bg-[#FFFDF6] p-4 sm:p-5">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400">السعر</p>
+                      <p className="mt-1 text-3xl font-black text-[#0B1833] sm:text-4xl">
+                        {displayPrice.toLocaleString()} <span className="text-base font-bold">دج</span>
+                      </p>
+                    </div>
+                    {product && (
+                      <p className={`mb-1 rounded-full px-3 py-1 text-xs font-bold ${product.stock > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                        {product.stock > 0 ? '✓ متوفر' : 'غير متوفر حاليًا'}
+                      </p>
+                    )}
                   </div>
                 )}
 
-                {/* Product Info */}
-                <div className="p-6 md:p-8 space-y-4">
-                  <h2 className="text-2xl font-bold text-gray-800">{product.name}</h2>
-
-                  {/* Price Box */}
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">السعر</p>
-                        <p className="text-3xl font-bold text-blue-700">
-                          {product.price.toLocaleString()} <span className="text-base">دج</span>
-                        </p>
-                      </div>
-                      <div className="text-left">
-                        <p className={`font-bold text-sm ${product.stock > 10 ? 'text-#183C6B' : product.stock > 0 ? 'text-amber-600' : 'text-red-600'}`}>
-                          {product.stock > 10 ? '✅ متوفر' : product.stock > 0 ? `⚠️ ${product.stock} فقط` : '❌ نفذ'}
-                        </p>
-                        {product.sales > 0 && (
-                          <p className="text-gray-400 text-xs mt-1">📊 {product.sales}+ مبيعات</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Benefits */}
-                  {product.benefits && product.benefits.length > 0 && (
-                    <div>
-                      <h3 className="font-bold text-#0B1833mb-2">✅ الفوائد التعليمية</h3>
-                      <ul className="space-y-2">
-                        {product.benefits.map((b, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="bg-blue-100 text-#183C6B w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
-                              {i + 1}
-                            </span>
-                            <span className="text-gray-700 text-sm">{b}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* CTA inside product card */}
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <button
                     onClick={handleCTAClick}
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                    disabled={product?.stock === 0}
+                    className="rounded-xl bg-[#D4AF37] px-6 py-4 text-base font-black text-[#0B1833] shadow-lg shadow-[#D4AF37]/20 transition hover:-translate-y-0.5 hover:bg-[#E2BF52] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 sm:text-lg"
                   >
-                    ⚡ {displayCTA}
+                    🛒 {displayCTA}
                   </button>
+                  <button
+                    onClick={() => document.getElementById('details')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="rounded-xl border-2 border-[#0B1833] bg-white px-6 py-4 text-base font-black text-[#0B1833] transition hover:bg-slate-50"
+                  >
+                    شاهد التفاصيل
+                  </button>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+                  {[
+                    ['🚚', 'توصيل', 'لكل الولايات'],
+                    ['💵', 'الدفع', 'عند الاستلام'],
+                    ['🔒', 'طلب آمن', 'بياناتك محفوظة'],
+                  ].map(([icon, title, sub]) => (
+                    <div key={title} className="rounded-xl bg-slate-50 px-2 py-3">
+                      <span className="text-xl">{icon}</span>
+                      <p className="mt-1 text-[11px] font-extrabold text-[#0B1833] sm:text-xs">{title}</p>
+                      <p className="mt-0.5 text-[9px] text-slate-400 sm:text-[10px]">{sub}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Primary CTA (always visible) */}
-          <div className="bg-gradient-to-r from-#102A52to-#0B1833rounded-2xl p-8 text-center text-white shadow-xl">
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">
-              {product ? `🎓 احصل على ${product.name} الآن` : '🎓 اطلب الآن'}
-            </h2>
-            <p className="text-blue-100 mb-6 text-lg">
-              توصيل لجميع ولايات الجزائر — الدفع عند الاستلام
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={handleCTAClick}
-                className="bg-amber-500 hover:bg-amber-600 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all shadow-lg"
-              >
-                ⚡ {displayCTA}
-              </button>
-              <a
-                href="https://wa.me/213782272080"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-#183C6B hover:bg-#183C6B text-white px-8 py-4 rounded-xl font-bold transition-all text-center"
-              >
-                📱 تواصل عبر واتساب
-              </a>
+            <div className="order-2 bg-[#EEF2F7] p-3 sm:p-6 lg:order-1 lg:flex lg:items-center lg:justify-center lg:p-8">
+              <div className="w-full max-w-2xl">
+                <div className="overflow-hidden rounded-2xl bg-white shadow-xl shadow-slate-900/10">
+                  {heroImage ? (
+                    <img src={heroImage} alt={displayHeadline} className="aspect-[4/3] w-full object-cover sm:aspect-square lg:aspect-[4/3]" />
+                  ) : (
+                    <div className="flex aspect-[4/3] items-center justify-center text-6xl">📦</div>
+                  )}
+                </div>
+                {gallery.length > 1 && (
+                  <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                    {gallery.slice(0, 8).map((image, index) => (
+                      <button
+                        key={`${image}-${index}`}
+                        onClick={() => setCurrentImage(index)}
+                        className={`h-16 w-16 flex-none overflow-hidden rounded-xl border-2 bg-white p-0.5 transition sm:h-20 sm:w-20 ${currentImage === index ? 'border-[#D4AF37] shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                      >
+                        <img src={image} alt={`صورة ${index + 1}`} className="h-full w-full rounded-lg object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        </section>
 
-          {/* Trust Badges */}
-          <div className="grid grid-cols-3 gap-4">
+        <section className="border-y border-slate-100 bg-white px-4 py-5">
+          <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { icon: '🚚', label: 'توصيل لكل الولايات', desc: '58 ولاية' },
-              { icon: '💵', label: 'الدفع عند الاستلام', desc: 'لا دفع مسبق' },
-              { icon: '✅', label: 'جودة مضمونة', desc: 'إرجاع مجاني' },
-            ].map((badge, i) => (
-              <div key={i} className="bg-white rounded-xl p-4 text-center shadow-sm border border-gray-100">
-                <span className="text-3xl block mb-2">{badge.icon}</span>
-                <span className="text-sm font-bold text-gray-700 block">{badge.label}</span>
-                <span className="text-xs text-gray-400">{badge.desc}</span>
+              ['🧲', 'جاهز للاستعمال', 'وسيلة عملية داخل القسم'],
+              ['✨', 'تصميم واضح', 'محتوى بصري منظم'],
+              ['📚', 'مخصص للأستاذ', 'يسهل التقديم والمراجعة'],
+              ['🇩🇿', 'من المعراج', 'منتج تعليمي جزائري'],
+            ].map(([icon, title, sub]) => (
+              <div key={title} className="rounded-2xl border border-slate-100 bg-[#FAFBFC] p-4 text-center">
+                <span className="text-2xl">{icon}</span>
+                <p className="mt-2 text-sm font-black text-[#0B1833]">{title}</p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-400">{sub}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── FOOTER ────────────────────────────────────────────── */}
-      <footer className="bg-#071226 text-white py-10 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <Logo size="sm" />
-                <div>
-                  <h3 className="font-bold text-lg">المعراج</h3>
-                  <p className="text-blue-300 text-xs">متجر تعليمي للأساتذة</p>
-                </div>
+        {(contents.length > 0 || benefits.length > 0) && (
+          <section id="details" className="px-4 py-12 sm:py-16">
+            <div className="mx-auto max-w-6xl">
+              <SectionTitle eyebrow="كل ما تحتاج معرفته" title="ماذا ستجد في المنتج؟" description="المعلومات التالية مأخوذة مباشرة من بيانات المنتج في متجر المعراج." />
+              <div className={`grid gap-5 ${contents.length > 0 && benefits.length > 0 ? 'lg:grid-cols-2' : 'mx-auto max-w-3xl'}`}>
+                {contents.length > 0 && (
+                  <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+                    <div className="mb-5 flex items-center gap-3">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FFF7DE] text-xl">📦</span>
+                      <div>
+                        <h3 className="text-xl font-black text-[#0B1833]">محتويات المنتج</h3>
+                        <p className="text-xs text-slate-400">منظمة وسهلة القراءة</p>
+                      </div>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {contents.map((item, index) => (
+                        <div key={`${item}-${index}`} className="flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-700">
+                          <span className="mt-0.5 font-black text-[#D4AF37]">✓</span>
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {benefits.length > 0 && (
+                  <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+                    <div className="mb-5 flex items-center gap-3">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EAF1FA] text-xl">🎯</span>
+                      <div>
+                        <h3 className="text-xl font-black text-[#0B1833]">لماذا يفيد الأستاذ؟</h3>
+                        <p className="text-xs text-slate-400">الفوائد المسجلة لهذا المنتج</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2.5">
+                      {benefits.map((benefit, index) => (
+                        <div key={`${benefit}-${index}`} className="flex items-start gap-3 rounded-xl border border-slate-100 px-3 py-3">
+                          <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#0B1833] text-[11px] font-black text-white">{index + 1}</span>
+                          <span className="text-sm leading-6 text-slate-700">{benefit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="text-blue-300 text-sm">أدوات مساعدة لإعداد الدروس وتفعيل التلاميذ</p>
             </div>
-            <div>
-              <h4 className="font-bold mb-3 text-amber-400">تواصل معنا</h4>
-              <div className="space-y-2 text-blue-300 text-sm">
-                <p>📞 <a href="tel:0564234231" className="hover:text-white">0564234231</a></p>
-                <p>📧 <a href="mailto:contact@almiraj.dz" className="hover:text-white">contact@almiraj.dz</a></p>
-                <p>📍 الجزائر العاصمة، الجزائر 🇩🇿</p>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-bold mb-3 text-amber-400">تابعنا</h4>
-              <div className="flex gap-3 flex-wrap">
-                {socialLinks.map((s, i) => (
-                  <a key={i} href={s.href} target="_blank" rel="noopener noreferrer" className={`${s.bg} p-2.5 rounded-xl transition-all`}>
-                    <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d={s.icon} /></svg>
-                  </a>
+          </section>
+        )}
+
+        {gallery.length > 1 && (
+          <section className="bg-white px-4 py-12 sm:py-16">
+            <div className="mx-auto max-w-6xl">
+              <SectionTitle eyebrow="شاهد المنتج عن قرب" title="معرض صور المنتج" />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {gallery.slice(0, 8).map((image, index) => (
+                  <button key={`${image}-gallery-${index}`} onClick={() => { setCurrentImage(index); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="group overflow-hidden rounded-2xl bg-slate-100 shadow-sm">
+                    <img src={image} alt={`${displayHeadline} - صورة ${index + 1}`} className="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" />
+                  </button>
                 ))}
               </div>
             </div>
+          </section>
+        )}
+
+        <section className="px-4 py-12 sm:py-16">
+          <div className="mx-auto max-w-5xl">
+            <SectionTitle eyebrow="معلومات قبل الطلب" title="أسئلة شائعة" />
+            <div className="space-y-3">
+              {faqs.map((faq, index) => (
+                <div key={faq.q} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                  <button onClick={() => setOpenFaq(openFaq === index ? null : index)} className="flex w-full items-center justify-between gap-4 px-4 py-4 text-right sm:px-6">
+                    <span className="font-extrabold text-[#0B1833]">{faq.q}</span>
+                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-slate-50 text-lg font-bold text-[#0B1833]">{openFaq === index ? '−' : '+'}</span>
+                  </button>
+                  {openFaq === index && <p className="border-t border-slate-100 px-4 py-4 text-sm leading-7 text-slate-600 sm:px-6">{faq.a}</p>}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="border-t border-#102A52pt-6 text-center">
-            <p className="text-blue-400 text-sm">2024 المعراج - جميع الحقوق محفوظة 🇩🇿</p>
+        </section>
+
+        <section className="px-4 pb-14 sm:pb-20">
+          <div className="mx-auto max-w-6xl overflow-hidden rounded-[28px] bg-[#0B1833] px-5 py-8 text-white shadow-xl sm:px-10 sm:py-10">
+            <div className="flex flex-col items-center justify-between gap-6 text-center md:flex-row md:text-right">
+              <div>
+                <p className="text-sm font-bold text-[#D4AF37]">جاهز للطلب؟</p>
+                <h2 className="mt-2 text-2xl font-black sm:text-3xl">{product?.name || displayHeadline}</h2>
+                <p className="mt-2 text-sm text-slate-300">التوصيل متوفر والدفع عند الاستلام.</p>
+              </div>
+              <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
+                {displayPrice != null && <p className="whitespace-nowrap text-2xl font-black text-white">{displayPrice.toLocaleString()} دج</p>}
+                <button onClick={handleCTAClick} disabled={product?.stock === 0} className="w-full rounded-xl bg-[#D4AF37] px-8 py-4 font-black text-[#0B1833] transition hover:bg-[#E2BF52] disabled:bg-slate-600 disabled:text-slate-300 sm:w-auto">
+                  🛒 {displayCTA}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="bg-[#071226] px-4 py-8 text-white">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 border-b border-white/10 pb-6 text-center sm:flex-row sm:text-right">
+          <div className="flex items-center gap-3">
+            <Logo size="sm" />
+            <div>
+              <p className="font-black">المعراج</p>
+              <p className="text-xs text-slate-400">Al Miraj Education</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-center gap-4 text-sm text-slate-300">
+            <a href="https://wa.me/213782272080" target="_blank" rel="noopener noreferrer" className="hover:text-white">واتساب</a>
+            <button onClick={() => navigate('/')} className="hover:text-white">المتجر</button>
           </div>
         </div>
+        <p className="mx-auto mt-5 max-w-6xl text-center text-xs text-slate-500">المعراج للوسائل التعليمية — جميع الحقوق محفوظة</p>
       </footer>
 
-      {/* ── STICKY BOTTOM CTA (Mobile) ───────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-100 p-3 flex gap-2 md:hidden z-40 shadow-2xl">
-        <button
-          onClick={handleCTAClick}
-          className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1"
-        >
-          ⚡ {displayCTA}
-        </button>
-        <a
-          href="https://wa.me/213782272080"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-#183C6B hover:bg-#183C6B text-white px-4 py-3 rounded-xl font-bold transition-all flex items-center justify-center"
-        >
-          📱
-        </a>
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 p-2.5 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur md:hidden">
+        <div className="mx-auto flex max-w-md items-center gap-3">
+          {displayPrice != null && (
+            <div className="min-w-[92px] text-center">
+              <p className="text-[10px] font-bold text-slate-400">السعر</p>
+              <p className="text-lg font-black text-[#0B1833]">{displayPrice.toLocaleString()} <span className="text-xs">دج</span></p>
+            </div>
+          )}
+          <button onClick={handleCTAClick} disabled={product?.stock === 0} className="flex-1 rounded-xl bg-[#D4AF37] py-3.5 text-sm font-black text-[#0B1833] disabled:bg-slate-200 disabled:text-slate-500">
+            🛒 {displayCTA}
+          </button>
+        </div>
       </div>
-      <div className="h-16 md:hidden" />
     </div>
   );
 }

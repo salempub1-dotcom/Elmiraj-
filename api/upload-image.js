@@ -1,7 +1,10 @@
 // ============================================================
-// Secure Image Upload — Vercel Serverless Function
+// Secure Media Upload — Vercel Serverless Function
 // ============================================================
-// ONLY admin can upload. Uses Supabase SERVICE_ROLE key (server-side).
+// Images still upload through this function after compression.
+// Product videos use a short-lived Supabase signed upload URL so the
+// binary never passes through Vercel (important for 15MB video files).
+// ONLY admin can create upload/delete URLs. SERVICE_ROLE stays server-side.
 // ============================================================
 
 import { createHmac, randomBytes } from 'node:crypto';
@@ -9,6 +12,9 @@ import { createClient } from '@supabase/supabase-js';
 import { toMediaProxyUrl } from '../lib/mediaProxy.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
+
+const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
+const VIDEO_TYPES = new Set(['video/mp4', 'video/webm']);
 
 function verifyAdminToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
@@ -44,6 +50,26 @@ function getServiceClient() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
+function safeVideoPath(path) {
+  return typeof path === 'string'
+    && path.startsWith('products/')
+    && !path.includes('..')
+    && path.length < 300;
+}
+
+async function ensureVideoBucket(supabase, bucket) {
+  const { data, error } = await supabase.storage.getBucket(bucket);
+  if (!error && data) return { ok: true };
+
+  const created = await supabase.storage.createBucket(bucket, {
+    public: true,
+    fileSizeLimit: MAX_VIDEO_BYTES,
+    allowedMimeTypes: [...VIDEO_TYPES],
+  });
+  if (created.error) return { ok: false, error: created.error.message };
+  return { ok: true };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -60,7 +86,8 @@ export default async function handler(req, res) {
   }
   if (!body || typeof body !== 'object') body = {};
 
-  const BUCKET = process.env.SUPABASE_BUCKET || 'product-images';
+  const IMAGE_BUCKET = process.env.SUPABASE_BUCKET || 'product-images';
+  const VIDEO_BUCKET = process.env.SUPABASE_VIDEO_BUCKET || 'product-videos';
 
   if (body.action === 'health') {
     const supabase = getServiceClient();
@@ -68,11 +95,80 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, supabase_configured: false, error: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured' });
     }
     try {
-      const { error } = await supabase.storage.from(BUCKET).list('products', { limit: 1 });
+      const { error } = await supabase.storage.from(IMAGE_BUCKET).list('products', { limit: 1 });
       if (error) return res.status(200).json({ ok: false, supabase_configured: true, error: error.message });
-      return res.status(200).json({ ok: true, supabase_configured: true, bucket: BUCKET, mode: 'service_role', message: '✅ Supabase Storage connected (server-side)' });
+      return res.status(200).json({ ok: true, supabase_configured: true, bucket: IMAGE_BUCKET, video_bucket: VIDEO_BUCKET, mode: 'service_role', message: '✅ Supabase Storage connected (server-side)' });
     } catch (e) {
       return res.status(200).json({ ok: false, supabase_configured: true, error: e.message });
+    }
+  }
+
+  // Video uploads go straight from the admin browser to a dedicated PUBLIC
+  // read bucket. Only creation of the signed upload URL is authenticated.
+  // This gives the storefront native video streaming/range requests without
+  // routing a 15MB file through Vercel or the database.
+  if (body.action === 'create_video_upload') {
+    const contentType = String(body.content_type || '').toLowerCase();
+    const size = Number(body.size || 0);
+    if (!VIDEO_TYPES.has(contentType)) {
+      return res.status(400).json({ ok: false, error: 'الفيديو يجب أن يكون MP4 أو WebM' });
+    }
+    if (!Number.isFinite(size) || size <= 0 || size > MAX_VIDEO_BYTES) {
+      return res.status(400).json({ ok: false, error: 'حجم الفيديو يجب أن لا يتجاوز 15MB' });
+    }
+
+    const supabase = getServiceClient();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'Supabase غير مُكوّن على الخادم' });
+
+    try {
+      const bucketStatus = await ensureVideoBucket(supabase, VIDEO_BUCKET);
+      if (!bucketStatus.ok) {
+        return res.status(200).json({ ok: false, error: `تعذر تجهيز مساحة الفيديو: ${bucketStatus.error}` });
+      }
+
+      const timestamp = Date.now();
+      const random = randomBytes(5).toString('hex');
+      const ext = contentType === 'video/webm' ? 'webm' : 'mp4';
+      const filePath = `products/${timestamp}-${random}.${ext}`;
+      const { data, error } = await supabase.storage.from(VIDEO_BUCKET).createSignedUploadUrl(filePath, { upsert: false });
+      if (error || !data?.signedUrl) {
+        return res.status(200).json({ ok: false, error: `فشل تجهيز رفع الفيديو: ${error?.message || 'signed URL unavailable'}` });
+      }
+      const { data: publicData } = supabase.storage.from(VIDEO_BUCKET).getPublicUrl(filePath);
+      return res.status(200).json({
+        ok: true,
+        signed_url: data.signedUrl,
+        token: data.token,
+        path: filePath,
+        canonical_url: publicData.publicUrl,
+        bucket: VIDEO_BUCKET,
+        max_bytes: MAX_VIDEO_BYTES,
+      });
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: `خطأ في تجهيز الفيديو: ${e.message}` });
+    }
+  }
+
+  if (body.action === 'video_playback_url') {
+    const path = String(body.path || '');
+    if (!safeVideoPath(path)) return res.status(400).json({ ok: false, error: 'مسار فيديو غير صالح' });
+    const supabase = getServiceClient();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'Supabase غير مُكوّن على الخادم' });
+    const { data } = supabase.storage.from(VIDEO_BUCKET).getPublicUrl(path);
+    return res.status(200).json({ ok: true, url: data.publicUrl });
+  }
+
+  if (body.action === 'delete_video') {
+    const path = String(body.path || '');
+    if (!safeVideoPath(path)) return res.status(400).json({ ok: false, error: 'مسار فيديو غير صالح' });
+    const supabase = getServiceClient();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'Supabase غير مُكوّن على الخادم' });
+    try {
+      const { error } = await supabase.storage.from(VIDEO_BUCKET).remove([path]);
+      if (error) return res.status(200).json({ ok: false, error: error.message });
+      return res.status(200).json({ ok: true, deleted: path });
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: e.message });
     }
   }
 
@@ -95,7 +191,7 @@ export default async function handler(req, res) {
     const ext = (content_type || 'image/jpeg').includes('png') ? 'png' : 'jpg';
     const filePath = `products/${timestamp}-${random}.${ext}`;
 
-    const { data, error } = await supabase.storage.from(BUCKET).upload(filePath, buffer, {
+    const { data, error } = await supabase.storage.from(IMAGE_BUCKET).upload(filePath, buffer, {
       contentType: content_type || 'image/jpeg',
       cacheControl: '31536000',
       upsert: false,
@@ -106,9 +202,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, error: `فشل رفع الصورة: ${error.message}` });
     }
 
-    // Keep the canonical storage URL internally, but only expose the Vercel
-    // media proxy to the browser. This works whether the bucket is public or private.
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
+    const { data: urlData } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(data.path);
     const canonicalUrl = urlData.publicUrl;
     const proxyUrl = toMediaProxyUrl(canonicalUrl);
 

@@ -8,15 +8,68 @@ const PURCHASE_SOUND_LABELS = [
   'Buy Now',
 ];
 
+const STORE_PURCHASE_FLOW_LABELS = [
+  ...PURCHASE_SOUND_LABELS,
+  'إتمام الطلب',
+  'اتمام الطلب',
+  'إكمال الطلب',
+  'اكمال الطلب',
+  'تأكيد الطلب',
+  'تاكيد الطلب',
+  'اطلب الآن',
+  'اطلب الان',
+  'Order Now',
+  'Checkout',
+  'Place Order',
+];
+
 function isPublicStorefront() {
   if (typeof window === 'undefined') return false;
   const path = window.location.pathname.toLowerCase();
   return !path.startsWith('/admin') && !path.startsWith('/dashboard');
 }
 
+function getButtonLabel(button: HTMLButtonElement) {
+  return (button.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
 function shouldKeepOriginalSound(button: HTMLButtonElement) {
-  const label = (button.textContent || '').replace(/\s+/g, ' ').trim();
+  const label = getButtonLabel(button);
   return PURCHASE_SOUND_LABELS.some(text => label.includes(text));
+}
+
+function isStorePurchaseFlowButton(button: HTMLButtonElement) {
+  // The assistant has its own checkout controls. Those must never close
+  // the assistant while the customer is ordering inside the chat itself.
+  if (button.closest('.miraj-ai')) return false;
+
+  const label = getButtonLabel(button);
+  return STORE_PURCHASE_FLOW_LABELS.some(text => label.includes(text));
+}
+
+function closeAssistantPanel() {
+  const panel = document.querySelector<HTMLElement>('.miraj-ai__panel');
+  if (!panel) return;
+
+  // Use the assistant's existing React close button so its internal `open`
+  // state stays correct. Do not manipulate panel CSS directly.
+  const closeButton = panel.querySelector<HTMLButtonElement>('.miraj-ai__header > button');
+  closeButton?.click();
+}
+
+function installAssistantAutoClose() {
+  document.addEventListener('click', event => {
+    if (!isPublicStorefront()) return;
+
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const button = target.closest('button');
+    if (!(button instanceof HTMLButtonElement)) return;
+    if (!isStorePurchaseFlowButton(button)) return;
+
+    closeAssistantPanel();
+  }, true);
 }
 
 function markPurchaseButtons(root: ParentNode = document) {
@@ -41,6 +94,8 @@ export function installPurchaseSoundIsolation() {
   } else {
     run();
   }
+
+  installAssistantAutoClose();
 
   const startObserver = () => {
     if (!document.body) return;

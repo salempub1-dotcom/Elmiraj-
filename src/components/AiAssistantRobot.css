@@ -1,0 +1,122 @@
+.miraj-ai__launcher {
+  width: 64px !important;
+  height: 72px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  background-image: url('/images/assistant-robot.svg') !important;
+  background-size: contain !important;
+  background-position: center bottom !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  filter: drop-shadow(0 8px 10px rgba(5, 22, 45, 0.28));
+}
+
+.miraj-ai__launcher:hover {
+  filter: drop-shadow(0 10px 12px rgba(5, 22, 45, 0.34)) brightness(1.04) !important;
+}
+
+.miraj-ai__launcher:active {
+  filter: drop-shadow(0 5px 7px rgba(5, 22, 45, 0.24)) brightness(0.98) !important;
+}
+
+/* Two-step welcome while the assistant is closed. */
+.miraj-ai__launcher[aria-expanded="false"]::after,
+.miraj-ai__launcher[aria-expanded="false"]::before {
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: calc(100% + 10px);
+  width: max-content;
+  max-width: min(250px, calc(100vw - 42px));
+  padding: 9px 12px;
+  border: 1px solid rgba(11, 24, 51, 0.1);
+  border-radius: 14px 14px 4px 14px;
+  background: #fff;
+  color: #0b1833;
+  box-shadow: 0 10px 28px rgba(11, 24, 51, 0.16);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: right;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(5px) scale(0.96);
+  transform-origin: bottom right;
+}
+
+.miraj-ai__launcher[aria-expanded="false"]::after {
+  content: 'مرحبًا 👋 أنا مساعدك الخاص في المعراج.';
+  animation: mirajGreetingOne 8.2s ease 1.6s 1 both !important;
+}
+
+.miraj-ai__launcher[aria-expanded="false"]::before {
+  content: 'كيف نقدر نساعدك؟';
+  animation: mirajGreetingTwo 10.8s ease 1.6s 1 both !important;
+}
+
+@keyframes mirajGreetingOne {
+  0%, 8% { opacity: 0; transform: translateY(5px) scale(0.96); }
+  14%, 38% { opacity: 1; transform: translateY(0) scale(1); }
+  46%, 100% { opacity: 0; transform: translateY(4px) scale(0.98); }
+}
+
+@keyframes mirajGreetingTwo {
+  0%, 49% { opacity: 0; transform: translateY(5px) scale(0.96); }
+  57%, 78% { opacity: 1; transform: translateY(0) scale(1); }
+  86%, 100% { opacity: 0; transform: translateY(4px) scale(0.98); }
+}
+
+/* Open state: stop floating and switch to a smaller smiling robot face. */
+.miraj-ai__launcher[aria-expanded="true"] {
+  width: 54px !important;
+  height: 54px !important;
+  background-image: url('/images/assistant-robot-face.svg') !important;
+  background-position: center !important;
+  animation: none !important;
+  transform: none !important;
+  filter: drop-shadow(0 6px 8px rgba(5, 22, 45, 0.22)) !important;
+}
+
+.miraj-ai__launcher[aria-expanded="true"]::after,
+.miraj-ai__launcher[aria-expanded="true"]::before {
+  display: none !important;
+  animation: none !important;
+  content: none !important;
+}
+
+.miraj-ai__launcher[aria-expanded="true"]:hover {
+  animation: none !important;
+  transform: none !important;
+  filter: drop-shadow(0 7px 9px rgba(5, 22, 45, 0.26)) brightness(1.03) !important;
+}
+
+@media (max-width: 520px) {
+  .miraj-ai__launcher {
+    width: 50px !important;
+    height: 57px !important;
+    background-size: contain !important;
+  }
+
+  .miraj-ai__launcher[aria-expanded="false"]::after,
+  .miraj-ai__launcher[aria-expanded="false"]::before {
+    font-size: 11px;
+    max-width: calc(100vw - 34px);
+    white-space: normal;
+  }
+
+  .miraj-ai__launcher[aria-expanded="true"] {
+    width: 44px !important;
+    height: 44px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miraj-ai__launcher,
+  .miraj-ai__launcher::after,
+  .miraj-ai__launcher::before {
+    animation: none !important;
+  }
+}

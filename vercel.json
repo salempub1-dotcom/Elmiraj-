@@ -5,6 +5,7 @@
   "rewrites": [
     { "source": "/api/noest", "destination": "/api/noest" },
     { "source": "/api/auth", "destination": "/api/auth" },
+    { "source": "/api/app-orders", "destination": "/api/auth?route=app-orders" },
     { "source": "/api/upload-image", "destination": "/api/upload-image" },
     { "source": "/api/delete-image", "destination": "/api/delete-image" },
     { "source": "/api/products", "destination": "/api/products" },

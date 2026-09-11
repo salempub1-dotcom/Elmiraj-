@@ -44,8 +44,12 @@
 <meta name="twitter:image" content="https://elm3raj.com/og-image.jpg" />
 
 <!-- ============================================================ -->
-<!-- Facebook Pixel — Full E-Commerce + Catalog Integration -->
-<!-- Pixel ID: 1334972781253779 (Elmiraj Store) -->
+<!-- Meta Pixel — Dual E-Commerce Tracking -->
+<!-- Existing Pixel: 1334972781253779 (Elmiraj Store) -->
+<!-- New Pixel:      1647750393620422 (Taha Maar) -->
+<!-- `track` events are broadcast to every initialized Pixel, so the
+     existing ViewContent / AddToCart / InitiateCheckout / Purchase
+     calls in the React app are received by both datasets. -->
 <!-- ============================================================ -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -57,15 +61,18 @@ t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '1334972781253779');
+fbq('init', '1647750393620422');
 fbq('track', 'PageView');
 </script>
 <!-- ============================================================ -->
 </head>
 <body>
-<!-- Facebook Pixel noscript fallback -->
+<!-- Meta Pixel noscript fallbacks for both datasets -->
 <noscript>
 <img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=1334972781253779&ev=PageView&noscript=1"/>
+<img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1647750393620422&ev=PageView&noscript=1"/>
 </noscript>
 <div id="root"></div>
 <script type="module" src="/src/main.tsx"></script>

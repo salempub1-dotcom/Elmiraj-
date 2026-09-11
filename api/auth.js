@@ -1,13 +1,16 @@
 // ============================================================
 // Admin Authentication — Vercel Serverless Function
+// Also proxies /api/app-orders through this existing function so the
+// Hobby deployment stays within the project function limit.
 // ============================================================
 // Env vars: ADMIN_USERNAME, ADMIN_PASSWORD
 // Token: HMAC-signed, 24h expiry, verifiable by other API routes
 // ============================================================
 
 import { createHmac } from 'node:crypto';
+import { handleAppOrders } from '../lib/appOrders.js';
 
-export const config = { api: { bodyParser: true } };
+export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
 /**
  * Create an HMAC-signed admin token.
@@ -24,6 +27,12 @@ function createToken(username, secret) {
 }
 
 export default async function handler(req, res) {
+  // /api/app-orders is rewritten to /api/auth?route=app-orders in vercel.json.
+  // Keep the public route stable while reusing this already-counted Vercel Function.
+  if (req.query?.route === 'app-orders') {
+    return handleAppOrders(req, res);
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
